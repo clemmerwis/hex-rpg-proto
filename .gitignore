@@ -1,0 +1,11 @@
+# Ignore everything
+*
+
+# But not these files...
+!*.html
+!*.js
+!*.css
+!.gitignore
+
+# ...even if they are in subdirectories
+!*/
