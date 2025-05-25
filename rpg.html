@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,59 +12,96 @@
             background-color: #1a1a1a;
             display: flex;
             justify-content: center;
-            align-items: center;
-            min-height: 100vh;
+            align-items: flex-start;
+            height: 100vh;
             font-family: Arial, sans-serif;
+            overflow: hidden;
+            /* Prevent any scrolling */
         }
-        
-        #gameContainer {
-            position: relative;
-            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
-        }
-        
+
         #gameCanvas {
+            margin-top: 20px;
             border: 2px solid #333;
             cursor: pointer;
             display: block;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
         }
-        
+
         #debugInfo {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            color: white;
-            background-color: rgba(0, 0, 0, 0.7);
-            padding: 10px;
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #ffffff;
+            background-color: rgba(0, 0, 0, 0.8);
+            padding: 15px 25px;
             border-radius: 5px;
             font-size: 14px;
             font-family: monospace;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            z-index: 1000;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.9);
+            text-align: center;
+        }
+
+        #debugInfo label {
+            color: #ffffff;
+            cursor: pointer;
+        }
+
+        #debugInfo input[type="checkbox"] {
+            margin-right: 5px;
+            cursor: pointer;
         }
     </style>
 </head>
+
 <body>
-    <div id="gameContainer">
-        <canvas id="gameCanvas"></canvas>
-        <div id="debugInfo">
-            <div>Mouse: <span id="mousePos">0, 0</span></div>
-            <div>Hex: <span id="hexPos">-, -</span></div>
-            <div>Assets: <span id="loadStatus">Loading...</span></div>
-            <div><label><input type="checkbox" id="showGrid" checked> Show Grid</label></div>
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="debugInfo">
+        <div>Mouse: <span id="mousePos">0, 0</span></div>
+        <div>Hex: <span id="hexPos">-, -</span></div>
+        <div>Assets: <span id="loadStatus">Loading...</span></div>
+        <div><label><input type="checkbox" id="showGrid" checked> Show Grid</label></div>
+        <div style="margin-top: 10px; font-size: 12px;">
+            <strong>Zoom:</strong> +/- Keys (Current: <span id="zoomLevel">80%</span>)<br>
+            <strong>Edge Scroll:</strong> Move mouse to edges<br>
+            <strong>Camera:</strong> <span id="cameraPos">0, 0</span>
         </div>
     </div>
 
     <script>
+        // World size (full gameboard)
+        const WORLD_WIDTH = 3220;
+        const WORLD_HEIGHT = 2240;
+
+        // Viewport size (what we see on screen)
+        const VIEWPORT_WIDTH = Math.min(window.innerWidth * 0.9, 1600);
+        const VIEWPORT_HEIGHT = Math.min(window.innerHeight * 0.85, 900);
+
+        // Camera position (top-left corner of viewport in world coordinates)
+        let cameraX = 0;
+        let cameraY = 0;
+
+        // Zoom level
+        let zoomLevel = 0.8;
+
         // Canvas setup
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
-        canvas.width = 3220;
-        canvas.height = 2240;
-        
+
+        // Set canvas to viewport size
+        canvas.width = VIEWPORT_WIDTH;
+        canvas.height = VIEWPORT_HEIGHT;
+
         // Debug elements
         const mousePosEl = document.getElementById('mousePos');
         const hexPosEl = document.getElementById('hexPos');
         const loadStatusEl = document.getElementById('loadStatus');
         const showGridCheckbox = document.getElementById('showGrid');
-        
+        const cameraPosEl = document.getElementById('cameraPos');
+
         // Game state
         const game = {
             assets: {
@@ -71,66 +109,61 @@
                 pcSprite: null
             },
             pc: {
-                hexQ: 10,  // Starting hex position
+                hexQ: 10,
                 hexR: 5,
                 pixelX: 0,
                 pixelY: 0
             }
         };
-        
+
         // Hex grid configuration
-        const HEX_SIZE = 70;  // Radius of hex (fits 128x128 sprites nicely)
+        const HEX_SIZE = 70;
         const HEX_WIDTH = Math.sqrt(3) * HEX_SIZE;
         const HEX_HEIGHT = 2 * HEX_SIZE;
-        
+
         // Hex grid utilities
         const HexGrid = {
-            // Convert hex coordinates to pixel coordinates
-            hexToPixel: function(q, r) {
-                const x = HEX_SIZE * (Math.sqrt(3) * q + Math.sqrt(3)/2 * r) + canvas.width/2;
-                const y = HEX_SIZE * (3/2 * r) + canvas.height/2;
+            hexToPixel: function (q, r) {
+                const x = HEX_SIZE * (Math.sqrt(3) * q + Math.sqrt(3) / 2 * r) + WORLD_WIDTH / 2;
+                const y = HEX_SIZE * (3 / 2 * r) + WORLD_HEIGHT / 2;
                 return { x, y };
             },
-            
-            // Convert pixel coordinates to hex coordinates
-            pixelToHex: function(x, y) {
-                // Offset from center
-                x -= canvas.width/2;
-                y -= canvas.height/2;
-                
-                const q = (Math.sqrt(3)/3 * x - 1/3 * y) / HEX_SIZE;
-                const r = (2/3 * y) / HEX_SIZE;
-                
+
+            pixelToHex: function (x, y) {
+                x -= WORLD_WIDTH / 2;
+                y -= WORLD_HEIGHT / 2;
+
+                const q = (Math.sqrt(3) / 3 * x - 1 / 3 * y) / HEX_SIZE;
+                const r = (2 / 3 * y) / HEX_SIZE;
+
                 return this.roundHex(q, r);
             },
-            
-            // Round to nearest hex
-            roundHex: function(q, r) {
+
+            roundHex: function (q, r) {
                 const s = -q - r;
                 let rq = Math.round(q);
                 let rr = Math.round(r);
                 let rs = Math.round(s);
-                
+
                 const q_diff = Math.abs(rq - q);
                 const r_diff = Math.abs(rr - r);
                 const s_diff = Math.abs(rs - s);
-                
+
                 if (q_diff > r_diff && q_diff > s_diff) {
                     rq = -rr - rs;
                 } else if (r_diff > s_diff) {
                     rr = -rq - rs;
                 }
-                
+
                 return { q: rq, r: rr };
             }
         };
-        
+
         // Asset loading
         function loadAssets() {
             let assetsLoaded = 0;
             const totalAssets = 2;
-            
-            // Load background
+
             game.assets.background = new Image();
             game.assets.background.onload = () => {
                 assetsLoaded++;
@@ -142,9 +175,8 @@
                 game.assets.background = null;
                 checkAssetsLoaded();
             };
-            game.assets.background.src = 'IsometricBridge.jpg';  // Your isometric bridge background
-            
-            // Load PC sprite
+            game.assets.background.src = 'IsometricBridge.jpg';
+
             game.assets.pcSprite = new Image();
             game.assets.pcSprite.onload = () => {
                 assetsLoaded++;
@@ -156,67 +188,98 @@
                 game.assets.pcSprite = null;
                 checkAssetsLoaded();
             };
-            game.assets.pcSprite.src = 'sprites/WarriorSword/SpritesheetWarriorSword.png';  // Your warrior sprite sheet
-            
+            game.assets.pcSprite.src = 'sprites/WarriorSword/SpritesheetWarriorSword.png';
+
             function checkAssetsLoaded() {
                 if (assetsLoaded === totalAssets) {
                     loadStatusEl.textContent = 'Ready';
                     loadStatusEl.style.color = '#0f0';
-                    
+
                     // Set PC starting position
                     const startPos = HexGrid.hexToPixel(game.pc.hexQ, game.pc.hexR);
                     game.pc.pixelX = startPos.x;
                     game.pc.pixelY = startPos.y;
-                    
+
+                    // Center camera on PC
+                    centerCameraOn(game.pc.pixelX, game.pc.pixelY);
+
                     // Start render loop
-                    requestAnimationFrame(render);
+                    gameLoop();
                 }
             }
         }
-        
+
+        // Center camera on a world position
+        function centerCameraOn(worldX, worldY) {
+            cameraX = (worldX * zoomLevel) - VIEWPORT_WIDTH / 2;
+            cameraY = (worldY * zoomLevel) - VIEWPORT_HEIGHT / 2;
+            clampCamera();
+        }
+
+        // Keep camera within world bounds
+        function clampCamera() {
+            const maxCameraX = WORLD_WIDTH * zoomLevel - VIEWPORT_WIDTH;
+            const maxCameraY = WORLD_HEIGHT * zoomLevel - VIEWPORT_HEIGHT;
+
+            cameraX = Math.max(0, Math.min(cameraX, maxCameraX));
+            cameraY = Math.max(0, Math.min(cameraY, maxCameraY));
+
+            // Update debug display
+            cameraPosEl.textContent = `${Math.round(cameraX)}, ${Math.round(cameraY)}`;
+        }
+
+        // Game loop
+        function gameLoop() {
+            render();
+            requestAnimationFrame(gameLoop);
+        }
+
         // Rendering
         function render() {
             // Clear canvas
             ctx.fillStyle = '#2a2a2a';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
+            ctx.fillRect(0, 0, VIEWPORT_WIDTH, VIEWPORT_HEIGHT);
+
+            // Save context state
+            ctx.save();
+
+            // Apply camera transform
+            ctx.scale(zoomLevel, zoomLevel);
+            ctx.translate(-cameraX / zoomLevel, -cameraY / zoomLevel);
+
             // Draw background
             if (game.assets.background) {
-                ctx.drawImage(game.assets.background, 0, 0, canvas.width, canvas.height);
+                ctx.drawImage(game.assets.background, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
             } else {
                 // Placeholder background
                 ctx.fillStyle = '#1a3a1a';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                
-                // Draw a simple grid pattern as placeholder
+                ctx.fillRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+
                 ctx.strokeStyle = '#0a2a0a';
                 ctx.lineWidth = 1;
-                for (let x = 0; x < canvas.width; x += 100) {
+                for (let x = 0; x < WORLD_WIDTH; x += 100) {
                     ctx.beginPath();
                     ctx.moveTo(x, 0);
-                    ctx.lineTo(x, canvas.height);
+                    ctx.lineTo(x, WORLD_HEIGHT);
                     ctx.stroke();
                 }
-                for (let y = 0; y < canvas.height; y += 100) {
+                for (let y = 0; y < WORLD_HEIGHT; y += 100) {
                     ctx.beginPath();
                     ctx.moveTo(0, y);
-                    ctx.lineTo(canvas.width, y);
+                    ctx.lineTo(WORLD_WIDTH, y);
                     ctx.stroke();
                 }
             }
-            
+
             // Draw PC
             if (game.assets.pcSprite) {
-                // Draw idle animation (first frame from first row)
-                // The actual sprite starts at approximately x=150 to skip the "IDLE" text
-                // Adjusted positioning to better center the character
                 ctx.drawImage(
                     game.assets.pcSprite,
-                    150, 0, 128, 128,  // Source: first sprite frame, skipping the text
-                    game.pc.pixelX - 36, game.pc.pixelY - 80, 128, 128  // Adjusted Y offset for better centering
+                    150, 0, 128, 128,
+                    game.pc.pixelX - 64, game.pc.pixelY - 80, 128, 128
                 );
             } else {
-                // Placeholder PC (red circle)
+                // Placeholder PC
                 ctx.fillStyle = '#ff0000';
                 ctx.beginPath();
                 ctx.arc(game.pc.pixelX, game.pc.pixelY, 30, 0, Math.PI * 2);
@@ -225,45 +288,49 @@
                 ctx.lineWidth = 3;
                 ctx.stroke();
             }
-            
-            // Draw hex grid overlay if enabled
+
+            // Draw hex grid
             if (showGridCheckbox.checked) {
                 drawHexGrid();
             }
-            
-            // TODO: Hex highlighting on hover
-            // TODO: Path visualization
+
+            // Restore context state
+            ctx.restore();
         }
-        
-        // Draw hex grid
+
+        // Draw hex grid (only visible hexes)
         function drawHexGrid() {
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-            ctx.lineWidth = 1;
-            
-            // Calculate grid bounds
-            const gridWidth = Math.ceil(canvas.width / HEX_WIDTH) + 2;
-            const gridHeight = Math.ceil(canvas.height / (HEX_HEIGHT * 3/4)) + 2;
-            const startQ = -Math.floor(gridWidth / 2);
-            const startR = -Math.floor(gridHeight / 2);
-            
-            // Draw each hex
-            for (let q = startQ; q < startQ + gridWidth; q++) {
-                for (let r = startR; r < startR + gridHeight; r++) {
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+            ctx.lineWidth = 2;
+
+            // Calculate visible hex bounds
+            const startX = cameraX / zoomLevel - HEX_WIDTH;
+            const startY = cameraY / zoomLevel - HEX_HEIGHT;
+            const endX = (cameraX + VIEWPORT_WIDTH) / zoomLevel + HEX_WIDTH;
+            const endY = (cameraY + VIEWPORT_HEIGHT) / zoomLevel + HEX_HEIGHT;
+
+            // Convert to hex coordinates
+            const startHex = HexGrid.pixelToHex(startX, startY);
+            const endHex = HexGrid.pixelToHex(endX, endY);
+
+            // Draw only visible hexes
+            for (let q = startHex.q - 2; q <= endHex.q + 2; q++) {
+                for (let r = startHex.r - 2; r <= endHex.r + 2; r++) {
                     drawHex(q, r);
                 }
             }
         }
-        
+
         // Draw a single hex
         function drawHex(q, r) {
             const center = HexGrid.hexToPixel(q, r);
-            
+
             ctx.beginPath();
             for (let i = 0; i < 6; i++) {
-                const angle = 2 * Math.PI / 6 * i - Math.PI / 6; // Rotate 30 degrees for pointy-top
+                const angle = 2 * Math.PI / 6 * i - Math.PI / 6;
                 const x = center.x + HEX_SIZE * Math.cos(angle);
                 const y = center.y + HEX_SIZE * Math.sin(angle);
-                
+
                 if (i === 0) {
                     ctx.moveTo(x, y);
                 } else {
@@ -273,54 +340,162 @@
             ctx.closePath();
             ctx.stroke();
         }
-        
+
+        // Mouse edge scrolling with variable speed
+        let mouseX = 0;
+        let mouseY = 0;
+        let isMouseOverCanvas = false;
+
+        canvas.addEventListener('mouseenter', () => isMouseOverCanvas = true);
+        canvas.addEventListener('mouseleave', () => isMouseOverCanvas = false);
+
+        function updateEdgeScrolling() {
+            if (!isMouseOverCanvas) {
+                requestAnimationFrame(updateEdgeScrolling);
+                return;
+            }
+
+            const EDGE_THRESHOLD = 150;
+            const MAX_SCROLL_SPEED = 25;
+
+            const rect = canvas.getBoundingClientRect();
+            const relativeX = mouseX - rect.left;
+            const relativeY = mouseY - rect.top;
+
+            let scrollX = 0;
+            let scrollY = 0;
+
+            // Calculate distance from edges
+            const leftDistance = relativeX;
+            const rightDistance = rect.width - relativeX;
+            const topDistance = relativeY;
+            const bottomDistance = rect.height - relativeY;
+
+            // Variable speed based on distance from edge
+            if (leftDistance < EDGE_THRESHOLD && leftDistance >= 0) {
+                const speedMultiplier = 1 - (leftDistance / EDGE_THRESHOLD);
+                scrollX = -MAX_SCROLL_SPEED * speedMultiplier;
+            } else if (rightDistance < EDGE_THRESHOLD && rightDistance >= 0) {
+                const speedMultiplier = 1 - (rightDistance / EDGE_THRESHOLD);
+                scrollX = MAX_SCROLL_SPEED * speedMultiplier;
+            }
+
+            if (topDistance < EDGE_THRESHOLD && topDistance >= 0) {
+                const speedMultiplier = 1 - (topDistance / EDGE_THRESHOLD);
+                scrollY = -MAX_SCROLL_SPEED * speedMultiplier;
+            } else if (bottomDistance < EDGE_THRESHOLD && bottomDistance >= 0) {
+                const speedMultiplier = 1 - (bottomDistance / EDGE_THRESHOLD);
+                scrollY = MAX_SCROLL_SPEED * speedMultiplier;
+            }
+
+            // Apply scrolling
+            if (scrollX !== 0 || scrollY !== 0) {
+                cameraX += scrollX;
+                cameraY += scrollY;
+                clampCamera();
+            }
+
+            requestAnimationFrame(updateEdgeScrolling);
+        }
+        updateEdgeScrolling();
+
+        // Update zoom level
+        function updateZoom(delta) {
+            const oldZoom = zoomLevel;
+            zoomLevel = Math.max(0.5, Math.min(2.0, zoomLevel + delta));
+
+            // Adjust camera to keep centered on same world point
+            const zoomRatio = zoomLevel / oldZoom;
+            cameraX = (cameraX + VIEWPORT_WIDTH / 2) * zoomRatio - VIEWPORT_WIDTH / 2;
+            cameraY = (cameraY + VIEWPORT_HEIGHT / 2) * zoomRatio - VIEWPORT_HEIGHT / 2;
+
+            clampCamera();
+
+            // Update zoom display
+            const zoomPercent = Math.round(zoomLevel * 100);
+            document.getElementById('zoomLevel').textContent = zoomPercent + '%';
+        }
+
         // Mouse handling
         canvas.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+
             const rect = canvas.getBoundingClientRect();
-            const x = (e.clientX - rect.left) * (canvas.width / rect.width);
-            const y = (e.clientY - rect.top) * (canvas.height / rect.height);
-            
-            mousePosEl.textContent = `${Math.round(x)}, ${Math.round(y)}`;
-            
-            const hex = HexGrid.pixelToHex(x, y);
+            const canvasX = e.clientX - rect.left;
+            const canvasY = e.clientY - rect.top;
+
+            // Convert to world coordinates
+            const worldX = (canvasX + cameraX) / zoomLevel;
+            const worldY = (canvasY + cameraY) / zoomLevel;
+
+            mousePosEl.textContent = `${Math.round(worldX)}, ${Math.round(worldY)}`;
+
+            const hex = HexGrid.pixelToHex(worldX, worldY);
             hexPosEl.textContent = `${hex.q}, ${hex.r}`;
         });
-        
+
         canvas.addEventListener('click', (e) => {
             const rect = canvas.getBoundingClientRect();
-            const x = (e.clientX - rect.left) * (canvas.width / rect.width);
-            const y = (e.clientY - rect.top) * (canvas.height / rect.height);
-            
-            const hex = HexGrid.pixelToHex(x, y);
+            const canvasX = e.clientX - rect.left;
+            const canvasY = e.clientY - rect.top;
+
+            // Convert to world coordinates
+            const worldX = (canvasX + cameraX) / zoomLevel;
+            const worldY = (canvasY + cameraY) / zoomLevel;
+
+            const hex = HexGrid.pixelToHex(worldX, worldY);
             console.log(`Clicked hex: q=${hex.q}, r=${hex.r}`);
-            
-            // TODO: Pathfinding implementation
-            // TODO: Character movement animation
-            // TODO: Sprite animation system
         });
-        
+
+        // Keyboard controls
+        document.addEventListener('keydown', (e) => {
+            const KEYBOARD_SCROLL_SPEED = 30;
+
+            switch (e.key) {
+                case 'ArrowUp':
+                case 'w':
+                case 'W':
+                    cameraY -= KEYBOARD_SCROLL_SPEED;
+                    clampCamera();
+                    break;
+                case 'ArrowDown':
+                case 's':
+                case 'S':
+                    cameraY += KEYBOARD_SCROLL_SPEED;
+                    clampCamera();
+                    break;
+                case 'ArrowLeft':
+                case 'a':
+                case 'A':
+                    cameraX -= KEYBOARD_SCROLL_SPEED;
+                    clampCamera();
+                    break;
+                case 'ArrowRight':
+                case 'd':
+                case 'D':
+                    cameraX += KEYBOARD_SCROLL_SPEED;
+                    clampCamera();
+                    break;
+                case '+':
+                case '=':
+                    updateZoom(0.1);
+                    break;
+                case '-':
+                case '_':
+                    updateZoom(-0.1);
+                    break;
+            }
+        });
+
+        // Grid toggle listener
+        showGridCheckbox.addEventListener('change', () => {
+            requestAnimationFrame(render);
+        });
+
         // Initialize
         loadAssets();
-        
-        // TODO LIST for Phase 2:
-        // - Hex highlighting on hover
-        // - Pathfinding implementation (A*)
-        // - Character movement animation
-        // - Sprite animation system (idle/walk states)
-        // - Character facing direction
-        // - NPC placement
-        // - Visual hex grid overlay (optional, for debugging)
-        // - Smooth movement between hexes
-        // - Path visualization
-        // - Click feedback effects
-        
-        // TODO LIST for Phase 3:
-        // - Combat system
-        // - Items and inventory
-        // - HP bars
-        // - Multiple animation states
-        // - Sound effects
-        // - Game states (menu, playing, etc.)
     </script>
 </body>
+
 </html>
