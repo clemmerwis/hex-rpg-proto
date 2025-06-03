@@ -106,6 +106,16 @@
         const directionEl = document.getElementById('directionInfo');
         const animationEl = document.getElementById('animationInfo');
 
+        // Animation configuration
+        const animationConfig = {
+            'idle': { cols: 5, rows: 4, frameCount: 17 },   // 5×4 grid, 17 frames used
+            'walk': { cols: 4, rows: 3, frameCount: 11 },   // 4×3 grid, 11 frames used
+            'run': { cols: 3, rows: 3, frameCount: 8 },     // 3×3 grid, 8 frames used
+            'jump': { cols: 4, rows: 3, frameCount: 11 },   // 4×3 grid, 11 frames used
+            'attack': { cols: 4, rows: 4, frameCount: 15 }, // 4×4 grid, 15 frames used
+            'die': { cols: 6, rows: 5, frameCount: 27 }     // 6×5 grid, 27 frames used
+        };
+
         // Game state
         const game = {
             assets: {
@@ -271,29 +281,8 @@
                 game.pc.animationTimer = 0;
 
                 // Get frame count for current animation
-                let frameCount = 6; // Default for idle
-
-                // Frame counts based on sprite sheet layouts
-                switch (game.pc.currentAnimation) {
-                    case 'idle':
-                        frameCount = 17; // I can see 17 frames in the idle sheet (5×3 + 2)
-                        break;
-                    case 'walk':
-                        frameCount = 8;  // Common for walk cycles
-                        break;
-                    case 'run':
-                        frameCount = 8;  // Common for run cycles
-                        break;
-                    case 'attack':
-                        frameCount = 10; // Attacks often have more frames
-                        break;
-                    case 'jump':
-                        frameCount = 10; // Jump animations vary
-                        break;
-                    case 'die':
-                        frameCount = 12; // Death animations are often longer
-                        break;
-                }
+                const animConfig = animationConfig[game.pc.currentAnimation];
+                let frameCount = animConfig ? animConfig.frameCount : 6;
 
                 // Advance to next frame
                 game.pc.animationFrame = (game.pc.animationFrame + 1) % frameCount;
@@ -344,8 +333,9 @@
                 const sprite = game.assets.knightSprites[game.pc.facing][game.pc.currentAnimation];
                 const frameSize = 256; // Each frame is 256x256
 
-                // Sprite sheets are arranged in a grid
-                const framesPerRow = 5; // 5 frames per row based on your image
+                // Get animation configuration
+                const animConfig = animationConfig[game.pc.currentAnimation];
+                const framesPerRow = animConfig ? animConfig.cols : Math.floor(sprite.width / frameSize);
 
                 // Calculate grid position
                 const col = game.pc.animationFrame % framesPerRow;
@@ -355,16 +345,22 @@
                 const frameX = col * frameSize;
                 const frameY = row * frameSize;
 
-                // Debug: log sprite sheet info occasionally
-                if (game.pc.animationFrame === 0 && Math.random() < 0.01) {
-                    console.log(`Drawing ${game.pc.currentAnimation} frame ${game.pc.animationFrame}, pos: ${col},${row}`);
+                // Check if we're trying to read beyond the sprite sheet
+                if (frameX + frameSize > sprite.width || frameY + frameSize > sprite.height) {
+                    console.warn(`Frame out of bounds for ${game.pc.currentAnimation}: frame ${game.pc.animationFrame}, sprite size: ${sprite.width}x${sprite.height}`);
+                    // Draw first frame instead
+                    ctx.drawImage(
+                        sprite,
+                        0, 0, frameSize, frameSize, // Source - first frame
+                        game.pc.pixelX - frameSize / 2, game.pc.pixelY - frameSize / 2, frameSize, frameSize // Destination
+                    );
+                } else {
+                    ctx.drawImage(
+                        sprite,
+                        frameX, frameY, frameSize, frameSize, // Source
+                        game.pc.pixelX - frameSize / 2, game.pc.pixelY - frameSize / 2, frameSize, frameSize // Destination
+                    );
                 }
-
-                ctx.drawImage(
-                    sprite,
-                    frameX, frameY, frameSize, frameSize, // Source
-                    game.pc.pixelX - frameSize / 2, game.pc.pixelY - frameSize / 2, frameSize, frameSize // Destination
-                );
             } else {
                 console.log('Sprite not found:', game.pc.facing, game.pc.currentAnimation);
                 console.log('Available sprites:', game.assets.knightSprites);
