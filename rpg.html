@@ -66,7 +66,10 @@
         <div><label><input type="checkbox" id="showGrid" checked> Show Grid</label></div>
         <div style="margin-top: 10px; font-size: 12px;">
             <strong>Edge Scroll:</strong> Move mouse to edges<br>
-            <strong>Camera:</strong> <span id="cameraPos">0, 0</span>
+            <strong>Camera:</strong> <span id="cameraPos">0, 0</span><br>
+            <strong>Direction:</strong> <span id="directionInfo">dir8</span><br>
+            <strong>Animation:</strong> <span id="animationInfo">idle</span><br>
+            <strong>Keys:</strong> 1-6 for animations, Click to face direction
         </div>
     </div>
 
@@ -100,18 +103,24 @@
         const loadStatusEl = document.getElementById('loadStatus');
         const showGridCheckbox = document.getElementById('showGrid');
         const cameraPosEl = document.getElementById('cameraPos');
+        const directionEl = document.getElementById('directionInfo');
+        const animationEl = document.getElementById('animationInfo');
 
         // Game state
         const game = {
             assets: {
                 background: null,
-                pcSprite: null
+                knightSprites: {} // Store all directional sprites
             },
             pc: {
                 hexQ: 10,
                 hexR: 5,
                 pixelX: 0,
-                pixelY: 0
+                pixelY: 0,
+                facing: 'dir8', // Default facing down
+                animationFrame: 0,
+                animationTimer: 0,
+                currentAnimation: 'idle' // idle, walk, run, attack
             }
         };
 
@@ -161,8 +170,14 @@
         // Asset loading
         function loadAssets() {
             let assetsLoaded = 0;
-            const totalAssets = 2;
+            let totalAssets = 1; // Start with background
 
+            // Count total assets (8 directions × number of animations)
+            const directions = ['dir1', 'dir2', 'dir3', 'dir4', 'dir5', 'dir6', 'dir7', 'dir8'];
+            const animations = ['Idle', 'Walk', 'Run', 'Attack', 'Jump', 'Die']; // Available animations
+            totalAssets += directions.length * animations.length;
+
+            // Load background
             game.assets.background = new Image();
             game.assets.background.onload = () => {
                 assetsLoaded++;
@@ -176,20 +191,31 @@
             };
             game.assets.background.src = 'IsometricBridge.jpg';
 
-            game.assets.pcSprite = new Image();
-            game.assets.pcSprite.onload = () => {
-                assetsLoaded++;
-                checkAssetsLoaded();
-            };
-            game.assets.pcSprite.onerror = () => {
-                console.log("PC sprite failed to load, using placeholder");
-                assetsLoaded++;
-                game.assets.pcSprite = null;
-                checkAssetsLoaded();
-            };
-            game.assets.pcSprite.src = 'sprites/WarriorSword/SpritesheetWarriorSword.png';
+            // Load knight sprites for each direction
+            directions.forEach(dir => {
+                game.assets.knightSprites[dir] = {};
+
+                animations.forEach(anim => {
+                    const sprite = new Image();
+                    sprite.onload = () => {
+                        assetsLoaded++;
+                        checkAssetsLoaded();
+                    };
+                    sprite.onerror = () => {
+                        console.log(`Failed to load Knight_${anim}_${dir}.png`);
+                        assetsLoaded++;
+                        checkAssetsLoaded();
+                    };
+                    // Path based on your file structure
+                    sprite.src = `sprites/KnightBasic/${anim}/Knight_${anim}_${dir}.png`;
+                    game.assets.knightSprites[dir][anim.toLowerCase()] = sprite;
+                });
+            });
 
             function checkAssetsLoaded() {
+                const loadPercent = Math.round((assetsLoaded / totalAssets) * 100);
+                loadStatusEl.textContent = `Loading: ${loadPercent}%`;
+
                 if (assetsLoaded === totalAssets) {
                     loadStatusEl.textContent = 'Ready';
                     loadStatusEl.style.color = '#0f0';
@@ -229,8 +255,49 @@
 
         // Game loop
         function gameLoop() {
+            updateAnimations();
             render();
             requestAnimationFrame(gameLoop);
+        }
+
+        // Update animations
+        function updateAnimations() {
+            // Animation speed (lower = faster)
+            const ANIMATION_SPEED = 150; // milliseconds per frame
+
+            game.pc.animationTimer += 16; // Approximately 60fps
+
+            if (game.pc.animationTimer >= ANIMATION_SPEED) {
+                game.pc.animationTimer = 0;
+
+                // Get frame count for current animation
+                let frameCount = 6; // Default for idle
+
+                // Frame counts based on sprite sheet layouts
+                switch (game.pc.currentAnimation) {
+                    case 'idle':
+                        frameCount = 17; // I can see 17 frames in the idle sheet (5×3 + 2)
+                        break;
+                    case 'walk':
+                        frameCount = 8;  // Common for walk cycles
+                        break;
+                    case 'run':
+                        frameCount = 8;  // Common for run cycles
+                        break;
+                    case 'attack':
+                        frameCount = 10; // Attacks often have more frames
+                        break;
+                    case 'jump':
+                        frameCount = 10; // Jump animations vary
+                        break;
+                    case 'die':
+                        frameCount = 12; // Death animations are often longer
+                        break;
+                }
+
+                // Advance to next frame
+                game.pc.animationFrame = (game.pc.animationFrame + 1) % frameCount;
+            }
         }
 
         // Rendering
@@ -271,13 +338,37 @@
             }
 
             // Draw PC
-            if (game.assets.pcSprite) {
+            if (game.assets.knightSprites[game.pc.facing] &&
+                game.assets.knightSprites[game.pc.facing][game.pc.currentAnimation]) {
+
+                const sprite = game.assets.knightSprites[game.pc.facing][game.pc.currentAnimation];
+                const frameSize = 256; // Each frame is 256x256
+
+                // Sprite sheets are arranged in a grid
+                const framesPerRow = 5; // 5 frames per row based on your image
+
+                // Calculate grid position
+                const col = game.pc.animationFrame % framesPerRow;
+                const row = Math.floor(game.pc.animationFrame / framesPerRow);
+
+                // Calculate pixel position in sprite sheet
+                const frameX = col * frameSize;
+                const frameY = row * frameSize;
+
+                // Debug: log sprite sheet info occasionally
+                if (game.pc.animationFrame === 0 && Math.random() < 0.01) {
+                    console.log(`Drawing ${game.pc.currentAnimation} frame ${game.pc.animationFrame}, pos: ${col},${row}`);
+                }
+
                 ctx.drawImage(
-                    game.assets.pcSprite,
-                    150, 0, 128, 128,
-                    game.pc.pixelX - 36, game.pc.pixelY - 80, 128, 128  // Adjusted Y offset for better centering
+                    sprite,
+                    frameX, frameY, frameSize, frameSize, // Source
+                    game.pc.pixelX - frameSize / 2, game.pc.pixelY - frameSize / 2, frameSize, frameSize // Destination
                 );
             } else {
+                console.log('Sprite not found:', game.pc.facing, game.pc.currentAnimation);
+                console.log('Available sprites:', game.assets.knightSprites);
+
                 // Placeholder PC
                 ctx.fillStyle = '#ff0000';
                 ctx.beginPath();
@@ -302,20 +393,26 @@
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
             ctx.lineWidth = 2;
 
-            // Calculate visible hex bounds
-            const startX = cameraX / zoomLevel - HEX_WIDTH;
-            const startY = cameraY / zoomLevel - HEX_HEIGHT;
-            const endX = (cameraX + VIEWPORT_WIDTH) / zoomLevel + HEX_WIDTH;
-            const endY = (cameraY + VIEWPORT_HEIGHT) / zoomLevel + HEX_HEIGHT;
+            // Calculate visible hex bounds with extra margin
+            const margin = HEX_SIZE * 2;
+            const startX = (cameraX / zoomLevel) - margin;
+            const startY = (cameraY / zoomLevel) - margin;
+            const endX = ((cameraX + VIEWPORT_WIDTH) / zoomLevel) + margin;
+            const endY = ((cameraY + VIEWPORT_HEIGHT) / zoomLevel) + margin;
 
             // Convert to hex coordinates
             const startHex = HexGrid.pixelToHex(startX, startY);
             const endHex = HexGrid.pixelToHex(endX, endY);
 
-            // Draw only visible hexes
-            for (let q = startHex.q - 2; q <= endHex.q + 2; q++) {
-                for (let r = startHex.r - 2; r <= endHex.r + 2; r++) {
-                    drawHex(q, r);
+            // Draw only visible hexes with extra buffer
+            for (let q = startHex.q - 5; q <= endHex.q + 5; q++) {
+                for (let r = startHex.r - 5; r <= endHex.r + 5; r++) {
+                    const pos = HexGrid.hexToPixel(q, r);
+                    // Only draw if hex center is within world bounds
+                    if (pos.x >= -HEX_SIZE && pos.x <= WORLD_WIDTH + HEX_SIZE &&
+                        pos.y >= -HEX_SIZE && pos.y <= WORLD_HEIGHT + HEX_SIZE) {
+                        drawHex(q, r);
+                    }
                 }
             }
         }
@@ -428,6 +525,28 @@
 
             const hex = HexGrid.pixelToHex(worldX, worldY);
             console.log(`Clicked hex: q=${hex.q}, r=${hex.r}`);
+
+            // Calculate direction to face
+            const targetPos = HexGrid.hexToPixel(hex.q, hex.r);
+            const dx = targetPos.x - game.pc.pixelX;
+            const dy = targetPos.y - game.pc.pixelY;
+
+            // Calculate angle and convert to 8-direction
+            let angle = Math.atan2(dy, dx) * 180 / Math.PI;
+            angle = (angle + 360) % 360; // Normalize to 0-360
+
+            // Map angle to direction
+            if (angle >= 337.5 || angle < 22.5) game.pc.facing = 'dir6';      // Right
+            else if (angle >= 22.5 && angle < 67.5) game.pc.facing = 'dir7';  // Down-Right
+            else if (angle >= 67.5 && angle < 112.5) game.pc.facing = 'dir8'; // Down
+            else if (angle >= 112.5 && angle < 157.5) game.pc.facing = 'dir1'; // Down-Left
+            else if (angle >= 157.5 && angle < 202.5) game.pc.facing = 'dir2'; // Left
+            else if (angle >= 202.5 && angle < 247.5) game.pc.facing = 'dir3'; // Up-Left
+            else if (angle >= 247.5 && angle < 292.5) game.pc.facing = 'dir4'; // Up
+            else if (angle >= 292.5 && angle < 337.5) game.pc.facing = 'dir5'; // Up-Right
+
+            // Update debug display
+            directionEl.textContent = game.pc.facing;
         });
 
         // Keyboard controls
@@ -459,6 +578,36 @@
                     cameraX += KEYBOARD_SCROLL_SPEED;
                     clampCamera();
                     break;
+                // Test different animations
+                case '1':
+                    game.pc.currentAnimation = 'idle';
+                    console.log('Animation: Idle');
+                    break;
+                case '2':
+                    game.pc.currentAnimation = 'walk';
+                    console.log('Animation: Walk');
+                    break;
+                case '3':
+                    game.pc.currentAnimation = 'run';
+                    console.log('Animation: Run');
+                    break;
+                case '4':
+                    game.pc.currentAnimation = 'attack';
+                    console.log('Animation: Attack');
+                    break;
+                case '5':
+                    game.pc.currentAnimation = 'jump';
+                    console.log('Animation: Jump');
+                    break;
+                case '6':
+                    game.pc.currentAnimation = 'die';
+                    console.log('Animation: Die');
+                    break;
+            }
+
+            // Update animation display
+            if (game.pc.currentAnimation) {
+                animationEl.textContent = game.pc.currentAnimation;
             }
         });
 
