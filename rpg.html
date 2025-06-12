@@ -67,7 +67,7 @@
         <div style="margin-top: 10px; font-size: 12px;">
             <strong>Edge Scroll:</strong> Move mouse to edges<br>
             <strong>Camera:</strong> <span id="cameraPos">0, 0</span><br>
-            <strong>Direction:</strong> <span id="directionInfo">dir8</span><br>
+            <strong>PC Direction:</strong> <span id="directionInfo">dir8</span><br>
             <strong>Animation:</strong> <span id="animationInfo">idle</span><br>
             <strong>Keys:</strong> 1-6 for animations, Click to face direction
         </div>
@@ -106,6 +106,9 @@
         const directionEl = document.getElementById('directionInfo');
         const animationEl = document.getElementById('animationInfo');
 
+        // Key state tracking for diagonal movement
+        const keys = {};
+
         // Animation configuration
         const animationConfig = {
             'idle': { cols: 5, rows: 4, frameCount: 17 },   // 5×4 grid, 17 frames used
@@ -123,15 +126,28 @@
                 knightSprites: {} // Store all directional sprites
             },
             pc: {
-                hexQ: 10,
-                hexR: 5,
+                hexQ: 5,         // Moved left from 10 to 5
+                hexR: -5,        // Moved up from 0 to -5
                 pixelX: 0,
                 pixelY: 0,
                 facing: 'dir8', // Default facing down
                 animationFrame: 0,
                 animationTimer: 0,
-                currentAnimation: 'idle' // idle, walk, run, attack
-            }
+                currentAnimation: 'idle'
+            },
+            npcs: [
+                {
+                    hexQ: 7,         // Near PC, slightly to the right
+                    hexR: -3,        // Near PC, slightly down
+                    pixelX: 0,
+                    pixelY: 0,
+                    facing: 'dir4',  // Facing up
+                    animationFrame: 3, // Start at different frame
+                    animationTimer: 75, // Offset timing
+                    currentAnimation: 'idle',
+                    tint: '#ffaaaa'  // Light red tint
+                }
+            ]
         };
 
         // Hex grid configuration
@@ -235,7 +251,14 @@
                     game.pc.pixelX = startPos.x;
                     game.pc.pixelY = startPos.y;
 
-                    // Center camera on PC
+                    // Set NPC starting positions
+                    game.npcs.forEach(npc => {
+                        const npcStartPos = HexGrid.hexToPixel(npc.hexQ, npc.hexR);
+                        npc.pixelX = npcStartPos.x;
+                        npc.pixelY = npcStartPos.y;
+                    });
+
+                    // Center camera on PC (original behavior)
                     centerCameraOn(game.pc.pixelX, game.pc.pixelY);
 
                     // Start render loop
@@ -266,6 +289,7 @@
         // Game loop
         function gameLoop() {
             updateAnimations();
+            updateKeyboardScrolling();
             render();
             requestAnimationFrame(gameLoop);
         }
@@ -275,17 +299,127 @@
             // Animation speed (lower = faster)
             const ANIMATION_SPEED = 150; // milliseconds per frame
 
+            // Update PC animation
             game.pc.animationTimer += 16; // Approximately 60fps
-
             if (game.pc.animationTimer >= ANIMATION_SPEED) {
                 game.pc.animationTimer = 0;
-
-                // Get frame count for current animation
                 const animConfig = animationConfig[game.pc.currentAnimation];
                 let frameCount = animConfig ? animConfig.frameCount : 6;
-
-                // Advance to next frame
                 game.pc.animationFrame = (game.pc.animationFrame + 1) % frameCount;
+            }
+
+            // Update NPC animations
+            game.npcs.forEach(npc => {
+                npc.animationTimer += 16;
+                if (npc.animationTimer >= ANIMATION_SPEED) {
+                    npc.animationTimer = 0;
+                    const animConfig = animationConfig[npc.currentAnimation];
+                    let frameCount = animConfig ? animConfig.frameCount : 6;
+                    npc.animationFrame = (npc.animationFrame + 1) % frameCount;
+                }
+            });
+        }
+
+        // Update keyboard scrolling (called in game loop)
+        function updateKeyboardScrolling() {
+            const KEYBOARD_SCROLL_SPEED = 15;
+
+            let scrollX = 0;
+            let scrollY = 0;
+
+            // Check all movement keys
+            if (keys['ArrowUp'] || keys['w'] || keys['W']) scrollY -= KEYBOARD_SCROLL_SPEED;
+            if (keys['ArrowDown'] || keys['s'] || keys['S']) scrollY += KEYBOARD_SCROLL_SPEED;
+            if (keys['ArrowLeft'] || keys['a'] || keys['A']) scrollX -= KEYBOARD_SCROLL_SPEED;
+            if (keys['ArrowRight'] || keys['d'] || keys['D']) scrollX += KEYBOARD_SCROLL_SPEED;
+
+            // Apply movement
+            if (scrollX !== 0 || scrollY !== 0) {
+                cameraX += scrollX;
+                cameraY += scrollY;
+                clampCamera();
+            }
+        }
+
+        // Draw character (PC or NPC)
+        function drawCharacter(character, tint = null) {
+            if (game.assets.knightSprites[character.facing] &&
+                game.assets.knightSprites[character.facing][character.currentAnimation]) {
+
+                const sprite = game.assets.knightSprites[character.facing][character.currentAnimation];
+                const frameSize = 256; // Each frame is 256x256
+
+                // Get animation configuration
+                const animConfig = animationConfig[character.currentAnimation];
+                const framesPerRow = animConfig ? animConfig.cols : Math.floor(sprite.width / frameSize);
+
+                // Calculate grid position
+                const col = character.animationFrame % framesPerRow;
+                const row = Math.floor(character.animationFrame / framesPerRow);
+
+                // Calculate pixel position in sprite sheet
+                const frameX = col * frameSize;
+                const frameY = row * frameSize;
+
+                // Save context state for tinting
+                ctx.save();
+
+                // Apply tint if specified (for NPC)
+                if (tint) {
+                    ctx.globalCompositeOperation = 'source-over';
+
+                    // Draw the sprite normally first
+                    if (frameX + frameSize <= sprite.width && frameY + frameSize <= sprite.height) {
+                        ctx.drawImage(
+                            sprite,
+                            frameX, frameY, frameSize, frameSize,
+                            character.pixelX - frameSize / 2, character.pixelY - frameSize / 2, frameSize, frameSize
+                        );
+                    } else {
+                        ctx.drawImage(
+                            sprite,
+                            0, 0, frameSize, frameSize,
+                            character.pixelX - frameSize / 2, character.pixelY - frameSize / 2, frameSize, frameSize
+                        );
+                    }
+
+                    // Apply light red tint
+                    ctx.globalCompositeOperation = 'multiply';
+                    ctx.fillStyle = tint;
+                    ctx.fillRect(
+                        character.pixelX - frameSize / 2, character.pixelY - frameSize / 2,
+                        frameSize, frameSize
+                    );
+
+                    // Restore normal composite operation
+                    ctx.globalCompositeOperation = 'source-over';
+                } else {
+                    // Draw without tint (PC)
+                    if (frameX + frameSize <= sprite.width && frameY + frameSize <= sprite.height) {
+                        ctx.drawImage(
+                            sprite,
+                            frameX, frameY, frameSize, frameSize,
+                            character.pixelX - frameSize / 2, character.pixelY - frameSize / 2, frameSize, frameSize
+                        );
+                    } else {
+                        ctx.drawImage(
+                            sprite,
+                            0, 0, frameSize, frameSize,
+                            character.pixelX - frameSize / 2, character.pixelY - frameSize / 2, frameSize, frameSize
+                        );
+                    }
+                }
+
+                ctx.restore();
+            } else {
+                // Placeholder character
+                ctx.fillStyle = tint || '#ff0000';
+                ctx.beginPath();
+                ctx.arc(character.pixelX, character.pixelY, 30, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 3;
+                ctx.stroke();
             }
         }
 
@@ -326,7 +460,12 @@
                 }
             }
 
-            // Draw PC
+            // Draw hex grid
+            if (showGridCheckbox.checked) {
+                drawHexGrid();
+            }
+
+            // Draw PC (original code)
             if (game.assets.knightSprites[game.pc.facing] &&
                 game.assets.knightSprites[game.pc.facing][game.pc.currentAnimation]) {
 
@@ -375,10 +514,64 @@
                 ctx.stroke();
             }
 
-            // Draw hex grid
-            if (showGridCheckbox.checked) {
-                drawHexGrid();
-            }
+            // Draw NPCs (with red tinted sprites)
+            game.npcs.forEach(npc => {
+                if (game.assets.knightSprites[npc.facing] &&
+                    game.assets.knightSprites[npc.facing][npc.currentAnimation]) {
+
+                    const sprite = game.assets.knightSprites[npc.facing][npc.currentAnimation];
+                    const frameSize = 256;
+
+                    // Get animation configuration
+                    const animConfig = animationConfig[npc.currentAnimation];
+                    const framesPerRow = animConfig ? animConfig.cols : Math.floor(sprite.width / frameSize);
+
+                    // Calculate grid position
+                    const col = npc.animationFrame % framesPerRow;
+                    const row = Math.floor(npc.animationFrame / framesPerRow);
+
+                    // Calculate pixel position in sprite sheet
+                    const frameX = col * frameSize;
+                    const frameY = row * frameSize;
+
+                    // Save context for tinting
+                    ctx.save();
+
+                    // Draw sprite normally first
+                    if (frameX + frameSize <= sprite.width && frameY + frameSize <= sprite.height) {
+                        ctx.drawImage(
+                            sprite,
+                            frameX, frameY, frameSize, frameSize,
+                            npc.pixelX - frameSize / 2, npc.pixelY - frameSize / 2, frameSize, frameSize
+                        );
+                    } else {
+                        ctx.drawImage(
+                            sprite,
+                            0, 0, frameSize, frameSize,
+                            npc.pixelX - frameSize / 2, npc.pixelY - frameSize / 2, frameSize, frameSize
+                        );
+                    }
+
+                    // Apply light red tint
+                    ctx.globalCompositeOperation = 'multiply';
+                    ctx.fillStyle = npc.tint;
+                    ctx.fillRect(
+                        npc.pixelX - frameSize / 2, npc.pixelY - frameSize / 2,
+                        frameSize, frameSize
+                    );
+
+                    ctx.restore();
+                } else {
+                    // Fallback to red circle if sprites don't load
+                    ctx.fillStyle = '#ffaaaa';
+                    ctx.beginPath();
+                    ctx.arc(npc.pixelX, npc.pixelY, 25, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+            });
 
             // Restore context state
             ctx.restore();
@@ -545,66 +738,47 @@
             directionEl.textContent = game.pc.facing;
         });
 
-        // Keyboard controls
+        // Keyboard state tracking
         document.addEventListener('keydown', (e) => {
-            const KEYBOARD_SCROLL_SPEED = 15; // Reduced from 30
+            keys[e.key] = true;
 
+            // Handle animation changes immediately on keydown
             switch (e.key) {
-                case 'ArrowUp':
-                case 'w':
-                case 'W':
-                    cameraY -= KEYBOARD_SCROLL_SPEED;
-                    clampCamera();
-                    break;
-                case 'ArrowDown':
-                case 's':
-                case 'S':
-                    cameraY += KEYBOARD_SCROLL_SPEED;
-                    clampCamera();
-                    break;
-                case 'ArrowLeft':
-                case 'a':
-                case 'A':
-                    cameraX -= KEYBOARD_SCROLL_SPEED;
-                    clampCamera();
-                    break;
-                case 'ArrowRight':
-                case 'd':
-                case 'D':
-                    cameraX += KEYBOARD_SCROLL_SPEED;
-                    clampCamera();
-                    break;
-                // Test different animations
                 case '1':
                     game.pc.currentAnimation = 'idle';
                     console.log('Animation: Idle');
+                    animationEl.textContent = game.pc.currentAnimation;
                     break;
                 case '2':
                     game.pc.currentAnimation = 'walk';
                     console.log('Animation: Walk');
+                    animationEl.textContent = game.pc.currentAnimation;
                     break;
                 case '3':
                     game.pc.currentAnimation = 'run';
                     console.log('Animation: Run');
+                    animationEl.textContent = game.pc.currentAnimation;
                     break;
                 case '4':
                     game.pc.currentAnimation = 'attack';
                     console.log('Animation: Attack');
+                    animationEl.textContent = game.pc.currentAnimation;
                     break;
                 case '5':
                     game.pc.currentAnimation = 'jump';
                     console.log('Animation: Jump');
+                    animationEl.textContent = game.pc.currentAnimation;
                     break;
                 case '6':
                     game.pc.currentAnimation = 'die';
                     console.log('Animation: Die');
+                    animationEl.textContent = game.pc.currentAnimation;
                     break;
             }
+        });
 
-            // Update animation display
-            if (game.pc.currentAnimation) {
-                animationEl.textContent = game.pc.currentAnimation;
-            }
+        document.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
         });
 
         // Grid toggle listener
