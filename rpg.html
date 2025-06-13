@@ -133,7 +133,10 @@
                 facing: 'dir8', // Default facing down
                 animationFrame: 0,
                 animationTimer: 0,
-                currentAnimation: 'idle'
+                currentAnimation: 'idle',
+                name: 'Hero',
+                health: 85,
+                maxHealth: 100
             },
             npcs: [
                 {
@@ -145,7 +148,9 @@
                     animationFrame: 3, // Start at different frame
                     animationTimer: 75, // Offset timing
                     currentAnimation: 'idle',
-                    tint: '#ffaaaa'  // Light red tint
+                    name: 'Guard',
+                    health: 60,
+                    maxHealth: 80
                 }
             ]
         };
@@ -341,8 +346,76 @@
             }
         }
 
-        // Draw character (PC or NPC)
-        function drawCharacter(character, tint = null) {
+        // Draw nameplate (name and health bar) above character
+        function drawNameplate(character, isPC = false) {
+            // Account for actual rendered sprite size with zoom level
+            const actualSpriteSize = 256 * zoomLevel; // Sprite size after zoom scaling
+            const nameplateY = character.pixelY - actualSpriteSize / 2 - 45; // ADJUST THIS NUMBER to raise/lower nameplate
+
+            // Calculate nameplate background dimensions
+            const barWidth = 140;
+            const barHeight = 20;
+            const nameplatePadding = 8;
+            const nameplateWidth = Math.max(barWidth, 120) + (nameplatePadding * 2); // Ensure it covers name and health bar
+            const nameplateHeight = 70; // Height to cover name + health bar + spacing
+            const nameplateX = character.pixelX - nameplateWidth / 2;
+            const nameplateBackgroundY = nameplateY - 45; // Position to cover name text
+
+            ctx.save();
+
+            // Draw semi-transparent black background
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)'; // Black with 60% opacity
+            ctx.fillRect(nameplateX, nameplateBackgroundY, nameplateWidth, nameplateHeight);
+
+            // Optional: Add a subtle border to the background
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(nameplateX, nameplateBackgroundY, nameplateWidth, nameplateHeight);
+
+            // Name text
+            ctx.font = 'bold 36px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+
+            // Text shadow for better readability
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
+            ctx.fillText(character.name, character.pixelX + 3, nameplateY + 3);
+
+            // Main text color (different for PC vs NPC)
+            ctx.fillStyle = isPC ? '#00ff00' : '#ffffff';
+            ctx.fillText(character.name, character.pixelX, nameplateY);
+
+            // Health bar background
+            const barX = character.pixelX - barWidth / 2;
+            const barY = nameplateY + 10; // ADJUST THIS NUMBER to change spacing between name and health bar
+
+            // Background (red)
+            ctx.fillStyle = 'rgba(150, 0, 0, 0.9)';
+            ctx.fillRect(barX, barY, barWidth, barHeight);
+
+            // Health fill (green)
+            const healthPercent = character.health / character.maxHealth;
+            const healthWidth = barWidth * healthPercent;
+            ctx.fillStyle = 'rgba(0, 200, 0, 0.9)';
+            ctx.fillRect(barX, barY, healthWidth, barHeight);
+
+            // Health bar border
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(barX, barY, barWidth, barHeight);
+
+            // Health text
+            ctx.font = 'bold 20px Arial';
+            ctx.fillStyle = 'white';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(`${character.health}/${character.maxHealth}`, character.pixelX, barY + barHeight / 2);
+
+            ctx.restore();
+        }
+
+        // Draw character sprite
+        function drawCharacter(character) {
             if (game.assets.knightSprites[character.facing] &&
                 game.assets.knightSprites[character.facing][character.currentAnimation]) {
 
@@ -361,59 +434,23 @@
                 const frameX = col * frameSize;
                 const frameY = row * frameSize;
 
-                // Save context state for tinting
-                ctx.save();
-
-                // Apply tint if specified (for NPC)
-                if (tint) {
-                    ctx.globalCompositeOperation = 'source-over';
-
-                    // Draw the sprite normally first
-                    if (frameX + frameSize <= sprite.width && frameY + frameSize <= sprite.height) {
-                        ctx.drawImage(
-                            sprite,
-                            frameX, frameY, frameSize, frameSize,
-                            character.pixelX - frameSize / 2, character.pixelY - frameSize / 2, frameSize, frameSize
-                        );
-                    } else {
-                        ctx.drawImage(
-                            sprite,
-                            0, 0, frameSize, frameSize,
-                            character.pixelX - frameSize / 2, character.pixelY - frameSize / 2, frameSize, frameSize
-                        );
-                    }
-
-                    // Apply light red tint
-                    ctx.globalCompositeOperation = 'multiply';
-                    ctx.fillStyle = tint;
-                    ctx.fillRect(
-                        character.pixelX - frameSize / 2, character.pixelY - frameSize / 2,
-                        frameSize, frameSize
+                // Draw sprite
+                if (frameX + frameSize <= sprite.width && frameY + frameSize <= sprite.height) {
+                    ctx.drawImage(
+                        sprite,
+                        frameX, frameY, frameSize, frameSize,
+                        character.pixelX - frameSize / 2, character.pixelY - frameSize / 2, frameSize, frameSize
                     );
-
-                    // Restore normal composite operation
-                    ctx.globalCompositeOperation = 'source-over';
                 } else {
-                    // Draw without tint (PC)
-                    if (frameX + frameSize <= sprite.width && frameY + frameSize <= sprite.height) {
-                        ctx.drawImage(
-                            sprite,
-                            frameX, frameY, frameSize, frameSize,
-                            character.pixelX - frameSize / 2, character.pixelY - frameSize / 2, frameSize, frameSize
-                        );
-                    } else {
-                        ctx.drawImage(
-                            sprite,
-                            0, 0, frameSize, frameSize,
-                            character.pixelX - frameSize / 2, character.pixelY - frameSize / 2, frameSize, frameSize
-                        );
-                    }
+                    ctx.drawImage(
+                        sprite,
+                        0, 0, frameSize, frameSize,
+                        character.pixelX - frameSize / 2, character.pixelY - frameSize / 2, frameSize, frameSize
+                    );
                 }
-
-                ctx.restore();
             } else {
-                // Placeholder character
-                ctx.fillStyle = tint || '#ff0000';
+                // Placeholder character (circle)
+                ctx.fillStyle = '#ff0000';
                 ctx.beginPath();
                 ctx.arc(character.pixelX, character.pixelY, 30, 0, Math.PI * 2);
                 ctx.fill();
@@ -465,112 +502,14 @@
                 drawHexGrid();
             }
 
-            // Draw PC (original code)
-            if (game.assets.knightSprites[game.pc.facing] &&
-                game.assets.knightSprites[game.pc.facing][game.pc.currentAnimation]) {
+            // Draw PC
+            drawCharacter(game.pc);
+            drawNameplate(game.pc, true); // true indicates this is the PC
 
-                const sprite = game.assets.knightSprites[game.pc.facing][game.pc.currentAnimation];
-                const frameSize = 256; // Each frame is 256x256
-
-                // Get animation configuration
-                const animConfig = animationConfig[game.pc.currentAnimation];
-                const framesPerRow = animConfig ? animConfig.cols : Math.floor(sprite.width / frameSize);
-
-                // Calculate grid position
-                const col = game.pc.animationFrame % framesPerRow;
-                const row = Math.floor(game.pc.animationFrame / framesPerRow);
-
-                // Calculate pixel position in sprite sheet
-                const frameX = col * frameSize;
-                const frameY = row * frameSize;
-
-                // Check if we're trying to read beyond the sprite sheet
-                if (frameX + frameSize > sprite.width || frameY + frameSize > sprite.height) {
-                    console.warn(`Frame out of bounds for ${game.pc.currentAnimation}: frame ${game.pc.animationFrame}, sprite size: ${sprite.width}x${sprite.height}`);
-                    // Draw first frame instead
-                    ctx.drawImage(
-                        sprite,
-                        0, 0, frameSize, frameSize, // Source - first frame
-                        game.pc.pixelX - frameSize / 2, game.pc.pixelY - frameSize / 2, frameSize, frameSize // Destination
-                    );
-                } else {
-                    ctx.drawImage(
-                        sprite,
-                        frameX, frameY, frameSize, frameSize, // Source
-                        game.pc.pixelX - frameSize / 2, game.pc.pixelY - frameSize / 2, frameSize, frameSize // Destination
-                    );
-                }
-            } else {
-                console.log('Sprite not found:', game.pc.facing, game.pc.currentAnimation);
-                console.log('Available sprites:', game.assets.knightSprites);
-
-                // Placeholder PC
-                ctx.fillStyle = '#ff0000';
-                ctx.beginPath();
-                ctx.arc(game.pc.pixelX, game.pc.pixelY, 30, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.strokeStyle = '#ffffff';
-                ctx.lineWidth = 3;
-                ctx.stroke();
-            }
-
-            // Draw NPCs (with red tinted sprites)
+            // Draw NPCs
             game.npcs.forEach(npc => {
-                if (game.assets.knightSprites[npc.facing] &&
-                    game.assets.knightSprites[npc.facing][npc.currentAnimation]) {
-
-                    const sprite = game.assets.knightSprites[npc.facing][npc.currentAnimation];
-                    const frameSize = 256;
-
-                    // Get animation configuration
-                    const animConfig = animationConfig[npc.currentAnimation];
-                    const framesPerRow = animConfig ? animConfig.cols : Math.floor(sprite.width / frameSize);
-
-                    // Calculate grid position
-                    const col = npc.animationFrame % framesPerRow;
-                    const row = Math.floor(npc.animationFrame / framesPerRow);
-
-                    // Calculate pixel position in sprite sheet
-                    const frameX = col * frameSize;
-                    const frameY = row * frameSize;
-
-                    // Save context for tinting
-                    ctx.save();
-
-                    // Draw sprite normally first
-                    if (frameX + frameSize <= sprite.width && frameY + frameSize <= sprite.height) {
-                        ctx.drawImage(
-                            sprite,
-                            frameX, frameY, frameSize, frameSize,
-                            npc.pixelX - frameSize / 2, npc.pixelY - frameSize / 2, frameSize, frameSize
-                        );
-                    } else {
-                        ctx.drawImage(
-                            sprite,
-                            0, 0, frameSize, frameSize,
-                            npc.pixelX - frameSize / 2, npc.pixelY - frameSize / 2, frameSize, frameSize
-                        );
-                    }
-
-                    // Apply light red tint
-                    ctx.globalCompositeOperation = 'multiply';
-                    ctx.fillStyle = npc.tint;
-                    ctx.fillRect(
-                        npc.pixelX - frameSize / 2, npc.pixelY - frameSize / 2,
-                        frameSize, frameSize
-                    );
-
-                    ctx.restore();
-                } else {
-                    // Fallback to red circle if sprites don't load
-                    ctx.fillStyle = '#ffaaaa';
-                    ctx.beginPath();
-                    ctx.arc(npc.pixelX, npc.pixelY, 25, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.strokeStyle = '#ffffff';
-                    ctx.lineWidth = 2;
-                    ctx.stroke();
-                }
+                drawCharacter(npc);
+                drawNameplate(npc, false); // false indicates this is an NPC
             });
 
             // Restore context state
