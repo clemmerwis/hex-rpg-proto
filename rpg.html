@@ -16,7 +16,6 @@
             height: 100vh;
             font-family: Arial, sans-serif;
             overflow: hidden;
-            /* Prevent any scrolling */
         }
 
         #gameCanvas {
@@ -69,7 +68,7 @@
             <strong>Camera:</strong> <span id="cameraPos">0, 0</span><br>
             <strong>PC Direction:</strong> <span id="directionInfo">dir8</span><br>
             <strong>Animation:</strong> <span id="animationInfo">idle</span><br>
-            <strong>Keys:</strong> 1-6 for animations, Click to face direction
+            <strong>Keys:</strong> 1-6 for animations, 7 to spawn enemy, Click to face direction
         </div>
     </div>
 
@@ -111,46 +110,86 @@
 
         // Animation configuration
         const animationConfig = {
-            'idle': { cols: 5, rows: 4, frameCount: 17 },   // 5×4 grid, 17 frames used
-            'walk': { cols: 4, rows: 3, frameCount: 11 },   // 4×3 grid, 11 frames used
-            'run': { cols: 3, rows: 3, frameCount: 8 },     // 3×3 grid, 8 frames used
-            'jump': { cols: 4, rows: 3, frameCount: 11 },   // 4×3 grid, 11 frames used
-            'attack': { cols: 4, rows: 4, frameCount: 15 }, // 4×4 grid, 15 frames used
-            'die': { cols: 6, rows: 5, frameCount: 27 }     // 6×5 grid, 27 frames used
+            'idle': { cols: 5, rows: 4, frameCount: 17 },
+            'walk': { cols: 4, rows: 3, frameCount: 11 },
+            'run': { cols: 3, rows: 3, frameCount: 8 },
+            'jump': { cols: 4, rows: 3, frameCount: 11 },
+            'attack': { cols: 4, rows: 4, frameCount: 15 },
+            'die': { cols: 6, rows: 5, frameCount: 27 }
+        };
+
+        // Faction system with color tints
+        const FACTIONS = {
+            player: {
+                name: 'Player',
+                tintColor: '#4CAF50',  // Green
+                nameplateColor: '#00ff00'
+            },
+            enemy: {
+                name: 'Enemy',
+                tintColor: '#F44336',  // Red
+                nameplateColor: '#ff4444'
+            },
+            ally: {
+                name: 'Ally',
+                tintColor: '#2196F3',  // Blue
+                nameplateColor: '#4488ff'
+            },
+            neutral: {
+                name: 'Neutral',
+                tintColor: '#FF9800',  // Orange
+                nameplateColor: '#ffaa44'
+            }
         };
 
         // Game state
         const game = {
             assets: {
                 background: null,
-                knightSprites: {} // Store all directional sprites
+                baseKnightSprites: {} // Only store base sprites, no tinting needed
             },
             pc: {
-                hexQ: 5,         // Moved left from 10 to 5
-                hexR: -5,        // Moved up from 0 to -5
+                hexQ: 5,
+                hexR: -5,
                 pixelX: 0,
                 pixelY: 0,
-                facing: 'dir8', // Default facing down
+                facing: 'dir8',
                 animationFrame: 0,
                 animationTimer: 0,
                 currentAnimation: 'idle',
                 name: 'Hero',
                 health: 85,
-                maxHealth: 100
+                maxHealth: 100,
+                faction: 'player'
             },
             npcs: [
                 {
-                    hexQ: 7,         // Near PC, slightly to the right
-                    hexR: -3,        // Near PC, slightly down
+                    hexQ: 7,
+                    hexR: -3,
                     pixelX: 0,
                     pixelY: 0,
-                    facing: 'dir4',  // Facing up
-                    animationFrame: 3, // Start at different frame
-                    animationTimer: 75, // Offset timing
+                    facing: 'dir4',
+                    animationFrame: 3,
+                    animationTimer: 75,
                     currentAnimation: 'idle',
                     name: 'Guard',
                     health: 60,
-                    maxHealth: 80
+                    maxHealth: 80,
+                    faction: 'ally'
+                },
+                {
+                    hexQ: 3,
+                    hexR: -7,
+                    pixelX: 0,
+                    pixelY: 0,
+                    facing: 'dir6',
+                    animationFrame: 8,
+                    animationTimer: 25,
+                    currentAnimation: 'idle',
+                    name: 'Bandit',
+                    health: 45,
+                    maxHealth: 60,
+                    faction: 'enemy'
                 }
             ]
         };
@@ -198,6 +237,131 @@
             }
         };
 
+        // Color tinting functions - REMOVED (caused CORS issues)
+        // Using hex border coloring instead of sprite tinting
+
+        // Draw hex grid with character-based coloring
+        function drawHexGrid() {
+            console.log('drawHexGrid() called!');
+
+            const margin = HEX_SIZE * 2;
+            const startX = (cameraX / zoomLevel) - margin;
+            const startY = (cameraY / zoomLevel) - margin;
+            const endX = ((cameraX + VIEWPORT_WIDTH) / zoomLevel) + margin;
+            const endY = ((cameraY + VIEWPORT_HEIGHT) / zoomLevel) + margin;
+
+            const startHex = HexGrid.pixelToHex(startX, startY);
+            const endHex = HexGrid.pixelToHex(endX, endY);
+
+            console.log(`Drawing hexes from ${startHex.q},${startHex.r} to ${endHex.q},${endHex.r}`);
+
+            for (let q = startHex.q - 5; q <= endHex.q + 5; q++) {
+                for (let r = startHex.r - 5; r <= endHex.r + 5; r++) {
+                    const pos = HexGrid.hexToPixel(q, r);
+                    if (pos.x >= -HEX_SIZE && pos.x <= WORLD_WIDTH + HEX_SIZE &&
+                        pos.y >= -HEX_SIZE && pos.y <= WORLD_HEIGHT + HEX_SIZE) {
+
+                        // Debug for Hero's hex specifically
+                        if (q === 5 && r === -5) {
+                            console.log(`About to draw Hero's hex at ${q},${r}`);
+                        }
+
+                        drawHexWithCharacterColors(q, r);
+                    }
+                }
+            }
+        }
+
+        // Draw a single hex with character-based coloring and border gradients
+        function drawHexWithCharacterColors(q, r) {
+            const center = HexGrid.hexToPixel(q, r);
+            const characterHere = getCharacterAtHex(q, r);
+
+            // Debug: Check if we're drawing the Hero's hex
+            if (q === 5 && r === -5) {
+                console.log(`Drawing Hero's hex at ${q},${r} - Character found:`, characterHere ? characterHere.name : 'NONE');
+            }
+
+            // Define the 6 adjacent hex directions (clockwise from right)
+            const adjacentDirs = [
+                [1, 0],   // Right
+                [0, 1],   // Down-Right  
+                [-1, 1],  // Down-Left
+                [-1, 0],  // Left
+                [0, -1],  // Up-Left
+                [1, -1]   // Up-Right
+            ];
+
+            // Calculate hex corner points
+            const hexPoints = [];
+            for (let i = 0; i < 6; i++) {
+                const angle = 2 * Math.PI / 6 * i - Math.PI / 6;
+                const x = center.x + HEX_SIZE * Math.cos(angle);
+                const y = center.y + HEX_SIZE * Math.sin(angle);
+                hexPoints.push({ x, y });
+            }
+
+            // ALWAYS draw the default grid first
+            ctx.beginPath();
+            hexPoints.forEach((point, i) => {
+                if (i === 0) {
+                    ctx.moveTo(point.x, point.y);
+                } else {
+                    ctx.lineTo(point.x, point.y);
+                }
+            });
+            ctx.closePath();
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // If character is on this hex, draw thick colored border ON TOP
+            if (characterHere) {
+                const factionData = FACTIONS[characterHere.faction] || FACTIONS.neutral;
+
+                if (q === 5 && r === -5) {
+                    console.log(`Drawing THICK border for ${characterHere.name} with color ${factionData.tintColor}`);
+                }
+
+                // Draw a very obvious test border first
+                ctx.beginPath();
+                hexPoints.forEach((point, i) => {
+                    if (i === 0) {
+                        ctx.moveTo(point.x, point.y);
+                    } else {
+                        ctx.lineTo(point.x, point.y);
+                    }
+                });
+                ctx.closePath();
+
+                // Make it EXTREMELY visible for testing
+                ctx.strokeStyle = '#FF00FF'; // Bright magenta - impossible to miss
+                ctx.lineWidth = 20; // VERY thick
+                ctx.stroke();
+
+                if (q === 5 && r === -5) {
+                    console.log(`Should have drawn MAGENTA border around Hero's hex!`);
+                }
+            }
+        }
+
+        // Get character at specific hex coordinate (should be max 1)
+        function getCharacterAtHex(q, r) {
+            // Check PC first
+            if (game.pc.hexQ === q && game.pc.hexR === r) {
+                return game.pc;
+            }
+
+            // Check NPCs
+            for (let npc of game.npcs) {
+                if (npc.hexQ === q && npc.hexR === r) {
+                    return npc;
+                }
+            }
+
+            return null;
+        }
+
         // Asset loading
         function loadAssets() {
             let assetsLoaded = 0;
@@ -205,7 +369,7 @@
 
             // Count total assets (8 directions × number of animations)
             const directions = ['dir1', 'dir2', 'dir3', 'dir4', 'dir5', 'dir6', 'dir7', 'dir8'];
-            const animations = ['Idle', 'Walk', 'Run', 'Attack', 'Jump', 'Die']; // Available animations
+            const animations = ['Idle', 'Walk', 'Run', 'Attack', 'Jump', 'Die'];
             totalAssets += directions.length * animations.length;
 
             // Load background
@@ -224,7 +388,7 @@
 
             // Load knight sprites for each direction
             directions.forEach(dir => {
-                game.assets.knightSprites[dir] = {};
+                game.assets.baseKnightSprites[dir] = {};
 
                 animations.forEach(anim => {
                     const sprite = new Image();
@@ -237,9 +401,8 @@
                         assetsLoaded++;
                         checkAssetsLoaded();
                     };
-                    // Path based on your file structure
                     sprite.src = `sprites/KnightBasic/${anim}/Knight_${anim}_${dir}.png`;
-                    game.assets.knightSprites[dir][anim.toLowerCase()] = sprite;
+                    game.assets.baseKnightSprites[dir][anim.toLowerCase()] = sprite;
                 });
             });
 
@@ -248,7 +411,7 @@
                 loadStatusEl.textContent = `Loading: ${loadPercent}%`;
 
                 if (assetsLoaded === totalAssets) {
-                    loadStatusEl.textContent = 'Ready';
+                    loadStatusEl.textContent = 'Ready - Press 7 to spawn, 8 to debug positions';
                     loadStatusEl.style.color = '#0f0';
 
                     // Set PC starting position
@@ -263,10 +426,7 @@
                         npc.pixelY = npcStartPos.y;
                     });
 
-                    // Center camera on PC (original behavior)
                     centerCameraOn(game.pc.pixelX, game.pc.pixelY);
-
-                    // Start render loop
                     gameLoop();
                 }
             }
@@ -287,7 +447,6 @@
             cameraX = Math.max(0, Math.min(cameraX, maxCameraX));
             cameraY = Math.max(0, Math.min(cameraY, maxCameraY));
 
-            // Update debug display
             cameraPosEl.textContent = `${Math.round(cameraX)}, ${Math.round(cameraY)}`;
         }
 
@@ -301,11 +460,10 @@
 
         // Update animations
         function updateAnimations() {
-            // Animation speed (lower = faster)
-            const ANIMATION_SPEED = 150; // milliseconds per frame
+            const ANIMATION_SPEED = 150;
 
             // Update PC animation
-            game.pc.animationTimer += 16; // Approximately 60fps
+            game.pc.animationTimer += 16;
             if (game.pc.animationTimer >= ANIMATION_SPEED) {
                 game.pc.animationTimer = 0;
                 const animConfig = animationConfig[game.pc.currentAnimation];
@@ -325,71 +483,69 @@
             });
         }
 
-        // Update keyboard scrolling (called in game loop)
+        // Update keyboard scrolling
         function updateKeyboardScrolling() {
             const KEYBOARD_SCROLL_SPEED = 15;
 
             let scrollX = 0;
             let scrollY = 0;
 
-            // Check all movement keys
             if (keys['ArrowUp'] || keys['w'] || keys['W']) scrollY -= KEYBOARD_SCROLL_SPEED;
             if (keys['ArrowDown'] || keys['s'] || keys['S']) scrollY += KEYBOARD_SCROLL_SPEED;
             if (keys['ArrowLeft'] || keys['a'] || keys['A']) scrollX -= KEYBOARD_SCROLL_SPEED;
             if (keys['ArrowRight'] || keys['d'] || keys['D']) scrollX += KEYBOARD_SCROLL_SPEED;
 
-            // Apply movement
             if (scrollX !== 0 || scrollY !== 0) {
+                keyboardScrollActive = true; // Flag that keyboard scrolling is happening
                 cameraX += scrollX;
                 cameraY += scrollY;
                 clampCamera();
             }
         }
 
-        // Draw nameplate (name and health bar) above character
+        // Draw nameplate with faction colors
         function drawNameplate(character, isPC = false) {
-            // Account for actual rendered sprite size with zoom level
-            const actualSpriteSize = 256 * zoomLevel; // Sprite size after zoom scaling
-            const nameplateY = character.pixelY - actualSpriteSize / 2 - 45; // ADJUST THIS NUMBER to raise/lower nameplate
+            const actualSpriteSize = 256 * zoomLevel;
+            const nameplateY = character.pixelY - actualSpriteSize / 2 - 45;
 
-            // Calculate nameplate background dimensions
-            const barWidth = 140;
-            const barHeight = 20;
+            const barWidth = 150;  // Slightly wider
+            const barHeight = 22;  // Slightly taller
             const nameplatePadding = 8;
-            const nameplateWidth = Math.max(barWidth, 120) + (nameplatePadding * 2); // Ensure it covers name and health bar
-            const nameplateHeight = 70; // Height to cover name + health bar + spacing
+            const nameplateWidth = Math.max(barWidth, 120) + (nameplatePadding * 2);
+            const nameplateHeight = 65;  // Reduced height
             const nameplateX = character.pixelX - nameplateWidth / 2;
-            const nameplateBackgroundY = nameplateY - 45; // Position to cover name text
+            const nameplateBackgroundY = nameplateY - 40;  // Adjusted for smaller text
 
             ctx.save();
 
             // Draw semi-transparent black background
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)'; // Black with 60% opacity
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
             ctx.fillRect(nameplateX, nameplateBackgroundY, nameplateWidth, nameplateHeight);
 
-            // Optional: Add a subtle border to the background
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-            ctx.lineWidth = 1;
+            // Consistent border for all characters
+            const factionData = FACTIONS[character.faction] || FACTIONS.neutral;
+            ctx.strokeStyle = factionData.nameplateColor;
+            ctx.lineWidth = 2;  // Same thickness for everyone
             ctx.strokeRect(nameplateX, nameplateBackgroundY, nameplateWidth, nameplateHeight);
 
-            // Name text
-            ctx.font = 'bold 36px Arial';
+            // Name text - smaller font
+            ctx.font = 'bold 28px Arial';  // Reduced from 36px to 28px
             ctx.textAlign = 'center';
             ctx.textBaseline = 'bottom';
 
-            // Text shadow for better readability
+            // Text shadow
             ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
-            ctx.fillText(character.name, character.pixelX + 3, nameplateY + 3);
+            ctx.fillText(character.name, character.pixelX + 2, nameplateY + 2);
 
-            // Main text color (different for PC vs NPC)
-            ctx.fillStyle = isPC ? '#00ff00' : '#ffffff';
+            // Main text color
+            ctx.fillStyle = factionData.nameplateColor;
             ctx.fillText(character.name, character.pixelX, nameplateY);
 
-            // Health bar background
+            // Health bar
             const barX = character.pixelX - barWidth / 2;
-            const barY = nameplateY + 10; // ADJUST THIS NUMBER to change spacing between name and health bar
+            const barY = nameplateY + 8;  // Adjusted spacing
 
-            // Background (red)
+            // Background (dark red)
             ctx.fillStyle = 'rgba(150, 0, 0, 0.9)';
             ctx.fillRect(barX, barY, barWidth, barHeight);
 
@@ -405,7 +561,7 @@
             ctx.strokeRect(barX, barY, barWidth, barHeight);
 
             // Health text
-            ctx.font = 'bold 20px Arial';
+            ctx.font = 'bold 18px Arial';  // Slightly smaller
             ctx.fillStyle = 'white';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
@@ -414,27 +570,24 @@
             ctx.restore();
         }
 
-        // Draw character sprite
+        // Draw character sprite (no tinting, use original sprites)
         function drawCharacter(character) {
-            if (game.assets.knightSprites[character.facing] &&
-                game.assets.knightSprites[character.facing][character.currentAnimation]) {
+            // Use base sprites directly - no tinting needed since we use hex borders for faction identification
+            const sprite = game.assets.baseKnightSprites[character.facing] &&
+                game.assets.baseKnightSprites[character.facing][character.currentAnimation];
 
-                const sprite = game.assets.knightSprites[character.facing][character.currentAnimation];
-                const frameSize = 256; // Each frame is 256x256
-
-                // Get animation configuration
+            if (sprite && sprite.complete) {
+                const frameSize = 256;
                 const animConfig = animationConfig[character.currentAnimation];
                 const framesPerRow = animConfig ? animConfig.cols : Math.floor(sprite.width / frameSize);
 
-                // Calculate grid position
                 const col = character.animationFrame % framesPerRow;
                 const row = Math.floor(character.animationFrame / framesPerRow);
 
-                // Calculate pixel position in sprite sheet
                 const frameX = col * frameSize;
                 const frameY = row * frameSize;
 
-                // Draw sprite
+                // Draw the sprite frame
                 if (frameX + frameSize <= sprite.width && frameY + frameSize <= sprite.height) {
                     ctx.drawImage(
                         sprite,
@@ -442,6 +595,7 @@
                         character.pixelX - frameSize / 2, character.pixelY - frameSize / 2, frameSize, frameSize
                     );
                 } else {
+                    // Fallback to first frame if calculated frame is out of bounds
                     ctx.drawImage(
                         sprite,
                         0, 0, frameSize, frameSize,
@@ -449,8 +603,9 @@
                     );
                 }
             } else {
-                // Placeholder character (circle)
-                ctx.fillStyle = '#ff0000';
+                // Placeholder character with faction color
+                const factionData = FACTIONS[character.faction] || FACTIONS.neutral;
+                ctx.fillStyle = factionData.tintColor;
                 ctx.beginPath();
                 ctx.arc(character.pixelX, character.pixelY, 30, 0, Math.PI * 2);
                 ctx.fill();
@@ -462,14 +617,10 @@
 
         // Rendering
         function render() {
-            // Clear canvas
             ctx.fillStyle = '#2a2a2a';
             ctx.fillRect(0, 0, VIEWPORT_WIDTH, VIEWPORT_HEIGHT);
 
-            // Save context state
             ctx.save();
-
-            // Apply camera transform
             ctx.scale(zoomLevel, zoomLevel);
             ctx.translate(-cameraX / zoomLevel, -cameraY / zoomLevel);
 
@@ -477,7 +628,6 @@
             if (game.assets.background) {
                 ctx.drawImage(game.assets.background, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
             } else {
-                // Placeholder background
                 ctx.fillStyle = '#1a3a1a';
                 ctx.fillRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
 
@@ -489,7 +639,7 @@
                     ctx.lineTo(x, WORLD_HEIGHT);
                     ctx.stroke();
                 }
-                for (let y = 0; y < WORLD_HEIGHT; y += 100) {
+                for (let y = 0; y < WORLD_WIDTH; y += 100) {
                     ctx.beginPath();
                     ctx.moveTo(0, y);
                     ctx.lineTo(WORLD_WIDTH, y);
@@ -497,46 +647,150 @@
                 }
             }
 
-            // Draw hex grid
-            if (showGridCheckbox.checked) {
-                drawHexGrid();
-            }
+            // Draw hex grid - INLINE to avoid scope issues
+            console.log('About to call INLINE drawHexGrid');
 
-            // Draw PC
-            drawCharacter(game.pc);
-            drawNameplate(game.pc, true); // true indicates this is the PC
-
-            // Draw NPCs
-            game.npcs.forEach(npc => {
-                drawCharacter(npc);
-                drawNameplate(npc, false); // false indicates this is an NPC
-            });
-
-            // Restore context state
-            ctx.restore();
-        }
-
-        // Draw hex grid (only visible hexes)
-        function drawHexGrid() {
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
-            ctx.lineWidth = 2;
-
-            // Calculate visible hex bounds with extra margin
             const margin = HEX_SIZE * 2;
             const startX = (cameraX / zoomLevel) - margin;
             const startY = (cameraY / zoomLevel) - margin;
             const endX = ((cameraX + VIEWPORT_WIDTH) / zoomLevel) + margin;
             const endY = ((cameraY + VIEWPORT_HEIGHT) / zoomLevel) + margin;
 
-            // Convert to hex coordinates
             const startHex = HexGrid.pixelToHex(startX, startY);
             const endHex = HexGrid.pixelToHex(endX, endY);
 
-            // Draw only visible hexes with extra buffer
+            console.log(`Drawing hexes from ${startHex.q},${startHex.r} to ${endHex.q},${endHex.r}`);
+
             for (let q = startHex.q - 5; q <= endHex.q + 5; q++) {
                 for (let r = startHex.r - 5; r <= endHex.r + 5; r++) {
                     const pos = HexGrid.hexToPixel(q, r);
-                    // Only draw if hex center is within world bounds
+                    if (pos.x >= -HEX_SIZE && pos.x <= WORLD_WIDTH + HEX_SIZE &&
+                        pos.y >= -HEX_SIZE && pos.y <= WORLD_HEIGHT + HEX_SIZE) {
+
+                        // INLINE hex drawing to avoid scope issues
+                        const center = HexGrid.hexToPixel(q, r);
+                        const characterHere = getCharacterAtHex(q, r);
+
+                        // Debug for Hero's hex
+                        if (q === 5 && r === -5) {
+                            console.log(`Drawing Hero's hex at ${q},${r} - Character:`, characterHere ? characterHere.name : 'NONE');
+                        }
+
+                        // Calculate hex corner points
+                        const hexPoints = [];
+                        for (let i = 0; i < 6; i++) {
+                            const angle = 2 * Math.PI / 6 * i - Math.PI / 6;
+                            const x = center.x + HEX_SIZE * Math.cos(angle);
+                            const y = center.y + HEX_SIZE * Math.sin(angle);
+                            hexPoints.push({ x, y });
+                        }
+
+                        // Draw default grid
+                        ctx.beginPath();
+                        hexPoints.forEach((point, i) => {
+                            if (i === 0) {
+                                ctx.moveTo(point.x, point.y);
+                            } else {
+                                ctx.lineTo(point.x, point.y);
+                            }
+                        });
+                        ctx.closePath();
+                        ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+                        ctx.lineWidth = 2;
+                        ctx.stroke();
+
+                        // If character here, draw faction-colored border
+                        if (characterHere) {
+                            const factionData = FACTIONS[characterHere.faction] || FACTIONS.neutral;
+
+                            if (q === 5 && r === -5) {
+                                console.log(`Drawing ${factionData.tintColor} border for ${characterHere.name} at ${q},${r}`);
+                            }
+
+                            ctx.beginPath();
+                            hexPoints.forEach((point, i) => {
+                                if (i === 0) {
+                                    ctx.moveTo(point.x, point.y);
+                                } else {
+                                    ctx.lineTo(point.x, point.y);
+                                }
+                            });
+                            ctx.closePath();
+
+                            // Use faction color and thinner borders
+                            ctx.strokeStyle = factionData.tintColor;
+                            ctx.lineWidth = 4; // Reduced from 6px - thinner borders
+                            ctx.stroke();
+
+                            // Check for adjacent different factions for gradient borders
+                            const adjacentDirs = [
+                                [1, 0], [0, 1], [-1, 1], [-1, 0], [0, -1], [1, -1]
+                            ];
+
+                            adjacentDirs.forEach((dir, edgeIndex) => {
+                                const [dq, dr] = dir;
+                                const adjQ = q + dq;
+                                const adjR = r + dr;
+                                const adjCharacter = getCharacterAtHex(adjQ, adjR);
+
+                                if (adjCharacter && adjCharacter.faction !== characterHere.faction) {
+                                    // Different faction adjacent - create gradient on shared edge
+                                    const startPoint = hexPoints[edgeIndex];
+                                    const endPoint = hexPoints[(edgeIndex + 1) % 6];
+
+                                    const adjFactionData = FACTIONS[adjCharacter.faction] || FACTIONS.neutral;
+
+                                    const gradient = ctx.createLinearGradient(
+                                        startPoint.x, startPoint.y,
+                                        endPoint.x, endPoint.y
+                                    );
+
+                                    gradient.addColorStop(0, factionData.tintColor);
+                                    gradient.addColorStop(1, adjFactionData.tintColor);
+
+                                    ctx.beginPath();
+                                    ctx.moveTo(startPoint.x, startPoint.y);
+                                    ctx.lineTo(endPoint.x, endPoint.y);
+                                    ctx.strokeStyle = gradient;
+                                    ctx.lineWidth = 6; // Reduced from 8px - thinner gradient borders
+                                    ctx.stroke();
+                                }
+                            });
+                        }
+                    }
+                }
+            }
+
+            // Draw PC
+            drawCharacter(game.pc);
+            drawNameplate(game.pc, true);
+
+            // Draw NPCs
+            game.npcs.forEach(npc => {
+                drawCharacter(npc);
+                drawNameplate(npc, false);
+            });
+
+            ctx.restore();
+        }
+
+        // Draw hex grid
+        function drawHexGrid() {
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+            ctx.lineWidth = 2;
+
+            const margin = HEX_SIZE * 2;
+            const startX = (cameraX / zoomLevel) - margin;
+            const startY = (cameraY / zoomLevel) - margin;
+            const endX = ((cameraX + VIEWPORT_WIDTH) / zoomLevel) + margin;
+            const endY = ((cameraY + VIEWPORT_HEIGHT) / zoomLevel) + margin;
+
+            const startHex = HexGrid.pixelToHex(startX, startY);
+            const endHex = HexGrid.pixelToHex(endX, endY);
+
+            for (let q = startHex.q - 5; q <= endHex.q + 5; q++) {
+                for (let r = startHex.r - 5; r <= endHex.r + 5; r++) {
+                    const pos = HexGrid.hexToPixel(q, r);
                     if (pos.x >= -HEX_SIZE && pos.x <= WORLD_WIDTH + HEX_SIZE &&
                         pos.y >= -HEX_SIZE && pos.y <= WORLD_HEIGHT + HEX_SIZE) {
                         drawHex(q, r);
@@ -565,10 +819,41 @@
             ctx.stroke();
         }
 
-        // Mouse edge scrolling with variable speed
+        // Spawn enemy function
+        function spawnEnemy() {
+            const factions = ['enemy', 'ally', 'neutral'];
+            const randomFaction = factions[Math.floor(Math.random() * factions.length)];
+
+            const newEnemy = {
+                hexQ: game.pc.hexQ + Math.floor(Math.random() * 6) - 3,
+                hexR: game.pc.hexR + Math.floor(Math.random() * 6) - 3,
+                pixelX: 0,
+                pixelY: 0,
+                facing: ['dir1', 'dir2', 'dir3', 'dir4', 'dir5', 'dir6', 'dir7', 'dir8'][Math.floor(Math.random() * 8)],
+                animationFrame: Math.floor(Math.random() * 17),
+                animationTimer: Math.floor(Math.random() * 150),
+                currentAnimation: 'idle',
+                name: randomFaction.charAt(0).toUpperCase() + randomFaction.slice(1),
+                health: 50 + Math.floor(Math.random() * 30),
+                maxHealth: 80,
+                faction: randomFaction
+            };
+
+            const enemyPos = HexGrid.hexToPixel(newEnemy.hexQ, newEnemy.hexR);
+            newEnemy.pixelX = enemyPos.x;
+            newEnemy.pixelY = enemyPos.y;
+
+            game.npcs.push(newEnemy);
+            console.log(`Spawned ${randomFaction} at ${newEnemy.hexQ}, ${newEnemy.hexR}`);
+        }
+
+        // Mouse edge scrolling state
         let mouseX = 0;
         let mouseY = 0;
         let isMouseOverCanvas = false;
+        let keyboardScrollActive = false;
+        let mouseInEdgeZone = false;
+        let wasInEdgeZone = false;
 
         canvas.addEventListener('mouseenter', () => isMouseOverCanvas = true);
         canvas.addEventListener('mouseleave', () => isMouseOverCanvas = false);
@@ -579,23 +864,50 @@
                 return;
             }
 
-            const EDGE_THRESHOLD = 150;
-            const MAX_SCROLL_SPEED = 12; // Reduced from 25
+            const EDGE_THRESHOLD = 100;
+            const MAX_SCROLL_SPEED = 12;
 
             const rect = canvas.getBoundingClientRect();
             const relativeX = mouseX - rect.left;
             const relativeY = mouseY - rect.top;
 
-            let scrollX = 0;
-            let scrollY = 0;
-
-            // Calculate distance from edges
+            // Check if mouse is currently in edge zone
             const leftDistance = relativeX;
             const rightDistance = rect.width - relativeX;
             const topDistance = relativeY;
             const bottomDistance = rect.height - relativeY;
 
-            // Variable speed based on distance from edge
+            const currentlyInEdgeZone = (
+                (leftDistance < EDGE_THRESHOLD && leftDistance >= 0) ||
+                (rightDistance < EDGE_THRESHOLD && rightDistance >= 0) ||
+                (topDistance < EDGE_THRESHOLD && topDistance >= 0) ||
+                (bottomDistance < EDGE_THRESHOLD && bottomDistance >= 0)
+            );
+
+            // Track edge zone entry/exit for keyboard scroll reset
+            if (!wasInEdgeZone && currentlyInEdgeZone) {
+                // Mouse just entered edge zone
+                mouseInEdgeZone = true;
+                if (keyboardScrollActive) {
+                    // Reset keyboard scroll flag when mouse re-enters edge after being outside
+                    keyboardScrollActive = false;
+                }
+            } else if (wasInEdgeZone && !currentlyInEdgeZone) {
+                // Mouse just left edge zone
+                mouseInEdgeZone = false;
+            }
+
+            wasInEdgeZone = currentlyInEdgeZone;
+
+            // Skip edge scrolling if keyboard scrolling is active
+            if (keyboardScrollActive) {
+                requestAnimationFrame(updateEdgeScrolling);
+                return;
+            }
+
+            let scrollX = 0;
+            let scrollY = 0;
+
             if (leftDistance < EDGE_THRESHOLD && leftDistance >= 0) {
                 const speedMultiplier = 1 - (leftDistance / EDGE_THRESHOLD);
                 scrollX = -MAX_SCROLL_SPEED * speedMultiplier;
@@ -612,7 +924,6 @@
                 scrollY = MAX_SCROLL_SPEED * speedMultiplier;
             }
 
-            // Apply scrolling
             if (scrollX !== 0 || scrollY !== 0) {
                 cameraX += scrollX;
                 cameraY += scrollY;
@@ -632,7 +943,6 @@
             const canvasX = e.clientX - rect.left;
             const canvasY = e.clientY - rect.top;
 
-            // Convert to world coordinates
             const worldX = (canvasX + cameraX) / zoomLevel;
             const worldY = (canvasY + cameraY) / zoomLevel;
 
@@ -647,71 +957,65 @@
             const canvasX = e.clientX - rect.left;
             const canvasY = e.clientY - rect.top;
 
-            // Convert to world coordinates
             const worldX = (canvasX + cameraX) / zoomLevel;
             const worldY = (canvasY + cameraY) / zoomLevel;
 
             const hex = HexGrid.pixelToHex(worldX, worldY);
             console.log(`Clicked hex: q=${hex.q}, r=${hex.r}`);
 
-            // Calculate direction to face
             const targetPos = HexGrid.hexToPixel(hex.q, hex.r);
             const dx = targetPos.x - game.pc.pixelX;
             const dy = targetPos.y - game.pc.pixelY;
 
-            // Calculate angle and convert to 8-direction
             let angle = Math.atan2(dy, dx) * 180 / Math.PI;
-            angle = (angle + 360) % 360; // Normalize to 0-360
+            angle = (angle + 360) % 360;
 
-            // Map angle to direction
-            if (angle >= 337.5 || angle < 22.5) game.pc.facing = 'dir6';      // Right
-            else if (angle >= 22.5 && angle < 67.5) game.pc.facing = 'dir7';  // Down-Right
-            else if (angle >= 67.5 && angle < 112.5) game.pc.facing = 'dir8'; // Down
-            else if (angle >= 112.5 && angle < 157.5) game.pc.facing = 'dir1'; // Down-Left
-            else if (angle >= 157.5 && angle < 202.5) game.pc.facing = 'dir2'; // Left
-            else if (angle >= 202.5 && angle < 247.5) game.pc.facing = 'dir3'; // Up-Left
-            else if (angle >= 247.5 && angle < 292.5) game.pc.facing = 'dir4'; // Up
-            else if (angle >= 292.5 && angle < 337.5) game.pc.facing = 'dir5'; // Up-Right
+            if (angle >= 337.5 || angle < 22.5) game.pc.facing = 'dir6';
+            else if (angle >= 22.5 && angle < 67.5) game.pc.facing = 'dir7';
+            else if (angle >= 67.5 && angle < 112.5) game.pc.facing = 'dir8';
+            else if (angle >= 112.5 && angle < 157.5) game.pc.facing = 'dir1';
+            else if (angle >= 157.5 && angle < 202.5) game.pc.facing = 'dir2';
+            else if (angle >= 202.5 && angle < 247.5) game.pc.facing = 'dir3';
+            else if (angle >= 247.5 && angle < 292.5) game.pc.facing = 'dir4';
+            else if (angle >= 292.5 && angle < 337.5) game.pc.facing = 'dir5';
 
-            // Update debug display
             directionEl.textContent = game.pc.facing;
         });
 
-        // Keyboard state tracking
+        // Keyboard handling
         document.addEventListener('keydown', (e) => {
             keys[e.key] = true;
 
-            // Handle animation changes immediately on keydown
             switch (e.key) {
                 case '1':
                     game.pc.currentAnimation = 'idle';
-                    console.log('Animation: Idle');
                     animationEl.textContent = game.pc.currentAnimation;
                     break;
                 case '2':
                     game.pc.currentAnimation = 'walk';
-                    console.log('Animation: Walk');
                     animationEl.textContent = game.pc.currentAnimation;
                     break;
                 case '3':
                     game.pc.currentAnimation = 'run';
-                    console.log('Animation: Run');
                     animationEl.textContent = game.pc.currentAnimation;
                     break;
                 case '4':
                     game.pc.currentAnimation = 'attack';
-                    console.log('Animation: Attack');
                     animationEl.textContent = game.pc.currentAnimation;
                     break;
                 case '5':
                     game.pc.currentAnimation = 'jump';
-                    console.log('Animation: Jump');
                     animationEl.textContent = game.pc.currentAnimation;
                     break;
                 case '6':
                     game.pc.currentAnimation = 'die';
-                    console.log('Animation: Die');
                     animationEl.textContent = game.pc.currentAnimation;
+                    break;
+                case '7':
+                    spawnEnemy();
+                    break;
+                case '8':
+                    window.testCharacterPositions(); // Debug key
                     break;
             }
         });
@@ -720,13 +1024,39 @@
             keys[e.key] = false;
         });
 
-        // Grid toggle listener
         showGridCheckbox.addEventListener('change', () => {
             requestAnimationFrame(render);
         });
 
         // Initialize
         loadAssets();
+
+        // Run debug after everything is loaded (wait 2 seconds)
+        setTimeout(() => {
+            console.log('=== CHARACTER POSITION DEBUG ===');
+            console.log(`PC: hex(${game.pc.hexQ},${game.pc.hexR}) faction: ${game.pc.faction}`);
+
+            // Test if we can find the PC at its own position
+            const foundPC = getCharacterAtHex(game.pc.hexQ, game.pc.hexR);
+            console.log(`Can find PC at its hex? ${foundPC ? foundPC.name : 'NO'}`);
+
+            // Test NPCs
+            game.npcs.forEach(npc => {
+                console.log(`NPC ${npc.name}: hex(${npc.hexQ},${npc.hexR}) faction: ${npc.faction}`);
+                const foundNPC = getCharacterAtHex(npc.hexQ, npc.hexR);
+                console.log(`Can find ${npc.name} at its hex? ${foundNPC ? foundNPC.name : 'NO'}`);
+            });
+
+            // Test the faction colors
+            Object.keys(FACTIONS).forEach(faction => {
+                console.log(`Faction ${faction}: ${FACTIONS[faction].tintColor}`);
+            });
+
+            // Test if hex border drawing is being called
+            console.log('Testing hex border drawing...');
+            const testChar = getCharacterAtHex(5, -5);
+            console.log(`Character at 5,-5: ${testChar ? testChar.name : 'NONE'}`);
+        }, 2000);
     </script>
 </body>
 
