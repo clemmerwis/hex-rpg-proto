@@ -237,114 +237,6 @@
             }
         };
 
-        // Color tinting functions - REMOVED (caused CORS issues)
-        // Using hex border coloring instead of sprite tinting
-
-        // Draw hex grid with character-based coloring
-        function drawHexGrid() {
-            console.log('drawHexGrid() called!');
-
-            const margin = HEX_SIZE * 2;
-            const startX = (cameraX / zoomLevel) - margin;
-            const startY = (cameraY / zoomLevel) - margin;
-            const endX = ((cameraX + VIEWPORT_WIDTH) / zoomLevel) + margin;
-            const endY = ((cameraY + VIEWPORT_HEIGHT) / zoomLevel) + margin;
-
-            const startHex = HexGrid.pixelToHex(startX, startY);
-            const endHex = HexGrid.pixelToHex(endX, endY);
-
-            console.log(`Drawing hexes from ${startHex.q},${startHex.r} to ${endHex.q},${endHex.r}`);
-
-            for (let q = startHex.q - 5; q <= endHex.q + 5; q++) {
-                for (let r = startHex.r - 5; r <= endHex.r + 5; r++) {
-                    const pos = HexGrid.hexToPixel(q, r);
-                    if (pos.x >= -HEX_SIZE && pos.x <= WORLD_WIDTH + HEX_SIZE &&
-                        pos.y >= -HEX_SIZE && pos.y <= WORLD_HEIGHT + HEX_SIZE) {
-
-                        // Debug for Hero's hex specifically
-                        if (q === 5 && r === -5) {
-                            console.log(`About to draw Hero's hex at ${q},${r}`);
-                        }
-
-                        drawHexWithCharacterColors(q, r);
-                    }
-                }
-            }
-        }
-
-        // Draw a single hex with character-based coloring and border gradients
-        function drawHexWithCharacterColors(q, r) {
-            const center = HexGrid.hexToPixel(q, r);
-            const characterHere = getCharacterAtHex(q, r);
-
-            // Debug: Check if we're drawing the Hero's hex
-            if (q === 5 && r === -5) {
-                console.log(`Drawing Hero's hex at ${q},${r} - Character found:`, characterHere ? characterHere.name : 'NONE');
-            }
-
-            // Define the 6 adjacent hex directions (clockwise from right)
-            const adjacentDirs = [
-                [1, 0],   // Right
-                [0, 1],   // Down-Right  
-                [-1, 1],  // Down-Left
-                [-1, 0],  // Left
-                [0, -1],  // Up-Left
-                [1, -1]   // Up-Right
-            ];
-
-            // Calculate hex corner points
-            const hexPoints = [];
-            for (let i = 0; i < 6; i++) {
-                const angle = 2 * Math.PI / 6 * i - Math.PI / 6;
-                const x = center.x + HEX_SIZE * Math.cos(angle);
-                const y = center.y + HEX_SIZE * Math.sin(angle);
-                hexPoints.push({ x, y });
-            }
-
-            // ALWAYS draw the default grid first
-            ctx.beginPath();
-            hexPoints.forEach((point, i) => {
-                if (i === 0) {
-                    ctx.moveTo(point.x, point.y);
-                } else {
-                    ctx.lineTo(point.x, point.y);
-                }
-            });
-            ctx.closePath();
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-
-            // If character is on this hex, draw thick colored border ON TOP
-            if (characterHere) {
-                const factionData = FACTIONS[characterHere.faction] || FACTIONS.neutral;
-
-                if (q === 5 && r === -5) {
-                    console.log(`Drawing THICK border for ${characterHere.name} with color ${factionData.tintColor}`);
-                }
-
-                // Draw a very obvious test border first
-                ctx.beginPath();
-                hexPoints.forEach((point, i) => {
-                    if (i === 0) {
-                        ctx.moveTo(point.x, point.y);
-                    } else {
-                        ctx.lineTo(point.x, point.y);
-                    }
-                });
-                ctx.closePath();
-
-                // Make it EXTREMELY visible for testing
-                ctx.strokeStyle = '#FF00FF'; // Bright magenta - impossible to miss
-                ctx.lineWidth = 20; // VERY thick
-                ctx.stroke();
-
-                if (q === 5 && r === -5) {
-                    console.log(`Should have drawn MAGENTA border around Hero's hex!`);
-                }
-            }
-        }
-
         // Get character at specific hex coordinate (should be max 1)
         function getCharacterAtHex(q, r) {
             // Check PC first
@@ -647,9 +539,7 @@
                 }
             }
 
-            // Draw hex grid - INLINE to avoid scope issues
-            console.log('About to call INLINE drawHexGrid');
-
+            // Draw hex grid with enhanced contrast
             const margin = HEX_SIZE * 2;
             const startX = (cameraX / zoomLevel) - margin;
             const startY = (cameraY / zoomLevel) - margin;
@@ -659,22 +549,14 @@
             const startHex = HexGrid.pixelToHex(startX, startY);
             const endHex = HexGrid.pixelToHex(endX, endY);
 
-            console.log(`Drawing hexes from ${startHex.q},${startHex.r} to ${endHex.q},${endHex.r}`);
-
             for (let q = startHex.q - 5; q <= endHex.q + 5; q++) {
                 for (let r = startHex.r - 5; r <= endHex.r + 5; r++) {
                     const pos = HexGrid.hexToPixel(q, r);
                     if (pos.x >= -HEX_SIZE && pos.x <= WORLD_WIDTH + HEX_SIZE &&
                         pos.y >= -HEX_SIZE && pos.y <= WORLD_HEIGHT + HEX_SIZE) {
 
-                        // INLINE hex drawing to avoid scope issues
                         const center = HexGrid.hexToPixel(q, r);
                         const characterHere = getCharacterAtHex(q, r);
-
-                        // Debug for Hero's hex
-                        if (q === 5 && r === -5) {
-                            console.log(`Drawing Hero's hex at ${q},${r} - Character:`, characterHere ? characterHere.name : 'NONE');
-                        }
 
                         // Calculate hex corner points
                         const hexPoints = [];
@@ -685,7 +567,7 @@
                             hexPoints.push({ x, y });
                         }
 
-                        // Draw default grid
+                        // STEP 1: Draw default grid (lighter but still visible)
                         ctx.beginPath();
                         hexPoints.forEach((point, i) => {
                             if (i === 0) {
@@ -695,18 +577,34 @@
                             }
                         });
                         ctx.closePath();
-                        ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
-                        ctx.lineWidth = 2;
+                        ctx.strokeStyle = 'rgba(255, 255, 255, 1)'; // Lighter but still visible
+                        ctx.lineWidth = 1; // Thinner but not too thin
                         ctx.stroke();
 
-                        // If character here, draw faction-colored border
+                        // STEP 2: If character here, draw thick faction border
                         if (characterHere) {
                             const factionData = FACTIONS[characterHere.faction] || FACTIONS.neutral;
 
-                            if (q === 5 && r === -5) {
-                                console.log(`Drawing ${factionData.tintColor} border for ${characterHere.name} at ${q},${r}`);
-                            }
+                            // Check for adjacent different factions FIRST (for shared borders)
+                            const adjacentDirs = [
+                                [1, 0], [0, 1], [-1, 1], [-1, 0], [0, -1], [1, -1]
+                            ];
 
+                            // Track which edges need special shared border treatment
+                            const sharedEdges = [];
+
+                            adjacentDirs.forEach((dir, edgeIndex) => {
+                                const [dq, dr] = dir;
+                                const adjQ = q + dq;
+                                const adjR = r + dr;
+                                const adjCharacter = getCharacterAtHex(adjQ, adjR);
+
+                                if (adjCharacter && adjCharacter.faction !== characterHere.faction) {
+                                    sharedEdges.push(edgeIndex);
+                                }
+                            });
+
+                            // Draw the main faction border (thinner for regular borders)
                             ctx.beginPath();
                             hexPoints.forEach((point, i) => {
                                 if (i === 0) {
@@ -716,45 +614,35 @@
                                 }
                             });
                             ctx.closePath();
-
-                            // Use faction color and thinner borders
-                            ctx.strokeStyle = factionData.tintColor;
-                            ctx.lineWidth = 4; // Reduced from 6px - thinner borders
+                            ctx.strokeStyle = factionData.tintColor + 'dd'; // Add 60% opacity to faction color
+                            ctx.lineWidth = 2; // Even thinner regular borders
                             ctx.stroke();
 
-                            // Check for adjacent different factions for gradient borders
-                            const adjacentDirs = [
-                                [1, 0], [0, 1], [-1, 1], [-1, 0], [0, -1], [1, -1]
-                            ];
-
-                            adjacentDirs.forEach((dir, edgeIndex) => {
-                                const [dq, dr] = dir;
+                            // Draw shared borders (much thicker)
+                            sharedEdges.forEach(edgeIndex => {
+                                const [dq, dr] = adjacentDirs[edgeIndex];
                                 const adjQ = q + dq;
                                 const adjR = r + dr;
                                 const adjCharacter = getCharacterAtHex(adjQ, adjR);
+                                const adjFactionData = FACTIONS[adjCharacter.faction] || FACTIONS.neutral;
 
-                                if (adjCharacter && adjCharacter.faction !== characterHere.faction) {
-                                    // Different faction adjacent - create gradient on shared edge
-                                    const startPoint = hexPoints[edgeIndex];
-                                    const endPoint = hexPoints[(edgeIndex + 1) % 6];
+                                const startPoint = hexPoints[edgeIndex];
+                                const endPoint = hexPoints[(edgeIndex + 1) % 6];
 
-                                    const adjFactionData = FACTIONS[adjCharacter.faction] || FACTIONS.neutral;
+                                // Create gradient for shared edge
+                                const gradient = ctx.createLinearGradient(
+                                    startPoint.x, startPoint.y,
+                                    endPoint.x, endPoint.y
+                                );
+                                gradient.addColorStop(0, factionData.tintColor);
+                                gradient.addColorStop(1, adjFactionData.tintColor);
 
-                                    const gradient = ctx.createLinearGradient(
-                                        startPoint.x, startPoint.y,
-                                        endPoint.x, endPoint.y
-                                    );
-
-                                    gradient.addColorStop(0, factionData.tintColor);
-                                    gradient.addColorStop(1, adjFactionData.tintColor);
-
-                                    ctx.beginPath();
-                                    ctx.moveTo(startPoint.x, startPoint.y);
-                                    ctx.lineTo(endPoint.x, endPoint.y);
-                                    ctx.strokeStyle = gradient;
-                                    ctx.lineWidth = 6; // Reduced from 8px - thinner gradient borders
-                                    ctx.stroke();
-                                }
+                                ctx.beginPath();
+                                ctx.moveTo(startPoint.x, startPoint.y);
+                                ctx.lineTo(endPoint.x, endPoint.y);
+                                ctx.strokeStyle = gradient;
+                                ctx.lineWidth = 15; // Much thicker shared borders
+                                ctx.stroke();
                             });
                         }
                     }
@@ -772,51 +660,6 @@
             });
 
             ctx.restore();
-        }
-
-        // Draw hex grid
-        function drawHexGrid() {
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
-            ctx.lineWidth = 2;
-
-            const margin = HEX_SIZE * 2;
-            const startX = (cameraX / zoomLevel) - margin;
-            const startY = (cameraY / zoomLevel) - margin;
-            const endX = ((cameraX + VIEWPORT_WIDTH) / zoomLevel) + margin;
-            const endY = ((cameraY + VIEWPORT_HEIGHT) / zoomLevel) + margin;
-
-            const startHex = HexGrid.pixelToHex(startX, startY);
-            const endHex = HexGrid.pixelToHex(endX, endY);
-
-            for (let q = startHex.q - 5; q <= endHex.q + 5; q++) {
-                for (let r = startHex.r - 5; r <= endHex.r + 5; r++) {
-                    const pos = HexGrid.hexToPixel(q, r);
-                    if (pos.x >= -HEX_SIZE && pos.x <= WORLD_WIDTH + HEX_SIZE &&
-                        pos.y >= -HEX_SIZE && pos.y <= WORLD_HEIGHT + HEX_SIZE) {
-                        drawHex(q, r);
-                    }
-                }
-            }
-        }
-
-        // Draw a single hex
-        function drawHex(q, r) {
-            const center = HexGrid.hexToPixel(q, r);
-
-            ctx.beginPath();
-            for (let i = 0; i < 6; i++) {
-                const angle = 2 * Math.PI / 6 * i - Math.PI / 6;
-                const x = center.x + HEX_SIZE * Math.cos(angle);
-                const y = center.y + HEX_SIZE * Math.sin(angle);
-
-                if (i === 0) {
-                    ctx.moveTo(x, y);
-                } else {
-                    ctx.lineTo(x, y);
-                }
-            }
-            ctx.closePath();
-            ctx.stroke();
         }
 
         // Spawn enemy function
@@ -1015,7 +858,17 @@
                     spawnEnemy();
                     break;
                 case '8':
-                    window.testCharacterPositions(); // Debug key
+                    console.log('=== CHARACTER POSITION DEBUG ===');
+                    console.log(`PC: hex(${game.pc.hexQ},${game.pc.hexR}) faction: ${game.pc.faction}`);
+
+                    const foundPC = getCharacterAtHex(game.pc.hexQ, game.pc.hexR);
+                    console.log(`Can find PC at its hex? ${foundPC ? foundPC.name : 'NO'}`);
+
+                    game.npcs.forEach(npc => {
+                        console.log(`NPC ${npc.name}: hex(${npc.hexQ},${npc.hexR}) faction: ${npc.faction}`);
+                        const foundNPC = getCharacterAtHex(npc.hexQ, npc.hexR);
+                        console.log(`Can find ${npc.name} at its hex? ${foundNPC ? foundNPC.name : 'NO'}`);
+                    });
                     break;
             }
         });
@@ -1030,33 +883,6 @@
 
         // Initialize
         loadAssets();
-
-        // Run debug after everything is loaded (wait 2 seconds)
-        setTimeout(() => {
-            console.log('=== CHARACTER POSITION DEBUG ===');
-            console.log(`PC: hex(${game.pc.hexQ},${game.pc.hexR}) faction: ${game.pc.faction}`);
-
-            // Test if we can find the PC at its own position
-            const foundPC = getCharacterAtHex(game.pc.hexQ, game.pc.hexR);
-            console.log(`Can find PC at its hex? ${foundPC ? foundPC.name : 'NO'}`);
-
-            // Test NPCs
-            game.npcs.forEach(npc => {
-                console.log(`NPC ${npc.name}: hex(${npc.hexQ},${npc.hexR}) faction: ${npc.faction}`);
-                const foundNPC = getCharacterAtHex(npc.hexQ, npc.hexR);
-                console.log(`Can find ${npc.name} at its hex? ${foundNPC ? foundNPC.name : 'NO'}`);
-            });
-
-            // Test the faction colors
-            Object.keys(FACTIONS).forEach(faction => {
-                console.log(`Faction ${faction}: ${FACTIONS[faction].tintColor}`);
-            });
-
-            // Test if hex border drawing is being called
-            console.log('Testing hex border drawing...');
-            const testChar = getCharacterAtHex(5, -5);
-            console.log(`Character at 5,-5: ${testChar ? testChar.name : 'NONE'}`);
-        }, 2000);
     </script>
 </body>
 
