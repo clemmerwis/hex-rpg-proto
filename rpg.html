@@ -40,11 +40,7 @@
 
     <script type="module">
         import { HexGrid } from './js/HexGrid.js';
-
-        // Initialize HexGrid instance
-        const hexGrid = new HexGrid(70, 3220, 2240); // HEX_SIZE=70, WORLD_WIDTH=3220, WORLD_HEIGHT=2240
-        const HEX_SIZE = 70; // Add this line
-
+        import { GameStateManager, GAME_STATES, COMBAT_ACTIONS } from './js/GameStateManager.js';
 
         // World size (full gameboard)
         const WORLD_WIDTH = 3220;
@@ -87,289 +83,6 @@
 
         // Key state tracking for diagonal movement
         const keys = {};
-
-        // Game States
-        const GAME_STATES = {
-            EXPLORATION: 'exploration',
-            COMBAT_INPUT: 'combat_input',
-            COMBAT_EXECUTION: 'combat_execution'
-        };
-
-        // Combat Actions
-        const COMBAT_ACTIONS = {
-            MOVE: 'move',
-            WAIT: 'wait'
-        };
-
-        // Game State Manager
-        const GameStateManager = {
-            currentState: GAME_STATES.EXPLORATION,
-
-            // Combat state data
-            turnNumber: 1,
-            combatCharacters: [],
-            characterActions: new Map(), // character -> {action: MOVE/WAIT, target: hex}
-            executionQueue: [],
-            currentExecutionIndex: 0,
-
-            // Input phase data
-            playerSelectedHex: null, // The hex the player has selected to move to
-
-            setState: function (newState) {
-                const oldState = this.currentState;
-                this.currentState = newState;
-
-                console.log(`Game state changed: ${oldState} → ${newState}`);
-
-                // Handle state transitions
-                if (newState === GAME_STATES.COMBAT_INPUT) {
-                    this.enterCombatInput();
-                } else if (newState === GAME_STATES.COMBAT_EXECUTION) {
-                    this.enterCombatExecution();
-                } else if (newState === GAME_STATES.EXPLORATION) {
-                    this.exitCombat();
-                }
-
-                this.updateUI();
-            },
-
-            enterCombatInput: function () {
-                console.log('=== ENTERING COMBAT INPUT PHASE ===');
-
-                // Stop any current movement
-                game.pc.isMoving = false;
-                game.pc.movementQueue = [];
-                game.pc.currentAnimation = 'idle';
-
-                // Build list of combat characters (PC + enemies for now)
-                this.combatCharacters = [game.pc];
-                const enemies = game.npcs.filter(npc => npc.faction === 'enemy');
-                this.combatCharacters.push(...enemies);
-
-                console.log(`Combat characters: ${this.combatCharacters.map(char => `${char.name}(${char.faction})`).join(', ')}`);
-
-                // Reset input data
-                this.characterActions.clear();
-                this.playerSelectedHex = null;
-
-                // AI characters make their decisions immediately
-                this.processAITurns();
-            },
-
-            processAITurns: function () {
-                // Simple AI: Bandit moves left/right
-                const bandits = this.combatCharacters.filter(char => char.faction === 'enemy');
-
-                bandits.forEach(bandit => {
-                    if (!bandit.aiDirection) {
-                        bandit.aiDirection = 1; // 1 for right, -1 for left
-                    }
-
-                    // Try to move in current direction
-                    const targetQ = bandit.hexQ + bandit.aiDirection;
-                    const targetR = bandit.hexR;
-
-                    // Check if target is occupied or if we should reverse direction
-                    const characterAtTarget = getCharacterAtHex(targetQ, targetR);
-                    if (characterAtTarget) {
-                        // Can't move there, reverse direction
-                        bandit.aiDirection *= -1;
-                        // Try the other direction
-                        const newTargetQ = bandit.hexQ + bandit.aiDirection;
-                        const newTargetR = bandit.hexR;
-                        const newCharacterAtTarget = getCharacterAtHex(newTargetQ, newTargetR);
-
-                        if (!newCharacterAtTarget) {
-                            // Can move in new direction
-                            this.characterActions.set(bandit, {
-                                action: COMBAT_ACTIONS.MOVE,
-                                target: { q: newTargetQ, r: newTargetR }
-                            });
-                        } else {
-                            // Nowhere to move, wait
-                            this.characterActions.set(bandit, {
-                                action: COMBAT_ACTIONS.WAIT,
-                                target: null
-                            });
-                        }
-                    } else {
-                        // Can move in current direction
-                        this.characterActions.set(bandit, {
-                            action: COMBAT_ACTIONS.MOVE,
-                            target: { q: targetQ, r: targetR }
-                        });
-                    }
-                });
-
-                this.checkInputPhaseComplete();
-            },
-
-            checkInputPhaseComplete: function () {
-                // Check if all characters have chosen actions
-                const allChosen = this.combatCharacters.every(char =>
-                    this.characterActions.has(char)
-                );
-
-                if (allChosen) {
-                    console.log('All characters have chosen actions, moving to execution phase');
-                    this.setState(GAME_STATES.COMBAT_EXECUTION);
-                }
-            },
-
-            enterCombatExecution: function () {
-                console.log('=== ENTERING COMBAT EXECUTION PHASE ===');
-
-                // Build execution queue (PC first for now, then others)
-                this.executionQueue = [...this.combatCharacters];
-                this.currentExecutionIndex = 0;
-
-                // Start executing actions
-                this.executeNextAction();
-            },
-
-            executeNextAction: function () {
-                if (this.currentExecutionIndex >= this.executionQueue.length) {
-                    // All actions executed, next turn
-                    this.turnNumber++;
-                    this.setState(GAME_STATES.COMBAT_INPUT);
-                    return;
-                }
-
-                const character = this.executionQueue[this.currentExecutionIndex];
-                const action = this.characterActions.get(character);
-
-                console.log(`Executing action for ${character.name}: ${action.action}`);
-
-                if (action.action === COMBAT_ACTIONS.MOVE && action.target) {
-                    // Execute move
-                    character.hexQ = action.target.q;
-                    character.hexR = action.target.r;
-                    const newPos = hexGrid.hexToPixel(character.hexQ, character.hexR);
-                    character.pixelX = newPos.x;
-                    character.pixelY = newPos.y;
-
-                    // Brief animation
-                    character.currentAnimation = 'walk';
-                    setTimeout(() => {
-                        character.currentAnimation = 'idle';
-                        this.currentExecutionIndex++;
-                        this.executeNextAction();
-                    }, 500);
-                } else {
-                    // Wait action or no valid move
-                    setTimeout(() => {
-                        this.currentExecutionIndex++;
-                        this.executeNextAction();
-                    }, 200);
-                }
-            },
-
-            exitCombat: function () {
-                console.log('=== EXITING COMBAT ===');
-
-                // Reset combat data
-                this.combatCharacters = [];
-                this.characterActions.clear();
-                this.playerSelectedHex = null;
-                this.executionQueue = [];
-                this.currentExecutionIndex = 0;
-                this.turnNumber = 1;
-
-                // Return all characters to idle
-                game.pc.currentAnimation = 'idle';
-                game.npcs.forEach(npc => {
-                    npc.currentAnimation = 'idle';
-                    delete npc.aiDirection; // Reset AI state
-                });
-
-                console.log('Returned to exploration mode');
-            },
-
-            updateUI: function () {
-                // Update state indicator
-                if (this.currentState === GAME_STATES.COMBAT_INPUT) {
-                    stateIndicatorEl.textContent = 'COMBAT - INPUT PHASE';
-                    stateIndicatorEl.className = 'state-indicator state-combat';
-                    combatInfoEl.style.display = 'block';
-
-                    // Update combat info
-                    currentTurnEl.textContent = this.turnNumber;
-                    activeCharacterEl.textContent = this.characterActions.has(game.pc) ? 'Action Chosen' : 'Choose Action';
-
-                    const enemyCount = game.npcs.filter(npc => npc.faction === 'enemy').length;
-                    enemyCountEl.textContent = enemyCount;
-
-                } else if (this.currentState === GAME_STATES.COMBAT_EXECUTION) {
-                    stateIndicatorEl.textContent = 'COMBAT - EXECUTION';
-                    stateIndicatorEl.className = 'state-indicator state-combat';
-                    combatInfoEl.style.display = 'block';
-
-                    // Update combat info
-                    currentTurnEl.textContent = this.turnNumber;
-
-                    if (this.currentExecutionIndex < this.executionQueue.length) {
-                        const executingChar = this.executionQueue[this.currentExecutionIndex];
-                        activeCharacterEl.textContent = `${executingChar.name} Acting`;
-                    } else {
-                        activeCharacterEl.textContent = 'All Actions Complete';
-                    }
-
-                    const enemyCount = game.npcs.filter(npc => npc.faction === 'enemy').length;
-                    enemyCountEl.textContent = enemyCount;
-
-                } else {
-                    stateIndicatorEl.textContent = 'EXPLORATION';
-                    stateIndicatorEl.className = 'state-indicator state-exploration';
-                    combatInfoEl.style.display = 'none';
-                }
-            },
-
-            canPlayerMove: function () {
-                return this.currentState === GAME_STATES.EXPLORATION;
-            },
-
-            toggleCombat: function () {
-                if (this.currentState === GAME_STATES.EXPLORATION) {
-                    this.setState(GAME_STATES.COMBAT_INPUT);
-                } else {
-                    this.setState(GAME_STATES.EXPLORATION);
-                }
-            },
-
-            selectPlayerMoveTarget: function (hexQ, hexR) {
-                if (this.currentState !== GAME_STATES.COMBAT_INPUT) return false;
-                if (this.characterActions.has(game.pc)) return false; // Already chosen
-
-                // Check if hex is adjacent to player
-                const distance = hexGrid.hexDistance(
-                    { q: game.pc.hexQ, r: game.pc.hexR },
-                    { q: hexQ, r: hexR }
-                );
-
-                if (distance !== 1) {
-                    console.log('Target hex must be adjacent to player');
-                    return false;
-                }
-
-                // Check if hex is occupied
-                const characterAtTarget = getCharacterAtHex(hexQ, hexR);
-                if (characterAtTarget) {
-                    console.log('Target hex is occupied');
-                    return false;
-                }
-
-                // Valid selection
-                this.playerSelectedHex = { q: hexQ, r: hexR };
-                this.characterActions.set(game.pc, {
-                    action: COMBAT_ACTIONS.MOVE,
-                    target: { q: hexQ, r: hexR }
-                });
-
-                console.log(`Player selected move to ${hexQ}, ${hexR}`);
-                this.checkInputPhaseComplete();
-                return true;
-            }
-        };
 
         // Animation configuration
         const animationConfig = {
@@ -463,6 +176,58 @@
                 }
             ]
         };
+
+        // Initialize HexGrid instance
+        const hexGrid = new HexGrid(70, 3220, 2240); // HEX_SIZE=70, WORLD_WIDTH=3220, WORLD_HEIGHT=2240
+        const HEX_SIZE = 70; // Add this line
+
+        // Initialize GameStateManager
+        const gameStateManager = new GameStateManager(game, hexGrid, getCharacterAtHex);
+
+        // Set up UI update callback
+        gameStateManager.onStateChange = function (newState, oldState) {
+            updateGameStateUI();
+        };
+
+        // Function to update UI
+        function updateGameStateUI() {
+            // Update state indicator
+            if (gameStateManager.currentState === GAME_STATES.COMBAT_INPUT) {
+                stateIndicatorEl.textContent = 'COMBAT - INPUT PHASE';
+                stateIndicatorEl.className = 'state-indicator state-combat';
+                combatInfoEl.style.display = 'block';
+
+                // Update combat info
+                currentTurnEl.textContent = gameStateManager.turnNumber;
+                activeCharacterEl.textContent = gameStateManager.characterActions.has(game.pc) ? 'Action Chosen' : 'Choose Action';
+
+                const enemyCount = game.npcs.filter(npc => npc.faction === 'enemy').length;
+                enemyCountEl.textContent = enemyCount;
+
+            } else if (gameStateManager.currentState === GAME_STATES.COMBAT_EXECUTION) {
+                stateIndicatorEl.textContent = 'COMBAT - EXECUTION';
+                stateIndicatorEl.className = 'state-indicator state-combat';
+                combatInfoEl.style.display = 'block';
+
+                // Update combat info
+                currentTurnEl.textContent = gameStateManager.turnNumber;
+
+                if (gameStateManager.currentExecutionIndex < gameStateManager.executionQueue.length) {
+                    const executingChar = gameStateManager.executionQueue[gameStateManager.currentExecutionIndex];
+                    activeCharacterEl.textContent = `${executingChar.name} Acting`;
+                } else {
+                    activeCharacterEl.textContent = 'All Actions Complete';
+                }
+
+                const enemyCount = game.npcs.filter(npc => npc.faction === 'enemy').length;
+                enemyCountEl.textContent = enemyCount;
+
+            } else {
+                stateIndicatorEl.textContent = 'EXPLORATION';
+                stateIndicatorEl.className = 'state-indicator state-exploration';
+                combatInfoEl.style.display = 'none';
+            }
+        }
 
         // Get character at specific hex coordinate (should be max 1)
         function getCharacterAtHex(q, r) {
@@ -654,7 +419,7 @@
                     centerCameraOn(game.pc.pixelX, game.pc.pixelY);
 
                     // Initialize UI
-                    GameStateManager.updateUI();
+                    updateGameStateUI();
 
                     gameLoop();
                 }
@@ -736,7 +501,7 @@
                     animationEl.textContent = game.pc.currentAnimation;
 
                     // In combat mode, end turn after movement
-                    if (GameStateManager.currentState === GAME_STATES.COMBAT_EXECUTION) {
+                    if (gameStateManager.currentState === GAME_STATES.COMBAT_EXECUTION) {
                         console.log('Character movement complete in execution phase');
                     }
                 }
@@ -823,10 +588,10 @@
 
             // Special highlighting for executing character in combat
             let isExecutingCharacter = false;
-            if (GameStateManager.currentState === GAME_STATES.COMBAT_EXECUTION &&
-                GameStateManager.executionQueue.length > 0 &&
-                GameStateManager.currentExecutionIndex < GameStateManager.executionQueue.length) {
-                isExecutingCharacter = GameStateManager.executionQueue[GameStateManager.currentExecutionIndex] === character;
+            if (gameStateManager.currentState === GAME_STATES.COMBAT_EXECUTION &&
+                gameStateManager.executionQueue.length > 0 &&
+                gameStateManager.currentExecutionIndex < gameStateManager.executionQueue.length) {
+                isExecutingCharacter = gameStateManager.executionQueue[gameStateManager.currentExecutionIndex] === character;
             }
 
             // Draw semi-transparent black background
@@ -1066,9 +831,9 @@
                         }
 
                         // STEP 3: Draw player selected move target (light blue highlight)
-                        if (GameStateManager.playerSelectedHex &&
-                            GameStateManager.playerSelectedHex.q === q &&
-                            GameStateManager.playerSelectedHex.r === r) {
+                        if (gameStateManager.playerSelectedHex &&
+                            gameStateManager.playerSelectedHex.q === q &&
+                            gameStateManager.playerSelectedHex.r === r) {
 
                             ctx.beginPath();
                             hexPoints.forEach((point, i) => {
@@ -1130,9 +895,9 @@
             console.log(`Spawned ${randomFaction} at ${newEnemy.hexQ}, ${newEnemy.hexR}`);
 
             // Update combat UI if in combat
-            if (GameStateManager.currentState === GAME_STATES.COMBAT_INPUT ||
-                GameStateManager.currentState === GAME_STATES.COMBAT_EXECUTION) {
-                GameStateManager.updateUI();
+            if (gameStateManager.currentState === GAME_STATES.COMBAT_INPUT ||
+                gameStateManager.currentState === GAME_STATES.COMBAT_EXECUTION) {
+                updateGameStateUI();
             }
         }
 
@@ -1253,14 +1018,14 @@
             console.log(`Clicked hex: q=${targetHex.q}, r=${targetHex.r}`);
 
             // Handle combat input phase
-            if (GameStateManager.currentState === GAME_STATES.COMBAT_INPUT) {
+            if (gameStateManager.currentState === GAME_STATES.COMBAT_INPUT) {
                 // Try to select this hex as player move target
-                GameStateManager.selectPlayerMoveTarget(targetHex.q, targetHex.r);
+                gameStateManager.selectPlayerMoveTarget(targetHex.q, targetHex.r);
                 return;
             }
 
             // Handle exploration movement
-            if (!GameStateManager.canPlayerMove()) {
+            if (!gameStateManager.canPlayerMove()) {
                 console.log(`Cannot move - wrong game state`);
                 return;
             }
@@ -1301,7 +1066,7 @@
             // Handle Shift+Space for combat toggle
             if (e.key === ' ' && e.shiftKey) {
                 e.preventDefault();
-                GameStateManager.toggleCombat();
+                gameStateManager.toggleCombat();
                 return;
             }
 
@@ -1347,13 +1112,13 @@
                     });
                     break;
                 case 'n': // Next turn in combat (for testing)
-                    if (GameStateManager.currentState === GAME_STATES.COMBAT_INPUT) {
+                    if (gameStateManager.currentState === GAME_STATES.COMBAT_INPUT) {
                         console.log('Force advancing to execution phase');
-                        GameStateManager.setState(GAME_STATES.COMBAT_EXECUTION);
-                    } else if (GameStateManager.currentState === GAME_STATES.COMBAT_EXECUTION) {
+                        gameStateManager.setState(GAME_STATES.COMBAT_EXECUTION);
+                    } else if (gameStateManager.currentState === GAME_STATES.COMBAT_EXECUTION) {
                         console.log('Force advancing to next input phase');
-                        GameStateManager.turnNumber++;
-                        GameStateManager.setState(GAME_STATES.COMBAT_INPUT);
+                        gameStateManager.turnNumber++;
+                        gameStateManager.setState(GAME_STATES.COMBAT_INPUT);
                     }
                     break;
             }
