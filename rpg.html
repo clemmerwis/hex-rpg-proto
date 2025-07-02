@@ -41,6 +41,8 @@
     <script type="module">
         import { HexGrid } from './js/HexGrid.js';
         import { GameStateManager, GAME_STATES, COMBAT_ACTIONS } from './js/GameStateManager.js';
+        import { Renderer } from './js/Renderer.js';
+
 
         // World size (full gameboard)
         const WORLD_WIDTH = 3220;
@@ -188,6 +190,26 @@
         gameStateManager.onStateChange = function (newState, oldState) {
             updateGameStateUI();
         };
+
+        // Initialize Renderer
+        const renderer = new Renderer(canvas, ctx, {
+            viewportWidth: VIEWPORT_WIDTH,
+            viewportHeight: VIEWPORT_HEIGHT,
+            worldWidth: WORLD_WIDTH,
+            worldHeight: WORLD_HEIGHT,
+            zoomLevel: zoomLevel,
+            hexSize: HEX_SIZE
+        });
+
+        // Set renderer dependencies
+        renderer.setDependencies({
+            game: game,
+            hexGrid: hexGrid,
+            gameStateManager: gameStateManager,
+            getCharacterAtHex: getCharacterAtHex,
+            animationConfig: animationConfig,
+            factions: FACTIONS
+        });
 
         // Function to update UI
         function updateGameStateUI() {
@@ -571,300 +593,8 @@
             }
         }
 
-        // Draw nameplate with faction colors
-        function drawNameplate(character, isPC = false) {
-            const actualSpriteSize = 256 * zoomLevel;
-            const nameplateY = character.pixelY - actualSpriteSize / 2 - 45;
-
-            const barWidth = 150;  // Slightly wider
-            const barHeight = 22;  // Slightly taller
-            const nameplatePadding = 8;
-            const nameplateWidth = Math.max(barWidth, 120) + (nameplatePadding * 2);
-            const nameplateHeight = 65;  // Reduced height
-            const nameplateX = character.pixelX - nameplateWidth / 2;
-            const nameplateBackgroundY = nameplateY - 40;  // Adjusted for smaller text
-
-            ctx.save();
-
-            // Special highlighting for executing character in combat
-            let isExecutingCharacter = false;
-            if (gameStateManager.currentState === GAME_STATES.COMBAT_EXECUTION &&
-                gameStateManager.executionQueue.length > 0 &&
-                gameStateManager.currentExecutionIndex < gameStateManager.executionQueue.length) {
-                isExecutingCharacter = gameStateManager.executionQueue[gameStateManager.currentExecutionIndex] === character;
-            }
-
-            // Draw semi-transparent black background
-            ctx.fillStyle = isExecutingCharacter ? 'rgba(255, 255, 0, 0.3)' : 'rgba(0, 0, 0, 0.6)';
-            ctx.fillRect(nameplateX, nameplateBackgroundY, nameplateWidth, nameplateHeight);
-
-            // Consistent border for all characters
-            const factionData = FACTIONS[character.faction] || FACTIONS.neutral;
-            ctx.strokeStyle = isExecutingCharacter ? '#ffff00' : factionData.nameplateColor;
-            ctx.lineWidth = isExecutingCharacter ? 3 : 2;
-            ctx.strokeRect(nameplateX, nameplateBackgroundY, nameplateWidth, nameplateHeight);
-
-            // Name text - smaller font
-            ctx.font = 'bold 28px Arial';  // Reduced from 36px to 28px
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'bottom';
-
-            // Text shadow
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
-            ctx.fillText(character.name, character.pixelX + 2, nameplateY + 2);
-
-            // Main text color
-            ctx.fillStyle = isExecutingCharacter ? '#ffff00' : factionData.nameplateColor;
-            ctx.fillText(character.name, character.pixelX, nameplateY);
-
-            // Health bar
-            const barX = character.pixelX - barWidth / 2;
-            const barY = nameplateY + 8;  // Adjusted spacing
-
-            // Background (dark red)
-            ctx.fillStyle = 'rgba(150, 0, 0, 0.9)';
-            ctx.fillRect(barX, barY, barWidth, barHeight);
-
-            // Health fill (green)
-            const healthPercent = character.health / character.maxHealth;
-            const healthWidth = barWidth * healthPercent;
-            ctx.fillStyle = 'rgba(0, 200, 0, 0.9)';
-            ctx.fillRect(barX, barY, healthWidth, barHeight);
-
-            // Health bar border
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
-            ctx.lineWidth = 3;
-            ctx.strokeRect(barX, barY, barWidth, barHeight);
-
-            // Health text
-            ctx.font = 'bold 18px Arial';  // Slightly smaller
-            ctx.fillStyle = 'white';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(`${character.health}/${character.maxHealth}`, character.pixelX, barY + barHeight / 2);
-
-            ctx.restore();
-        }
-
-        // Draw character sprite (no tinting, use original sprites)
-        function drawCharacter(character) {
-            // Use base sprites directly - no tinting needed since we use hex borders for faction identification
-            const sprite = game.assets.baseKnightSprites[character.facing] &&
-                game.assets.baseKnightSprites[character.facing][character.currentAnimation];
-
-            if (sprite && sprite.complete) {
-                const frameSize = 256;
-                const animConfig = animationConfig[character.currentAnimation];
-                const framesPerRow = animConfig ? animConfig.cols : Math.floor(sprite.width / frameSize);
-
-                const col = character.animationFrame % framesPerRow;
-                const row = Math.floor(character.animationFrame / framesPerRow);
-
-                const frameX = col * frameSize;
-                const frameY = row * frameSize;
-
-                // Draw the sprite frame
-                if (frameX + frameSize <= sprite.width && frameY + frameSize <= sprite.height) {
-                    ctx.drawImage(
-                        sprite,
-                        frameX, frameY, frameSize, frameSize,
-                        character.pixelX - frameSize / 2, character.pixelY - frameSize / 2, frameSize, frameSize
-                    );
-                } else {
-                    // Fallback to first frame if calculated frame is out of bounds
-                    ctx.drawImage(
-                        sprite,
-                        0, 0, frameSize, frameSize,
-                        character.pixelX - frameSize / 2, character.pixelY - frameSize / 2, frameSize, frameSize
-                    );
-                }
-            } else {
-                // Placeholder character with faction color
-                const factionData = FACTIONS[character.faction] || FACTIONS.neutral;
-                ctx.fillStyle = factionData.tintColor;
-                ctx.beginPath();
-                ctx.arc(character.pixelX, character.pixelY, 30, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.strokeStyle = '#ffffff';
-                ctx.lineWidth = 3;
-                ctx.stroke();
-            }
-        }
-
-        // Rendering
         function render() {
-            ctx.fillStyle = '#2a2a2a';
-            ctx.fillRect(0, 0, VIEWPORT_WIDTH, VIEWPORT_HEIGHT);
-
-            ctx.save();
-            ctx.scale(zoomLevel, zoomLevel);
-            ctx.translate(-cameraX / zoomLevel, -cameraY / zoomLevel);
-
-            // Draw background
-            if (game.assets.background) {
-                ctx.drawImage(game.assets.background, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
-            } else {
-                ctx.fillStyle = '#1a3a1a';
-                ctx.fillRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
-
-                ctx.strokeStyle = '#0a2a0a';
-                ctx.lineWidth = 1;
-                for (let x = 0; x < WORLD_WIDTH; x += 100) {
-                    ctx.beginPath();
-                    ctx.moveTo(x, 0);
-                    ctx.lineTo(x, WORLD_HEIGHT);
-                    ctx.stroke();
-                }
-                for (let y = 0; y < WORLD_WIDTH; y += 100) {
-                    ctx.beginPath();
-                    ctx.moveTo(0, y);
-                    ctx.lineTo(WORLD_WIDTH, y);
-                    ctx.stroke();
-                }
-            }
-
-            // Draw hex grid with enhanced contrast
-            const margin = HEX_SIZE * 2;
-            const startX = (cameraX / zoomLevel) - margin;
-            const startY = (cameraY / zoomLevel) - margin;
-            const endX = ((cameraX + VIEWPORT_WIDTH) / zoomLevel) + margin;
-            const endY = ((cameraY + VIEWPORT_HEIGHT) / zoomLevel) + margin;
-
-            const startHex = hexGrid.pixelToHex(startX, startY);
-            const endHex = hexGrid.pixelToHex(endX, endY);
-
-            for (let q = startHex.q - 5; q <= endHex.q + 5; q++) {
-                for (let r = startHex.r - 5; r <= endHex.r + 5; r++) {
-                    const pos = hexGrid.hexToPixel(q, r);
-                    if (pos.x >= -HEX_SIZE && pos.x <= WORLD_WIDTH + HEX_SIZE &&
-                        pos.y >= -HEX_SIZE && pos.y <= WORLD_HEIGHT + HEX_SIZE) {
-
-                        const center = hexGrid.hexToPixel(q, r);
-                        const characterHere = getCharacterAtHex(q, r);
-
-                        // Calculate hex corner points
-                        const hexPoints = [];
-                        for (let i = 0; i < 6; i++) {
-                            const angle = 2 * Math.PI / 6 * i - Math.PI / 6;
-                            const x = center.x + HEX_SIZE * Math.cos(angle);
-                            const y = center.y + HEX_SIZE * Math.sin(angle);
-                            hexPoints.push({ x, y });
-                        }
-
-                        // STEP 1: Draw default grid (lighter but still visible)
-                        ctx.beginPath();
-                        hexPoints.forEach((point, i) => {
-                            if (i === 0) {
-                                ctx.moveTo(point.x, point.y);
-                            } else {
-                                ctx.lineTo(point.x, point.y);
-                            }
-                        });
-                        ctx.closePath();
-                        ctx.strokeStyle = 'rgba(255, 255, 255, 1)'; // Lighter but still visible
-                        ctx.lineWidth = 1; // Thinner but not too thin
-                        ctx.stroke();
-
-                        // STEP 2: If character here, draw thick faction border
-                        if (characterHere) {
-                            const factionData = FACTIONS[characterHere.faction] || FACTIONS.neutral;
-
-                            // Check for adjacent different factions FIRST (for shared borders)
-                            const adjacentDirs = [
-                                [1, 0], [0, 1], [-1, 1], [-1, 0], [0, -1], [1, -1]
-                            ];
-
-                            // Track which edges need special shared border treatment
-                            const sharedEdges = [];
-
-                            adjacentDirs.forEach((dir, edgeIndex) => {
-                                const [dq, dr] = dir;
-                                const adjQ = q + dq;
-                                const adjR = r + dr;
-                                const adjCharacter = getCharacterAtHex(adjQ, adjR);
-
-                                if (adjCharacter && adjCharacter.faction !== characterHere.faction) {
-                                    sharedEdges.push(edgeIndex);
-                                }
-                            });
-
-                            // Draw the main faction border (thinner for regular borders)
-                            ctx.beginPath();
-                            hexPoints.forEach((point, i) => {
-                                if (i === 0) {
-                                    ctx.moveTo(point.x, point.y);
-                                } else {
-                                    ctx.lineTo(point.x, point.y);
-                                }
-                            });
-                            ctx.closePath();
-                            ctx.strokeStyle = factionData.tintColor + '99'; // Add 60% opacity to faction color
-                            ctx.lineWidth = 2; // Even thinner regular borders
-                            ctx.stroke();
-
-                            // Draw shared borders (much thicker)
-                            sharedEdges.forEach(edgeIndex => {
-                                const [dq, dr] = adjacentDirs[edgeIndex];
-                                const adjQ = q + dq;
-                                const adjR = r + dr;
-                                const adjCharacter = getCharacterAtHex(adjQ, adjR);
-                                const adjFactionData = FACTIONS[adjCharacter.faction] || FACTIONS.neutral;
-
-                                const startPoint = hexPoints[edgeIndex];
-                                const endPoint = hexPoints[(edgeIndex + 1) % 6];
-
-                                // Create gradient for shared edge
-                                const gradient = ctx.createLinearGradient(
-                                    startPoint.x, startPoint.y,
-                                    endPoint.x, endPoint.y
-                                );
-                                gradient.addColorStop(0, factionData.tintColor);
-                                gradient.addColorStop(1, adjFactionData.tintColor);
-
-                                ctx.beginPath();
-                                ctx.moveTo(startPoint.x, startPoint.y);
-                                ctx.lineTo(endPoint.x, endPoint.y);
-                                ctx.strokeStyle = gradient;
-                                ctx.lineWidth = 15; // Much thicker shared borders
-                                ctx.stroke();
-                            });
-                        }
-
-                        // STEP 3: Draw player selected move target (light blue highlight)
-                        if (gameStateManager.playerSelectedHex &&
-                            gameStateManager.playerSelectedHex.q === q &&
-                            gameStateManager.playerSelectedHex.r === r) {
-
-                            ctx.beginPath();
-                            hexPoints.forEach((point, i) => {
-                                if (i === 0) {
-                                    ctx.moveTo(point.x, point.y);
-                                } else {
-                                    ctx.lineTo(point.x, point.y);
-                                }
-                            });
-                            ctx.closePath();
-                            ctx.fillStyle = 'rgba(173, 216, 230, 0.4)'; // Light blue with transparency
-                            ctx.fill();
-                            ctx.strokeStyle = '#87CEEB'; // Light blue border
-                            ctx.lineWidth = 3;
-                            ctx.stroke();
-                        }
-                    }
-                }
-            }
-
-            // Draw PC
-            drawCharacter(game.pc);
-            drawNameplate(game.pc, true);
-
-            // Draw NPCs
-            game.npcs.forEach(npc => {
-                drawCharacter(npc);
-                drawNameplate(npc, false);
-            });
-
-            ctx.restore();
+            renderer.render(cameraX, cameraY, showGridCheckbox.checked);
         }
 
         // Spawn enemy function
