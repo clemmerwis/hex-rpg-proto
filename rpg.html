@@ -5,115 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hex RPG Prototype</title>
-    <style>
-        body {
-            margin: 0;
-            padding: 0;
-            background-color: #1a1a1a;
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            height: 100vh;
-            font-family: Arial, sans-serif;
-            overflow: hidden;
-        }
-
-        #gameCanvas {
-            margin-top: 20px;
-            border: 2px solid #333;
-            cursor: pointer;
-            display: block;
-            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
-        }
-
-        #debugInfo {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            color: #ffffff;
-            background-color: rgba(0, 0, 0, 0.8);
-            padding: 15px 25px;
-            border-radius: 5px;
-            font-size: 14px;
-            font-family: monospace;
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            z-index: 1000;
-            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.9);
-            text-align: center;
-        }
-
-        #debugInfo label {
-            color: #ffffff;
-            cursor: pointer;
-        }
-
-        #debugInfo input[type="checkbox"] {
-            margin-right: 5px;
-            cursor: pointer;
-        }
-
-        #gameStateUI {
-            position: fixed;
-            top: 20px;
-            left: 20px;
-            background-color: rgba(0, 0, 0, 0.9);
-            border: 2px solid #555;
-            border-radius: 8px;
-            padding: 15px;
-            color: white;
-            font-family: Arial, sans-serif;
-            z-index: 1000;
-            min-width: 200px;
-        }
-
-        .state-indicator {
-            font-size: 18px;
-            font-weight: bold;
-            margin-bottom: 10px;
-            padding: 5px 10px;
-            border-radius: 4px;
-            text-align: center;
-        }
-
-        .state-exploration {
-            background-color: #2e7d32;
-            color: white;
-        }
-
-        .state-combat {
-            background-color: #d32f2f;
-            color: white;
-            animation: pulse 1.5s infinite;
-        }
-
-        @keyframes pulse {
-            0% {
-                opacity: 1;
-            }
-
-            50% {
-                opacity: 0.7;
-            }
-
-            100% {
-                opacity: 1;
-            }
-        }
-
-        .combat-info {
-            margin-top: 10px;
-            padding: 8px;
-            background-color: rgba(255, 255, 255, 0.1);
-            border-radius: 4px;
-            font-size: 12px;
-        }
-
-        .turn-indicator {
-            font-weight: bold;
-            color: #ffeb3b;
-        }
-    </style>
+    <link rel="stylesheet" href="css/styles.css">
 </head>
 
 <body>
@@ -146,7 +38,14 @@
         </div>
     </div>
 
-    <script>
+    <script type="module">
+        import { HexGrid } from './js/HexGrid.js';
+
+        // Initialize HexGrid instance
+        const hexGrid = new HexGrid(70, 3220, 2240); // HEX_SIZE=70, WORLD_WIDTH=3220, WORLD_HEIGHT=2240
+        const HEX_SIZE = 70; // Add this line
+
+
         // World size (full gameboard)
         const WORLD_WIDTH = 3220;
         const WORLD_HEIGHT = 2240;
@@ -345,7 +244,7 @@
                     // Execute move
                     character.hexQ = action.target.q;
                     character.hexR = action.target.r;
-                    const newPos = HexGrid.hexToPixel(character.hexQ, character.hexR);
+                    const newPos = hexGrid.hexToPixel(character.hexQ, character.hexR);
                     character.pixelX = newPos.x;
                     character.pixelY = newPos.y;
 
@@ -442,7 +341,7 @@
                 if (this.characterActions.has(game.pc)) return false; // Already chosen
 
                 // Check if hex is adjacent to player
-                const distance = HexGrid.hexDistance(
+                const distance = hexGrid.hexDistance(
                     { q: game.pc.hexQ, r: game.pc.hexR },
                     { q: hexQ, r: hexR }
                 );
@@ -565,65 +464,6 @@
             ]
         };
 
-        // Hex grid configuration
-        const HEX_SIZE = 70;
-        const HEX_WIDTH = Math.sqrt(3) * HEX_SIZE;
-        const HEX_HEIGHT = 2 * HEX_SIZE;
-
-        // Hex grid utilities
-        const HexGrid = {
-            hexToPixel: function (q, r) {
-                const x = HEX_SIZE * (Math.sqrt(3) * q + Math.sqrt(3) / 2 * r) + WORLD_WIDTH / 2;
-                const y = HEX_SIZE * (3 / 2 * r) + WORLD_HEIGHT / 2;
-                return { x, y };
-            },
-
-            pixelToHex: function (x, y) {
-                x -= WORLD_WIDTH / 2;
-                y -= WORLD_HEIGHT / 2;
-
-                const q = (Math.sqrt(3) / 3 * x - 1 / 3 * y) / HEX_SIZE;
-                const r = (2 / 3 * y) / HEX_SIZE;
-
-                return this.roundHex(q, r);
-            },
-
-            roundHex: function (q, r) {
-                const s = -q - r;
-                let rq = Math.round(q);
-                let rr = Math.round(r);
-                let rs = Math.round(s);
-
-                const q_diff = Math.abs(rq - q);
-                const r_diff = Math.abs(rr - r);
-                const s_diff = Math.abs(rs - s);
-
-                if (q_diff > r_diff && q_diff > s_diff) {
-                    rq = -rr - rs;
-                } else if (r_diff > s_diff) {
-                    rr = -rq - rs;
-                }
-
-                return { q: rq, r: rr };
-            },
-
-            // Hex distance calculation
-            hexDistance: function (hex1, hex2) {
-                return (Math.abs(hex1.q - hex2.q) + Math.abs(hex1.q + hex1.r - hex2.q - hex2.r) + Math.abs(hex1.r - hex2.r)) / 2;
-            },
-
-            // Get hex neighbors
-            getNeighbors: function (hex) {
-                const directions = [
-                    [1, 0], [1, -1], [0, -1], [-1, 0], [-1, 1], [0, 1]
-                ];
-                return directions.map(([dq, dr]) => ({
-                    q: hex.q + dq,
-                    r: hex.r + dr
-                }));
-            }
-        };
-
         // Get character at specific hex coordinate (should be max 1)
         function getCharacterAtHex(q, r) {
             // Check PC first
@@ -645,8 +485,8 @@
         function findPath(start, goal, obstacles = []) {
             // Quick distance check - if too far, don't even try
             const maxDistance = 20; // Reasonable max path length
-            if (HexGrid.hexDistance(start, goal) > maxDistance) {
-                console.log(`Target too far (${HexGrid.hexDistance(start, goal)} > ${maxDistance}), aborting pathfinding`);
+            if (hexGrid.hexDistance(start, goal) > maxDistance) {
+                console.log(`Target too far (${hexGrid.hexDistance(start, goal)} > ${maxDistance}), aborting pathfinding`);
                 return [];
             }
 
@@ -664,7 +504,7 @@
             const fScore = new Map();
 
             gScore.set(`${start.q},${start.r}`, 0);
-            fScore.set(`${start.q},${start.r}`, HexGrid.hexDistance(start, goal));
+            fScore.set(`${start.q},${start.r}`, hexGrid.hexDistance(start, goal));
 
             let iterations = 0;
             const MAX_ITERATIONS = 100; // Much smaller safety limit
@@ -710,7 +550,7 @@
                 }
 
                 // Check all neighbors
-                const neighbors = HexGrid.getNeighbors(current);
+                const neighbors = hexGrid.getNeighbors(current);
                 const currentGScore = gScore.get(currentKey);
 
                 for (const neighbor of neighbors) {
@@ -727,7 +567,7 @@
                     if (tentativeGScore < existingGScore) {
                         cameFrom.set(neighborKey, current);
                         gScore.set(neighborKey, tentativeGScore);
-                        fScore.set(neighborKey, tentativeGScore + HexGrid.hexDistance(neighbor, goal));
+                        fScore.set(neighborKey, tentativeGScore + hexGrid.hexDistance(neighbor, goal));
 
                         // Add to openSet if not already there
                         const alreadyInOpen = openSet.some(hex => hex.q === neighbor.q && hex.r === neighbor.r);
@@ -800,13 +640,13 @@
                     loadStatusEl.style.color = '#0f0';
 
                     // Set PC starting position
-                    const startPos = HexGrid.hexToPixel(game.pc.hexQ, game.pc.hexR);
+                    const startPos = hexGrid.hexToPixel(game.pc.hexQ, game.pc.hexR);
                     game.pc.pixelX = startPos.x;
                     game.pc.pixelY = startPos.y;
 
                     // Set NPC starting positions
                     game.npcs.forEach(npc => {
-                        const npcStartPos = HexGrid.hexToPixel(npc.hexQ, npc.hexR);
+                        const npcStartPos = hexGrid.hexToPixel(npc.hexQ, npc.hexR);
                         npc.pixelX = npcStartPos.x;
                         npc.pixelY = npcStartPos.y;
                     });
@@ -858,13 +698,13 @@
 
             // Get current target
             const target = game.pc.movementQueue[0];
-            const targetPos = HexGrid.hexToPixel(target.q, target.r);
+            const targetPos = hexGrid.hexToPixel(target.q, target.r);
 
             // Calculate movement progress (0 to 1)
             const progress = Math.min(game.pc.currentMoveTimer / game.pc.moveSpeed, 1);
 
             // Interpolate position
-            const startPos = HexGrid.hexToPixel(game.pc.hexQ, game.pc.hexR);
+            const startPos = hexGrid.hexToPixel(game.pc.hexQ, game.pc.hexR);
             game.pc.pixelX = startPos.x + (targetPos.x - startPos.x) * progress;
             game.pc.pixelY = startPos.y + (targetPos.y - startPos.y) * progress;
 
@@ -1125,16 +965,16 @@
             const endX = ((cameraX + VIEWPORT_WIDTH) / zoomLevel) + margin;
             const endY = ((cameraY + VIEWPORT_HEIGHT) / zoomLevel) + margin;
 
-            const startHex = HexGrid.pixelToHex(startX, startY);
-            const endHex = HexGrid.pixelToHex(endX, endY);
+            const startHex = hexGrid.pixelToHex(startX, startY);
+            const endHex = hexGrid.pixelToHex(endX, endY);
 
             for (let q = startHex.q - 5; q <= endHex.q + 5; q++) {
                 for (let r = startHex.r - 5; r <= endHex.r + 5; r++) {
-                    const pos = HexGrid.hexToPixel(q, r);
+                    const pos = hexGrid.hexToPixel(q, r);
                     if (pos.x >= -HEX_SIZE && pos.x <= WORLD_WIDTH + HEX_SIZE &&
                         pos.y >= -HEX_SIZE && pos.y <= WORLD_HEIGHT + HEX_SIZE) {
 
-                        const center = HexGrid.hexToPixel(q, r);
+                        const center = hexGrid.hexToPixel(q, r);
                         const characterHere = getCharacterAtHex(q, r);
 
                         // Calculate hex corner points
@@ -1282,7 +1122,7 @@
                 faction: randomFaction
             };
 
-            const enemyPos = HexGrid.hexToPixel(newEnemy.hexQ, newEnemy.hexR);
+            const enemyPos = hexGrid.hexToPixel(newEnemy.hexQ, newEnemy.hexR);
             newEnemy.pixelX = enemyPos.x;
             newEnemy.pixelY = enemyPos.y;
 
@@ -1397,7 +1237,7 @@
 
             mousePosEl.textContent = `${Math.round(worldX)}, ${Math.round(worldY)}`;
 
-            const hex = HexGrid.pixelToHex(worldX, worldY);
+            const hex = hexGrid.pixelToHex(worldX, worldY);
             hexPosEl.textContent = `${hex.q}, ${hex.r}`;
         });
 
@@ -1409,7 +1249,7 @@
             const worldX = (canvasX + cameraX) / zoomLevel;
             const worldY = (canvasY + cameraY) / zoomLevel;
 
-            const targetHex = HexGrid.pixelToHex(worldX, worldY);
+            const targetHex = hexGrid.pixelToHex(worldX, worldY);
             console.log(`Clicked hex: q=${targetHex.q}, r=${targetHex.r}`);
 
             // Handle combat input phase

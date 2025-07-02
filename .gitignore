@@ -6,6 +6,8 @@
 !*.js
 !*.css
 !.gitignore
+!*.yml
+!Dockerfile
 
 # ...even if they are in subdirectories
 !*/
