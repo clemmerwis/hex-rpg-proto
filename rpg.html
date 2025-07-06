@@ -42,7 +42,7 @@
         import { HexGrid } from './js/HexGrid.js';
         import { GameStateManager, GAME_STATES, COMBAT_ACTIONS } from './js/GameStateManager.js';
         import { Renderer } from './js/Renderer.js';
-
+        import { InputHandler } from './js/InputHandler.js';
 
         // World size (full gameboard)
         const WORLD_WIDTH = 3220;
@@ -82,9 +82,6 @@
         const currentTurnEl = document.getElementById('currentTurn');
         const activeCharacterEl = document.getElementById('activeCharacter');
         const enemyCountEl = document.getElementById('enemyCount');
-
-        // Key state tracking for diagonal movement
-        const keys = {};
 
         // Animation configuration
         const animationConfig = {
@@ -200,6 +197,47 @@
             zoomLevel: zoomLevel,
             hexSize: HEX_SIZE
         });
+
+        const inputHandler = new InputHandler(canvas, {
+            viewportWidth: VIEWPORT_WIDTH,
+            viewportHeight: VIEWPORT_HEIGHT
+        });
+
+        // Set dependencies
+        inputHandler.setDependencies({
+            game: game,
+            hexGrid: hexGrid,
+            gameStateManager: gameStateManager,
+            findPath: findPath,
+            getCharacterAtHex: getCharacterAtHex
+        });
+
+        // Set up callbacks
+        inputHandler.onCameraUpdate = function (scroll) {
+            if (scroll) {
+                if (scroll.scrollX !== undefined) {
+                    cameraX += scroll.scrollX;
+                    cameraY += scroll.scrollY;
+                    clampCamera();
+                }
+                return { x: cameraX, y: cameraY, zoom: zoomLevel };
+            }
+            return { x: cameraX, y: cameraY, zoom: zoomLevel };
+        };
+
+        inputHandler.onMouseMove = function (canvasX, canvasY) {
+            const worldX = (canvasX + cameraX) / zoomLevel;
+            const worldY = (canvasY + cameraY) / zoomLevel;
+            mousePosEl.textContent = `${Math.round(worldX)}, ${Math.round(worldY)}`;
+            const hex = hexGrid.pixelToHex(worldX, worldY);
+            hexPosEl.textContent = `${hex.q}, ${hex.r}`;
+        };
+
+        inputHandler.onAnimationChange = function (animation) {
+            animationEl.textContent = animation;
+        };
+
+        inputHandler.onSpawnEnemy = spawnEnemy;
 
         // Set renderer dependencies
         renderer.setDependencies({
@@ -469,8 +507,8 @@
         // Game loop
         function gameLoop() {
             updateAnimations();
-            updateMovement(); // Add movement updates
-            updateKeyboardScrolling();
+            updateMovement();
+            inputHandler.updateKeyboardScrolling(); // Changed from updateKeyboardScrolling()
             render();
             requestAnimationFrame(gameLoop);
         }
@@ -548,6 +586,7 @@
 
             directionEl.textContent = character.facing;
         }
+
         // Update animations
         function updateAnimations() {
             const ANIMATION_SPEED = 150;
@@ -571,26 +610,6 @@
                     npc.animationFrame = (npc.animationFrame + 1) % frameCount;
                 }
             });
-        }
-
-        // Update keyboard scrolling
-        function updateKeyboardScrolling() {
-            const KEYBOARD_SCROLL_SPEED = 15;
-
-            let scrollX = 0;
-            let scrollY = 0;
-
-            if (keys['ArrowUp'] || keys['w'] || keys['W']) scrollY -= KEYBOARD_SCROLL_SPEED;
-            if (keys['ArrowDown'] || keys['s'] || keys['S']) scrollY += KEYBOARD_SCROLL_SPEED;
-            if (keys['ArrowLeft'] || keys['a'] || keys['A']) scrollX -= KEYBOARD_SCROLL_SPEED;
-            if (keys['ArrowRight'] || keys['d'] || keys['D']) scrollX += KEYBOARD_SCROLL_SPEED;
-
-            if (scrollX !== 0 || scrollY !== 0) {
-                keyboardScrollActive = true; // Flag that keyboard scrolling is happening
-                cameraX += scrollX;
-                cameraY += scrollY;
-                clampCamera();
-            }
         }
 
         function render() {
@@ -630,233 +649,6 @@
                 updateGameStateUI();
             }
         }
-
-        // Mouse edge scrolling state
-        let mouseX = 0;
-        let mouseY = 0;
-        let isMouseOverCanvas = false;
-        let keyboardScrollActive = false;
-        let mouseInEdgeZone = false;
-        let wasInEdgeZone = false;
-
-        canvas.addEventListener('mouseenter', () => isMouseOverCanvas = true);
-        canvas.addEventListener('mouseleave', () => isMouseOverCanvas = false);
-
-        function updateEdgeScrolling() {
-            if (!isMouseOverCanvas) {
-                requestAnimationFrame(updateEdgeScrolling);
-                return;
-            }
-
-            const EDGE_THRESHOLD = 100;
-            const MAX_SCROLL_SPEED = 12;
-
-            const rect = canvas.getBoundingClientRect();
-            const relativeX = mouseX - rect.left;
-            const relativeY = mouseY - rect.top;
-
-            // Check if mouse is currently in edge zone
-            const leftDistance = relativeX;
-            const rightDistance = rect.width - relativeX;
-            const topDistance = relativeY;
-            const bottomDistance = rect.height - relativeY;
-
-            const currentlyInEdgeZone = (
-                (leftDistance < EDGE_THRESHOLD && leftDistance >= 0) ||
-                (rightDistance < EDGE_THRESHOLD && rightDistance >= 0) ||
-                (topDistance < EDGE_THRESHOLD && topDistance >= 0) ||
-                (bottomDistance < EDGE_THRESHOLD && bottomDistance >= 0)
-            );
-
-            // Track edge zone entry/exit for keyboard scroll reset
-            if (!wasInEdgeZone && currentlyInEdgeZone) {
-                // Mouse just entered edge zone
-                mouseInEdgeZone = true;
-                if (keyboardScrollActive) {
-                    // Reset keyboard scroll flag when mouse re-enters edge after being outside
-                    keyboardScrollActive = false;
-                }
-            } else if (wasInEdgeZone && !currentlyInEdgeZone) {
-                // Mouse just left edge zone
-                mouseInEdgeZone = false;
-            }
-
-            wasInEdgeZone = currentlyInEdgeZone;
-
-            // Skip edge scrolling if keyboard scrolling is active
-            if (keyboardScrollActive) {
-                requestAnimationFrame(updateEdgeScrolling);
-                return;
-            }
-
-            let scrollX = 0;
-            let scrollY = 0;
-
-            if (leftDistance < EDGE_THRESHOLD && leftDistance >= 0) {
-                const speedMultiplier = 1 - (leftDistance / EDGE_THRESHOLD);
-                scrollX = -MAX_SCROLL_SPEED * speedMultiplier;
-            } else if (rightDistance < EDGE_THRESHOLD && rightDistance >= 0) {
-                const speedMultiplier = 1 - (rightDistance / EDGE_THRESHOLD);
-                scrollX = MAX_SCROLL_SPEED * speedMultiplier;
-            }
-
-            if (topDistance < EDGE_THRESHOLD && topDistance >= 0) {
-                const speedMultiplier = 1 - (topDistance / EDGE_THRESHOLD);
-                scrollY = -MAX_SCROLL_SPEED * speedMultiplier;
-            } else if (bottomDistance < EDGE_THRESHOLD && bottomDistance >= 0) {
-                const speedMultiplier = 1 - (bottomDistance / EDGE_THRESHOLD);
-                scrollY = MAX_SCROLL_SPEED * speedMultiplier;
-            }
-
-            if (scrollX !== 0 || scrollY !== 0) {
-                cameraX += scrollX;
-                cameraY += scrollY;
-                clampCamera();
-            }
-
-            requestAnimationFrame(updateEdgeScrolling);
-        }
-        updateEdgeScrolling();
-
-        // Mouse handling
-        canvas.addEventListener('mousemove', (e) => {
-            mouseX = e.clientX;
-            mouseY = e.clientY;
-
-            const rect = canvas.getBoundingClientRect();
-            const canvasX = e.clientX - rect.left;
-            const canvasY = e.clientY - rect.top;
-
-            const worldX = (canvasX + cameraX) / zoomLevel;
-            const worldY = (canvasY + cameraY) / zoomLevel;
-
-            mousePosEl.textContent = `${Math.round(worldX)}, ${Math.round(worldY)}`;
-
-            const hex = hexGrid.pixelToHex(worldX, worldY);
-            hexPosEl.textContent = `${hex.q}, ${hex.r}`;
-        });
-
-        canvas.addEventListener('click', (e) => {
-            const rect = canvas.getBoundingClientRect();
-            const canvasX = e.clientX - rect.left;
-            const canvasY = e.clientY - rect.top;
-
-            const worldX = (canvasX + cameraX) / zoomLevel;
-            const worldY = (canvasY + cameraY) / zoomLevel;
-
-            const targetHex = hexGrid.pixelToHex(worldX, worldY);
-            console.log(`Clicked hex: q=${targetHex.q}, r=${targetHex.r}`);
-
-            // Handle combat input phase
-            if (gameStateManager.currentState === GAME_STATES.COMBAT_INPUT) {
-                // Try to select this hex as player move target
-                gameStateManager.selectPlayerMoveTarget(targetHex.q, targetHex.r);
-                return;
-            }
-
-            // Handle exploration movement
-            if (!gameStateManager.canPlayerMove()) {
-                console.log(`Cannot move - wrong game state`);
-                return;
-            }
-
-            // Don't move if already moving or if clicking on current position
-            if (game.pc.isMoving || (targetHex.q === game.pc.hexQ && targetHex.r === game.pc.hexR)) {
-                return;
-            }
-
-            // Check if target hex is occupied
-            const characterAtTarget = getCharacterAtHex(targetHex.q, targetHex.r);
-            if (characterAtTarget) {
-                console.log(`Can't move to occupied hex: ${characterAtTarget.name}`);
-                return;
-            }
-
-            // Get all obstacles (other characters)
-            const obstacles = game.npcs.map(npc => ({ q: npc.hexQ, r: npc.hexR }));
-
-            // Find path
-            const startHex = { q: game.pc.hexQ, r: game.pc.hexR };
-            const path = findPath(startHex, targetHex, obstacles);
-
-            if (path.length > 0) {
-                console.log(`Found path with ${path.length} steps`);
-                game.pc.movementQueue = path;
-                game.pc.isMoving = true;
-                game.pc.currentMoveTimer = 0;
-            } else {
-                console.log(`No path found to hex: q=${targetHex.q}, r=${targetHex.r}`);
-            }
-        });
-
-        // Keyboard handling
-        document.addEventListener('keydown', (e) => {
-            keys[e.key] = true;
-
-            // Handle Shift+Space for combat toggle
-            if (e.key === ' ' && e.shiftKey) {
-                e.preventDefault();
-                gameStateManager.toggleCombat();
-                return;
-            }
-
-            switch (e.key) {
-                case '1':
-                    game.pc.currentAnimation = 'idle';
-                    animationEl.textContent = game.pc.currentAnimation;
-                    break;
-                case '2':
-                    game.pc.currentAnimation = 'walk';
-                    animationEl.textContent = game.pc.currentAnimation;
-                    break;
-                case '3':
-                    game.pc.currentAnimation = 'run';
-                    animationEl.textContent = game.pc.currentAnimation;
-                    break;
-                case '4':
-                    game.pc.currentAnimation = 'attack';
-                    animationEl.textContent = game.pc.currentAnimation;
-                    break;
-                case '5':
-                    game.pc.currentAnimation = 'jump';
-                    animationEl.textContent = game.pc.currentAnimation;
-                    break;
-                case '6':
-                    game.pc.currentAnimation = 'die';
-                    animationEl.textContent = game.pc.currentAnimation;
-                    break;
-                case '7':
-                    spawnEnemy();
-                    break;
-                case '8':
-                    console.log('=== CHARACTER POSITION DEBUG ===');
-                    console.log(`PC: hex(${game.pc.hexQ},${game.pc.hexR}) faction: ${game.pc.faction}`);
-
-                    const foundPC = getCharacterAtHex(game.pc.hexQ, game.pc.hexR);
-                    console.log(`Can find PC at its hex? ${foundPC ? foundPC.name : 'NO'}`);
-
-                    game.npcs.forEach(npc => {
-                        console.log(`NPC ${npc.name}: hex(${npc.hexQ},${npc.hexR}) faction: ${npc.faction}`);
-                        const foundNPC = getCharacterAtHex(npc.hexQ, npc.hexR);
-                        console.log(`Can find ${npc.name} at its hex? ${foundNPC ? foundNPC.name : 'NO'}`);
-                    });
-                    break;
-                case 'n': // Next turn in combat (for testing)
-                    if (gameStateManager.currentState === GAME_STATES.COMBAT_INPUT) {
-                        console.log('Force advancing to execution phase');
-                        gameStateManager.setState(GAME_STATES.COMBAT_EXECUTION);
-                    } else if (gameStateManager.currentState === GAME_STATES.COMBAT_EXECUTION) {
-                        console.log('Force advancing to next input phase');
-                        gameStateManager.turnNumber++;
-                        gameStateManager.setState(GAME_STATES.COMBAT_INPUT);
-                    }
-                    break;
-            }
-        });
-
-        document.addEventListener('keyup', (e) => {
-            keys[e.key] = false;
-        });
 
         showGridCheckbox.addEventListener('change', () => {
             requestAnimationFrame(render);
