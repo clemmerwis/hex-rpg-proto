@@ -43,6 +43,7 @@
         import { GameStateManager, GAME_STATES, COMBAT_ACTIONS } from './js/GameStateManager.js';
         import { Renderer } from './js/Renderer.js';
         import { InputHandler } from './js/InputHandler.js';
+        import { AssetManager } from './js/AssetManager.js';
 
         // World size (full gameboard)
         const WORLD_WIDTH = 3220;
@@ -249,6 +250,39 @@
             factions: FACTIONS
         });
 
+        // Initialize AssetManager
+        const assetManager = new AssetManager();
+
+        // Set up callbacks
+        assetManager.onProgress = function (percent) {
+            loadStatusEl.textContent = `Loading: ${percent}%`;
+        };
+
+        assetManager.onComplete = function () {
+            loadStatusEl.textContent = 'Ready - Press 7 to spawn, Shift+Space for combat';
+            loadStatusEl.style.color = '#0f0';
+
+            // Set PC starting position
+            const startPos = hexGrid.hexToPixel(game.pc.hexQ, game.pc.hexR);
+            game.pc.pixelX = startPos.x;
+            game.pc.pixelY = startPos.y;
+
+            // Set NPC starting positions
+            game.npcs.forEach(npc => {
+                const npcStartPos = hexGrid.hexToPixel(npc.hexQ, npc.hexR);
+                npc.pixelX = npcStartPos.x;
+                npc.pixelY = npcStartPos.y;
+            });
+
+            centerCameraOn(game.pc.pixelX, game.pc.pixelY);
+
+            // Initialize UI
+            updateGameStateUI();
+
+            // Start game loop
+            gameLoop();
+        };
+
         // Function to update UI
         function updateGameStateUI() {
             // Update state indicator
@@ -413,77 +447,9 @@
         }
 
         // Asset loading
-        function loadAssets() {
-            let assetsLoaded = 0;
-            let totalAssets = 1; // Start with background
-
-            // Count total assets (8 directions × number of animations)
-            const directions = ['dir1', 'dir2', 'dir3', 'dir4', 'dir5', 'dir6', 'dir7', 'dir8'];
-            const animations = ['Idle', 'Walk', 'Run', 'Attack', 'Jump', 'Die'];
-            totalAssets += directions.length * animations.length;
-
-            // Load background
-            game.assets.background = new Image();
-            game.assets.background.onload = () => {
-                assetsLoaded++;
-                checkAssetsLoaded();
-            };
-            game.assets.background.onerror = () => {
-                console.log("Background failed to load, using placeholder");
-                assetsLoaded++;
-                game.assets.background = null;
-                checkAssetsLoaded();
-            };
-            game.assets.background.src = 'IsometricBridge.jpg';
-
-            // Load knight sprites for each direction
-            directions.forEach(dir => {
-                game.assets.baseKnightSprites[dir] = {};
-
-                animations.forEach(anim => {
-                    const sprite = new Image();
-                    sprite.onload = () => {
-                        assetsLoaded++;
-                        checkAssetsLoaded();
-                    };
-                    sprite.onerror = () => {
-                        console.log(`Failed to load Knight_${anim}_${dir}.png`);
-                        assetsLoaded++;
-                        checkAssetsLoaded();
-                    };
-                    sprite.src = `sprites/KnightBasic/${anim}/Knight_${anim}_${dir}.png`;
-                    game.assets.baseKnightSprites[dir][anim.toLowerCase()] = sprite;
-                });
-            });
-
-            function checkAssetsLoaded() {
-                const loadPercent = Math.round((assetsLoaded / totalAssets) * 100);
-                loadStatusEl.textContent = `Loading: ${loadPercent}%`;
-
-                if (assetsLoaded === totalAssets) {
-                    loadStatusEl.textContent = 'Ready - Press 7 to spawn, Shift+Space for combat';
-                    loadStatusEl.style.color = '#0f0';
-
-                    // Set PC starting position
-                    const startPos = hexGrid.hexToPixel(game.pc.hexQ, game.pc.hexR);
-                    game.pc.pixelX = startPos.x;
-                    game.pc.pixelY = startPos.y;
-
-                    // Set NPC starting positions
-                    game.npcs.forEach(npc => {
-                        const npcStartPos = hexGrid.hexToPixel(npc.hexQ, npc.hexR);
-                        npc.pixelX = npcStartPos.x;
-                        npc.pixelY = npcStartPos.y;
-                    });
-
-                    centerCameraOn(game.pc.pixelX, game.pc.pixelY);
-
-                    // Initialize UI
-                    updateGameStateUI();
-
-                    gameLoop();
-                }
-            }
+        async function loadAssets() {
+            const assets = await assetManager.loadAssets();
+            game.assets = assets;
         }
 
         // Center camera on a world position
