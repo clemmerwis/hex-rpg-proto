@@ -45,6 +45,7 @@
         import { InputHandler } from './js/InputHandler.js';
         import { AssetManager } from './js/AssetManager.js';
         import { Pathfinding } from './js/Pathfinding.js';
+        import { MovementSystem } from './js/MovementSystem.js';
 
         // World size (full gameboard)
         const WORLD_WIDTH = 3220;
@@ -287,6 +288,22 @@
             gameLoop();
         };
 
+        const movementSystem = new MovementSystem({
+            hexGrid: hexGrid,
+            game: game,
+            gameStateManager: gameStateManager,
+            animationConfig: animationConfig
+        });
+
+        // Set up movement callbacks
+        movementSystem.onAnimationChange = function (animation) {
+            animationEl.textContent = animation;
+        };
+
+        movementSystem.onDirectionChange = function (direction) {
+            directionEl.textContent = direction;
+        };
+
         // Function to update UI
         function updateGameStateUI() {
             // Update state indicator
@@ -370,110 +387,11 @@
 
         // Game loop
         function gameLoop() {
-            updateAnimations();
-            updateMovement();
+            movementSystem.updateAnimations();
+            movementSystem.updateMovement();
             inputHandler.updateKeyboardScrolling(); // Changed from updateKeyboardScrolling()
             render();
             requestAnimationFrame(gameLoop);
-        }
-
-        // Update movement system
-        function updateMovement() {
-            if (!game.pc.isMoving || game.pc.movementQueue.length === 0) {
-                return;
-            }
-
-            game.pc.currentMoveTimer += 16; // 16ms per frame (60fps)
-
-            // Get current target
-            const target = game.pc.movementQueue[0];
-            const targetPos = hexGrid.hexToPixel(target.q, target.r);
-
-            // Calculate movement progress (0 to 1)
-            const progress = Math.min(game.pc.currentMoveTimer / game.pc.moveSpeed, 1);
-
-            // Interpolate position
-            const startPos = hexGrid.hexToPixel(game.pc.hexQ, game.pc.hexR);
-            game.pc.pixelX = startPos.x + (targetPos.x - startPos.x) * progress;
-            game.pc.pixelY = startPos.y + (targetPos.y - startPos.y) * progress;
-
-            // Update facing direction while moving
-            updateFacing(game.pc, targetPos.x - startPos.x, targetPos.y - startPos.y);
-
-            // Set walking animation
-            if (game.pc.currentAnimation === 'idle') {
-                game.pc.currentAnimation = 'walk';
-                animationEl.textContent = game.pc.currentAnimation;
-            }
-
-            // Check if we've reached the current target
-            if (progress >= 1) {
-                // Move to target hex
-                game.pc.hexQ = target.q;
-                game.pc.hexR = target.r;
-                game.pc.pixelX = targetPos.x;
-                game.pc.pixelY = targetPos.y;
-
-                // Remove completed target
-                game.pc.movementQueue.shift();
-                game.pc.currentMoveTimer = 0;
-
-                // Check if movement is complete
-                if (game.pc.movementQueue.length === 0) {
-                    game.pc.isMoving = false;
-                    game.pc.currentAnimation = 'idle';
-                    animationEl.textContent = game.pc.currentAnimation;
-
-                    // In combat mode, end turn after movement
-                    if (gameStateManager.currentState === GAME_STATES.COMBAT_EXECUTION) {
-                        console.log('Character movement complete in execution phase');
-                    }
-                }
-            }
-        }
-
-        // Update character facing direction
-        function updateFacing(character, dx, dy) {
-            if (dx === 0 && dy === 0) return;
-
-            let angle = Math.atan2(dy, dx) * 180 / Math.PI;
-            angle = (angle + 360) % 360;
-
-            if (angle >= 337.5 || angle < 22.5) character.facing = 'dir6';
-            else if (angle >= 22.5 && angle < 67.5) character.facing = 'dir7';
-            else if (angle >= 67.5 && angle < 112.5) character.facing = 'dir8';
-            else if (angle >= 112.5 && angle < 157.5) character.facing = 'dir1';
-            else if (angle >= 157.5 && angle < 202.5) character.facing = 'dir2';
-            else if (angle >= 202.5 && angle < 247.5) character.facing = 'dir3';
-            else if (angle >= 247.5 && angle < 292.5) character.facing = 'dir4';
-            else if (angle >= 292.5 && angle < 337.5) character.facing = 'dir5';
-
-            directionEl.textContent = character.facing;
-        }
-
-        // Update animations
-        function updateAnimations() {
-            const ANIMATION_SPEED = 150;
-
-            // Update PC animation
-            game.pc.animationTimer += 16;
-            if (game.pc.animationTimer >= ANIMATION_SPEED) {
-                game.pc.animationTimer = 0;
-                const animConfig = animationConfig[game.pc.currentAnimation];
-                let frameCount = animConfig ? animConfig.frameCount : 6;
-                game.pc.animationFrame = (game.pc.animationFrame + 1) % frameCount;
-            }
-
-            // Update NPC animations
-            game.npcs.forEach(npc => {
-                npc.animationTimer += 16;
-                if (npc.animationTimer >= ANIMATION_SPEED) {
-                    npc.animationTimer = 0;
-                    const animConfig = animationConfig[npc.currentAnimation];
-                    let frameCount = animConfig ? animConfig.frameCount : 6;
-                    npc.animationFrame = (npc.animationFrame + 1) % frameCount;
-                }
-            });
         }
 
         function render() {
