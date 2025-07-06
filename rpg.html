@@ -44,6 +44,7 @@
         import { Renderer } from './js/Renderer.js';
         import { InputHandler } from './js/InputHandler.js';
         import { AssetManager } from './js/AssetManager.js';
+        import { Pathfinding } from './js/Pathfinding.js';
 
         // World size (full gameboard)
         const WORLD_WIDTH = 3220;
@@ -178,8 +179,11 @@
         };
 
         // Initialize HexGrid instance
-        const hexGrid = new HexGrid(70, 3220, 2240); // HEX_SIZE=70, WORLD_WIDTH=3220, WORLD_HEIGHT=2240
-        const HEX_SIZE = 70; // Add this line
+        const hexGrid = new HexGrid(70, 3220, 2240);
+        const HEX_SIZE = 70;
+
+        // Initialize Pathfinding
+        const pathfinding = new Pathfinding(hexGrid);
 
         // Initialize GameStateManager
         const gameStateManager = new GameStateManager(game, hexGrid, getCharacterAtHex);
@@ -209,7 +213,7 @@
             game: game,
             hexGrid: hexGrid,
             gameStateManager: gameStateManager,
-            findPath: findPath,
+            findPath: (start, goal, obstacles) => pathfinding.findPath(start, goal, obstacles),
             getCharacterAtHex: getCharacterAtHex
         });
 
@@ -338,112 +342,6 @@
             }
 
             return null;
-        }
-
-        // A* Pathfinding for hex grid
-        function findPath(start, goal, obstacles = []) {
-            // Quick distance check - if too far, don't even try
-            const maxDistance = 20; // Reasonable max path length
-            if (hexGrid.hexDistance(start, goal) > maxDistance) {
-                console.log(`Target too far (${hexGrid.hexDistance(start, goal)} > ${maxDistance}), aborting pathfinding`);
-                return [];
-            }
-
-            // Convert obstacles to a Set for faster lookups
-            const obstacleSet = new Set(obstacles.map(obs => `${obs.q},${obs.r}`));
-
-            function isBlockedFast(hex) {
-                return obstacleSet.has(`${hex.q},${hex.r}`);
-            }
-
-            const openSet = [start];
-            const closedSet = new Set(); // Track visited nodes
-            const cameFrom = new Map();
-            const gScore = new Map();
-            const fScore = new Map();
-
-            gScore.set(`${start.q},${start.r}`, 0);
-            fScore.set(`${start.q},${start.r}`, hexGrid.hexDistance(start, goal));
-
-            let iterations = 0;
-            const MAX_ITERATIONS = 100; // Much smaller safety limit
-            const MAX_OPEN_SET_SIZE = 200; // Prevent openSet from growing too large
-
-            while (openSet.length > 0 && iterations < MAX_ITERATIONS) {
-                iterations++;
-
-                // Safety check - if openSet gets too big, abort
-                if (openSet.length > MAX_OPEN_SET_SIZE) {
-                    console.log(`OpenSet too large (${openSet.length}), aborting pathfinding`);
-                    return [];
-                }
-
-                // Find node with lowest fScore
-                let current = openSet[0];
-                let currentIndex = 0;
-                for (let i = 1; i < openSet.length; i++) {
-                    const currentKey = `${current.q},${current.r}`;
-                    const iKey = `${openSet[i].q},${openSet[i].r}`;
-                    if ((fScore.get(iKey) || Infinity) < (fScore.get(currentKey) || Infinity)) {
-                        current = openSet[i];
-                        currentIndex = i;
-                    }
-                }
-
-                // Remove current from openSet and add to closedSet
-                openSet.splice(currentIndex, 1);
-                const currentKey = `${current.q},${current.r}`;
-                closedSet.add(currentKey);
-
-                // Check if we reached the goal
-                if (current.q === goal.q && current.r === goal.r) {
-                    const path = [];
-                    let temp = current;
-                    while (temp) {
-                        path.unshift(temp);
-                        const tempKey = `${temp.q},${temp.r}`;
-                        temp = cameFrom.get(tempKey);
-                    }
-                    console.log(`Found path with ${path.length - 1} steps in ${iterations} iterations`);
-                    return path.slice(1);
-                }
-
-                // Check all neighbors
-                const neighbors = hexGrid.getNeighbors(current);
-                const currentGScore = gScore.get(currentKey);
-
-                for (const neighbor of neighbors) {
-                    const neighborKey = `${neighbor.q},${neighbor.r}`;
-
-                    // Skip if already processed or blocked
-                    if (closedSet.has(neighborKey) || isBlockedFast(neighbor)) {
-                        continue;
-                    }
-
-                    const tentativeGScore = currentGScore + 1;
-                    const existingGScore = gScore.get(neighborKey) || Infinity;
-
-                    if (tentativeGScore < existingGScore) {
-                        cameFrom.set(neighborKey, current);
-                        gScore.set(neighborKey, tentativeGScore);
-                        fScore.set(neighborKey, tentativeGScore + hexGrid.hexDistance(neighbor, goal));
-
-                        // Add to openSet if not already there
-                        const alreadyInOpen = openSet.some(hex => hex.q === neighbor.q && hex.r === neighbor.r);
-                        if (!alreadyInOpen) {
-                            openSet.push(neighbor);
-                        }
-                    }
-                }
-            }
-
-            // No path found
-            if (iterations >= MAX_ITERATIONS) {
-                console.log(`Pathfinding stopped after ${MAX_ITERATIONS} iterations (safety limit)`);
-            } else {
-                console.log(`No path found after ${iterations} iterations`);
-            }
-            return [];
         }
 
         // Asset loading
