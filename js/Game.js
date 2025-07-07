@@ -5,56 +5,26 @@ import { InputHandler } from './InputHandler.js';
 import { AssetManager } from './AssetManager.js';
 import { Pathfinding } from './Pathfinding.js';
 import { MovementSystem } from './MovementSystem.js';
+import { GAME_CONSTANTS, ANIMATION_CONFIGS, FACTIONS } from './const.js';
 
 export class Game {
     constructor() {
         // Configuration
         this.config = {
-            world: { width: 3220, height: 2240 },
+            world: {
+                width: GAME_CONSTANTS.WORLD_WIDTH,
+                height: GAME_CONSTANTS.WORLD_HEIGHT
+            },
             viewport: {
                 width: Math.min(window.innerWidth * 0.9, 1600),
                 height: Math.min(window.innerHeight * 0.85, 900)
             },
-            zoom: 0.5,
-            hexSize: 70
+            zoom: GAME_CONSTANTS.ZOOM_LEVEL,
+            hexSize: GAME_CONSTANTS.HEX_SIZE
         };
 
         // Camera state
         this.camera = { x: 0, y: 0 };
-
-        // Animation configuration
-        this.animationConfig = {
-            'idle': { cols: 5, rows: 4, frameCount: 17 },
-            'walk': { cols: 4, rows: 3, frameCount: 11 },
-            'run': { cols: 3, rows: 3, frameCount: 8 },
-            'jump': { cols: 4, rows: 3, frameCount: 11 },
-            'attack': { cols: 4, rows: 4, frameCount: 15 },
-            'die': { cols: 6, rows: 5, frameCount: 27 }
-        };
-
-        // Faction configuration
-        this.factions = {
-            player: {
-                name: 'Player',
-                tintColor: '#4CAF50',
-                nameplateColor: '#00ff00'
-            },
-            enemy: {
-                name: 'Enemy',
-                tintColor: '#F44336',
-                nameplateColor: '#ff4444'
-            },
-            ally: {
-                name: 'Ally',
-                tintColor: '#2196F3',
-                nameplateColor: '#4488ff'
-            },
-            neutral: {
-                name: 'Neutral',
-                tintColor: '#FF9800',
-                nameplateColor: '#ffaa44'
-            }
-        };
 
         // Game state
         this.state = {
@@ -171,9 +141,9 @@ export class Game {
     initializeModules() {
         // Core modules
         this.hexGrid = new HexGrid(
-            this.config.hexSize,
-            this.config.world.width,
-            this.config.world.height
+            GAME_CONSTANTS.HEX_SIZE,
+            GAME_CONSTANTS.WORLD_WIDTH,
+            GAME_CONSTANTS.WORLD_HEIGHT
         );
 
         this.pathfinding = new Pathfinding(this.hexGrid);
@@ -204,7 +174,7 @@ export class Game {
             hexGrid: this.hexGrid,
             game: this.state,
             gameStateManager: this.gameStateManager,
-            animationConfig: this.animationConfig
+            animationConfig: ANIMATION_CONFIGS
         });
     }
 
@@ -220,8 +190,7 @@ export class Game {
             hexGrid: this.hexGrid,
             gameStateManager: this.gameStateManager,
             getCharacterAtHex: this.getCharacterAtHex.bind(this),
-            animationConfig: this.animationConfig,
-            factions: this.factions
+            animationConfig: ANIMATION_CONFIGS,
         });
 
         // InputHandler dependencies and callbacks
@@ -387,7 +356,6 @@ export class Game {
         newEnemy.pixelY = enemyPos.y;
 
         this.state.npcs.push(newEnemy);
-        console.log(`Spawned ${randomFaction} at ${newEnemy.hexQ}, ${newEnemy.hexR}`);
 
         // Update combat UI if in combat
         if (this.gameStateManager.currentState === GAME_STATES.COMBAT_INPUT ||

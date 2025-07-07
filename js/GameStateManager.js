@@ -1,4 +1,5 @@
 import { AISystem } from './AISystem.js';
+import { GAME_CONSTANTS } from './const.js';
 
 export const GAME_STATES = {
     EXPLORATION: 'exploration',
@@ -153,7 +154,7 @@ export class GameStateManager {
                     this.currentExecutionIndex++;
                     this.executeNextAction();
                 }
-            }, 50); // Check every 50ms
+            }, GAME_CONSTANTS.COMBAT_CHECK_INTERVAL);
         } else {
             // Wait action or no valid move
             setTimeout(() => {

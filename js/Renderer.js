@@ -1,3 +1,5 @@
+import { GAME_CONSTANTS, FACTIONS } from './const.js';
+
 export class Renderer {
     constructor(canvas, ctx, config) {
         this.canvas = canvas;
@@ -17,7 +19,6 @@ export class Renderer {
         this.gameStateManager = null;
         this.getCharacterAtHex = null;
         this.animationConfig = null;
-        this.factions = null;
     }
 
     setDependencies(deps) {
@@ -26,7 +27,6 @@ export class Renderer {
         this.gameStateManager = deps.gameStateManager;
         this.getCharacterAtHex = deps.getCharacterAtHex;
         this.animationConfig = deps.animationConfig;
-        this.factions = deps.factions;
     }
 
     render(cameraX, cameraY, showGrid) {
@@ -135,7 +135,7 @@ export class Renderer {
     }
 
     drawFactionBorders(hexPoints, q, r, character) {
-        const factionData = this.factions[character.faction] || this.factions.neutral;
+        const factionData = FACTIONS[character.faction] || FACTIONS.neutral;
 
         // Check for adjacent different factions
         const adjacentDirs = [
@@ -169,7 +169,7 @@ export class Renderer {
         sharedEdges.forEach(edgeIndex => {
             const [dq, dr] = adjacentDirs[edgeIndex];
             const adjCharacter = this.getCharacterAtHex(q + dq, r + dr);
-            const adjFactionData = this.factions[adjCharacter.faction] || this.factions.neutral;
+            const adjFactionData = FACTIONS[adjCharacter.faction] || FACTIONS.neutral;
 
             const startPoint = hexPoints[edgeIndex];
             const endPoint = hexPoints[(edgeIndex + 1) % 6];
@@ -225,7 +225,7 @@ export class Renderer {
             this.game.assets.baseKnightSprites[character.facing][character.currentAnimation];
 
         if (sprite && sprite.complete) {
-            const frameSize = 256;
+            const frameSize = GAME_CONSTANTS.SPRITE_FRAME_SIZE;
             const animConfig = this.animationConfig[character.currentAnimation];
             const framesPerRow = animConfig ? animConfig.cols : Math.floor(sprite.width / frameSize);
 
@@ -252,7 +252,7 @@ export class Renderer {
             }
         } else {
             // Placeholder
-            const factionData = this.factions[character.faction] || this.factions.neutral;
+            const factionData = FACTIONS[character.faction] || FACTIONS.neutral;
             this.ctx.fillStyle = factionData.tintColor;
             this.ctx.beginPath();
             this.ctx.arc(character.pixelX, character.pixelY, 30, 0, Math.PI * 2);
@@ -267,7 +267,7 @@ export class Renderer {
         const actualSpriteSize = 256 * this.zoomLevel;
         const nameplateY = character.pixelY - actualSpriteSize / 2 - 45;
 
-        const barWidth = 150;
+        const barWidth = GAME_CONSTANTS.NAMEPLATE_WIDTH;
         const barHeight = 22;
         const nameplatePadding = 8;
         const nameplateWidth = Math.max(barWidth, 120) + (nameplatePadding * 2);
@@ -285,7 +285,7 @@ export class Renderer {
         this.ctx.fillRect(nameplateX, nameplateBackgroundY, nameplateWidth, nameplateHeight);
 
         // Border
-        const factionData = this.factions[character.faction] || this.factions.neutral;
+        const factionData = FACTIONS[character.faction] || FACTIONS.neutral;
         this.ctx.strokeStyle = isExecutingCharacter ? '#ffff00' : factionData.nameplateColor;
         this.ctx.lineWidth = isExecutingCharacter ? 3 : 2;
         this.ctx.strokeRect(nameplateX, nameplateBackgroundY, nameplateWidth, nameplateHeight);

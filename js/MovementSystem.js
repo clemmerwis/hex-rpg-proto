@@ -1,4 +1,6 @@
 import { GAME_STATES } from './GameStateManager.js';
+import { GAME_CONSTANTS } from './const.js';
+
 
 export class MovementSystem {
     constructor(config) {
@@ -6,10 +8,6 @@ export class MovementSystem {
         this.game = config.game;
         this.gameStateManager = config.gameStateManager;
         this.animationConfig = config.animationConfig;
-
-        // Animation constants
-        this.ANIMATION_SPEED = 150;
-        this.FRAME_TIME = 16; // 60fps
 
         // Callbacks
         this.onAnimationChange = null;
@@ -23,9 +21,6 @@ export class MovementSystem {
 
         // Debug: log any moving characters
         const movingChars = allCharacters.filter(c => c.isMoving);
-        if (movingChars.length > 0) {
-            console.log(`MovementSystem: ${movingChars.length} characters moving`);
-        }
 
         allCharacters.forEach(character => {
             if (!character.isMoving || character.movementQueue.length === 0) {
@@ -38,8 +33,7 @@ export class MovementSystem {
     }
 
     updateCharacterMovement(character) {
-        character.currentMoveTimer += this.FRAME_TIME;
-
+        character.currentMoveTimer += GAME_CONSTANTS.FRAME_TIME;
         // Get current target
         const target = character.movementQueue[0];
         const targetPos = this.hexGrid.hexToPixel(target.q, target.r);
@@ -90,7 +84,6 @@ export class MovementSystem {
 
             // In combat mode, end turn after movement
             if (this.gameStateManager.currentState === GAME_STATES.COMBAT_EXECUTION) {
-                console.log('Character movement complete in execution phase');
             }
         }
     }
@@ -131,9 +124,9 @@ export class MovementSystem {
 
     // Update animation for a specific character
     updateCharacterAnimation(character) {
-        character.animationTimer += this.FRAME_TIME;
+        character.animationTimer += GAME_CONSTANTS.FRAME_TIME;
 
-        if (character.animationTimer >= this.ANIMATION_SPEED) {
+        if (character.animationTimer >= GAME_CONSTANTS.ANIMATION_SPEED) {
             character.animationTimer = 0;
             const animConfig = this.animationConfig[character.currentAnimation];
             const frameCount = animConfig ? animConfig.frameCount : 6;
@@ -147,7 +140,6 @@ export class MovementSystem {
             character.movementQueue = path;
             character.isMoving = true;
             character.currentMoveTimer = 0;
-            console.log(`Started movement with ${path.length} steps`);
         }
     }
 

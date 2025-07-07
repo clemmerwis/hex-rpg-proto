@@ -1,9 +1,12 @@
+import { GAME_CONSTANTS } from './const.js';
+
+
 export class Pathfinding {
     constructor(hexGrid) {
         this.hexGrid = hexGrid;
-        this.maxDistance = 20; // Reasonable max path length
-        this.maxIterations = 100; // Safety limit
-        this.maxOpenSetSize = 200; // Prevent openSet from growing too large
+        this.maxDistance = GAME_CONSTANTS.PATHFINDING_MAX_DISTANCE;
+        this.maxIterations = GAME_CONSTANTS.PATHFINDING_MAX_ITERATIONS;
+        this.maxOpenSetSize = GAME_CONSTANTS.PATHFINDING_MAX_OPEN_SET;
     }
 
     findPath(start, goal, obstacles = []) {

@@ -1,3 +1,5 @@
+import { ANIMATION_CONFIGS } from './const.js';
+
 export class AssetManager {
     constructor() {
         this.assets = {
@@ -48,7 +50,6 @@ export class AssetManager {
             };
 
             this.assets.background.onerror = () => {
-                console.log("Background failed to load, using placeholder");
                 this.assets.background = null;
                 this.incrementProgress();
                 if (this.onError) {
@@ -87,7 +88,6 @@ export class AssetManager {
             };
 
             sprite.onerror = () => {
-                console.log(`Failed to load Knight_${animation}_${direction}.png`);
                 this.assets.baseKnightSprites[direction][animation.toLowerCase()] = null;
                 this.incrementProgress();
                 if (this.onError) {

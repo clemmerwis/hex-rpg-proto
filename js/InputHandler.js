@@ -1,4 +1,5 @@
 import { GAME_STATES, COMBAT_ACTIONS } from './GameStateManager.js';
+import { GAME_CONSTANTS } from './const.js';
 
 export class InputHandler {
     constructor(canvas, config) {
@@ -190,15 +191,13 @@ export class InputHandler {
     }
 
     updateKeyboardScrolling() {
-        const KEYBOARD_SCROLL_SPEED = 15;
-
         let scrollX = 0;
         let scrollY = 0;
 
-        if (this.keys['ArrowUp'] || this.keys['w'] || this.keys['W']) scrollY -= KEYBOARD_SCROLL_SPEED;
-        if (this.keys['ArrowDown'] || this.keys['s'] || this.keys['S']) scrollY += KEYBOARD_SCROLL_SPEED;
-        if (this.keys['ArrowLeft'] || this.keys['a'] || this.keys['A']) scrollX -= KEYBOARD_SCROLL_SPEED;
-        if (this.keys['ArrowRight'] || this.keys['d'] || this.keys['D']) scrollX += KEYBOARD_SCROLL_SPEED;
+        if (this.keys['ArrowUp'] || this.keys['w'] || this.keys['W']) scrollY -= GAME_CONSTANTS.KEYBOARD_SCROLL_SPEED;
+        if (this.keys['ArrowDown'] || this.keys['s'] || this.keys['S']) scrollY += GAME_CONSTANTS.KEYBOARD_SCROLL_SPEED;
+        if (this.keys['ArrowLeft'] || this.keys['a'] || this.keys['A']) scrollX -= GAME_CONSTANTS.KEYBOARD_SCROLL_SPEED;
+        if (this.keys['ArrowRight'] || this.keys['d'] || this.keys['D']) scrollX += GAME_CONSTANTS.KEYBOARD_SCROLL_SPEED;
 
         if (scrollX !== 0 || scrollY !== 0) {
             this.keyboardScrollActive = true;
@@ -214,9 +213,6 @@ export class InputHandler {
             return;
         }
 
-        const EDGE_THRESHOLD = 100;
-        const MAX_SCROLL_SPEED = 12;
-
         const rect = this.canvas.getBoundingClientRect();
         const relativeX = this.mouseX - rect.left;
         const relativeY = this.mouseY - rect.top;
@@ -228,10 +224,10 @@ export class InputHandler {
         const bottomDistance = rect.height - relativeY;
 
         const currentlyInEdgeZone = (
-            (leftDistance < EDGE_THRESHOLD && leftDistance >= 0) ||
-            (rightDistance < EDGE_THRESHOLD && rightDistance >= 0) ||
-            (topDistance < EDGE_THRESHOLD && topDistance >= 0) ||
-            (bottomDistance < EDGE_THRESHOLD && bottomDistance >= 0)
+            (leftDistance < GAME_CONSTANTS.EDGE_SCROLL_THRESHOLD && leftDistance >= 0) ||
+            (rightDistance < GAME_CONSTANTS.EDGE_SCROLL_THRESHOLD && rightDistance >= 0) ||
+            (topDistance < GAME_CONSTANTS.EDGE_SCROLL_THRESHOLD && topDistance >= 0) ||
+            (bottomDistance < GAME_CONSTANTS.EDGE_SCROLL_THRESHOLD && bottomDistance >= 0)
         );
 
         // Track edge zone entry/exit
@@ -255,20 +251,20 @@ export class InputHandler {
         let scrollX = 0;
         let scrollY = 0;
 
-        if (leftDistance < EDGE_THRESHOLD && leftDistance >= 0) {
-            const speedMultiplier = 1 - (leftDistance / EDGE_THRESHOLD);
-            scrollX = -MAX_SCROLL_SPEED * speedMultiplier;
-        } else if (rightDistance < EDGE_THRESHOLD && rightDistance >= 0) {
-            const speedMultiplier = 1 - (rightDistance / EDGE_THRESHOLD);
-            scrollX = MAX_SCROLL_SPEED * speedMultiplier;
+        if (leftDistance < GAME_CONSTANTS.EDGE_SCROLL_THRESHOLD && leftDistance >= 0) {
+            const speedMultiplier = 1 - (leftDistance / GAME_CONSTANTS.EDGE_SCROLL_THRESHOLD);
+            scrollX = -GAME_CONSTANTS.MAX_EDGE_SCROLL_SPEED * speedMultiplier;
+        } else if (rightDistance < GAME_CONSTANTS.EDGE_SCROLL_THRESHOLD && rightDistance >= 0) {
+            const speedMultiplier = 1 - (rightDistance / GAME_CONSTANTS.EDGE_SCROLL_THRESHOLD);
+            scrollX = GAME_CONSTANTS.MAX_EDGE_SCROLL_SPEED * speedMultiplier;
         }
 
-        if (topDistance < EDGE_THRESHOLD && topDistance >= 0) {
-            const speedMultiplier = 1 - (topDistance / EDGE_THRESHOLD);
-            scrollY = -MAX_SCROLL_SPEED * speedMultiplier;
-        } else if (bottomDistance < EDGE_THRESHOLD && bottomDistance >= 0) {
-            const speedMultiplier = 1 - (bottomDistance / EDGE_THRESHOLD);
-            scrollY = MAX_SCROLL_SPEED * speedMultiplier;
+        if (topDistance < GAME_CONSTANTS.EDGE_SCROLL_THRESHOLD && topDistance >= 0) {
+            const speedMultiplier = 1 - (topDistance / GAME_CONSTANTS.EDGE_SCROLL_THRESHOLD);
+            scrollY = -GAME_CONSTANTS.MAX_EDGE_SCROLL_SPEED * speedMultiplier;
+        } else if (bottomDistance < GAME_CONSTANTS.EDGE_SCROLL_THRESHOLD && bottomDistance >= 0) {
+            const speedMultiplier = 1 - (bottomDistance / GAME_CONSTANTS.EDGE_SCROLL_THRESHOLD);
+            scrollY = GAME_CONSTANTS.MAX_EDGE_SCROLL_SPEED * speedMultiplier;
         }
 
         if (scrollX !== 0 || scrollY !== 0) {
