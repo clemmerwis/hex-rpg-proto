@@ -38,7 +38,6 @@ export class GameStateManager {
         const oldState = this.currentState;
         this.currentState = newState;
 
-        console.log(`Game state changed: ${oldState} → ${newState}`);
 
         // Handle state transitions
         if (newState === GAME_STATES.COMBAT_INPUT) {
@@ -56,8 +55,6 @@ export class GameStateManager {
     }
 
     enterCombatInput() {
-        console.log('=== ENTERING COMBAT INPUT PHASE ===');
-
         // Stop any current movement
         this.game.pc.isMoving = false;
         this.game.pc.movementQueue = [];
@@ -67,8 +64,6 @@ export class GameStateManager {
         this.combatCharacters = [this.game.pc];
         const enemies = this.game.npcs.filter(npc => npc.faction === 'enemy');
         this.combatCharacters.push(...enemies);
-
-        console.log(`Combat characters: ${this.combatCharacters.map(char => `${char.name}(${char.faction})`).join(', ')}`);
 
         // Reset input data
         this.characterActions.clear();
@@ -133,36 +128,25 @@ export class GameStateManager {
         );
 
         if (allChosen) {
-            console.log('All characters have chosen actions, moving to execution phase');
             this.setState(GAME_STATES.COMBAT_EXECUTION);
         }
     }
 
     enterCombatExecution() {
-        console.log('=== ENTERING COMBAT EXECUTION PHASE ===');
-        console.log('DEBUG: About to build execution queue');
-
         // Build execution queue (PC first for now, then others)
         this.executionQueue = [...this.combatCharacters];
         this.currentExecutionIndex = 0;
 
-        console.log('DEBUG: Execution queue built, length:', this.executionQueue.length);
-
         // Log what we're about to execute
         this.executionQueue.forEach((char, i) => {
             const action = this.characterActions.get(char);
-            console.log(`Executing action for ${char.name}: ${action.action}`);
         });
 
-        console.log('DEBUG: About to call executeNextAction');
         // Start executing actions
         this.executeNextAction();
-        console.log('DEBUG: executeNextAction called');
     }
 
     executeNextAction() {
-        console.log('executeNextAction called, index:', this.currentExecutionIndex, 'queue length:', this.executionQueue.length);
-
         if (this.currentExecutionIndex >= this.executionQueue.length) {
             // All actions executed, next turn
             this.turnNumber++;
@@ -173,7 +157,6 @@ export class GameStateManager {
         const character = this.executionQueue[this.currentExecutionIndex];
         const action = this.characterActions.get(character);
 
-        console.log(`Executing action for ${character.name}: ${action.action}`);
 
         if (action.action === COMBAT_ACTIONS.MOVE && action.target) {
             // Use the movement queue system for smooth movement
@@ -181,19 +164,13 @@ export class GameStateManager {
             character.isMoving = true;
             character.currentMoveTimer = 0;
 
-            console.log(`Starting movement for ${character.name}, isMoving: ${character.isMoving}, queue length: ${character.movementQueue.length}`);
-            console.log(`Moving from (${character.hexQ}, ${character.hexR}) to (${action.target.q}, ${action.target.r})`);
 
             // Set up a check for when movement completes
             let checkCount = 0;
             const checkMovementComplete = setInterval(() => {
                 checkCount++;
-                if (checkCount % 10 === 0) { // Log every 500ms
-                    console.log(`Still checking ${character.name}: isMoving=${character.isMoving}, queue=${character.movementQueue.length}`);
-                }
 
                 if (!character.isMoving) {
-                    console.log(`Movement complete for ${character.name} after ${checkCount * 50}ms`);
                     clearInterval(checkMovementComplete);
                     this.currentExecutionIndex++;
                     this.executeNextAction();
@@ -201,7 +178,6 @@ export class GameStateManager {
             }, 50); // Check every 50ms
         } else {
             // Wait action or no valid move
-            console.log(`${character.name} is waiting`);
             setTimeout(() => {
                 this.currentExecutionIndex++;
                 this.executeNextAction();
@@ -210,8 +186,6 @@ export class GameStateManager {
     }
 
     exitCombat() {
-        console.log('=== EXITING COMBAT ===');
-
         // Reset combat data
         this.combatCharacters = [];
         this.characterActions.clear();
@@ -227,7 +201,6 @@ export class GameStateManager {
             delete npc.aiDirection; // Reset AI state
         });
 
-        console.log('Returned to exploration mode');
     }
 
     canPlayerMove() {
@@ -253,14 +226,12 @@ export class GameStateManager {
         );
 
         if (distance !== 1) {
-            console.log('Target hex must be adjacent to player');
             return false;
         }
 
         // Check if hex is occupied
         const characterAtTarget = this.getCharacterAtHex(hexQ, hexR);
         if (characterAtTarget) {
-            console.log('Target hex is occupied');
             return false;
         }
 
@@ -271,7 +242,6 @@ export class GameStateManager {
             target: { q: hexQ, r: hexR }
         });
 
-        console.log(`Player selected move to ${hexQ}, ${hexR}`);
         this.checkInputPhaseComplete();
         return true;
     }

@@ -10,7 +10,6 @@ export class Pathfinding {
         // Quick distance check - if too far, don't even try
         const distance = this.hexGrid.hexDistance(start, goal);
         if (distance > this.maxDistance) {
-            console.log(`Target too far (${distance} > ${this.maxDistance}), aborting pathfinding`);
             return [];
         }
 
@@ -35,7 +34,6 @@ export class Pathfinding {
 
             // Safety check - if openSet gets too big, abort
             if (openSet.length > this.maxOpenSetSize) {
-                console.log(`OpenSet too large (${openSet.length}), aborting pathfinding`);
                 return [];
             }
 
@@ -57,12 +55,6 @@ export class Pathfinding {
             this.processNeighbors(current, goal, openSet, closedSet, cameFrom, gScore, fScore, obstacleSet);
         }
 
-        // No path found
-        if (iterations >= this.maxIterations) {
-            console.log(`Pathfinding stopped after ${this.maxIterations} iterations (safety limit)`);
-        } else {
-            console.log(`No path found after ${iterations} iterations`);
-        }
         return [];
     }
 
@@ -126,7 +118,6 @@ export class Pathfinding {
             temp = cameFrom.get(tempKey);
         }
 
-        console.log(`Found path with ${path.length - 1} steps in ${iterations} iterations`);
         return path.slice(1); // Remove start position
     }
 

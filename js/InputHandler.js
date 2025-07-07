@@ -92,7 +92,6 @@ export class InputHandler {
         const worldY = (canvasY + camera.y) / camera.zoom;
 
         const targetHex = this.hexGrid.pixelToHex(worldX, worldY);
-        console.log(`Clicked hex: q=${targetHex.q}, r=${targetHex.r}`);
 
         // Handle combat input phase
         if (this.gameStateManager.currentState === GAME_STATES.COMBAT_INPUT) {
@@ -102,7 +101,6 @@ export class InputHandler {
 
         // Handle exploration movement
         if (!this.gameStateManager.canPlayerMove()) {
-            console.log(`Cannot move - wrong game state`);
             return;
         }
 
@@ -115,7 +113,6 @@ export class InputHandler {
         // Check if target hex is occupied
         const characterAtTarget = this.getCharacterAtHex(targetHex.q, targetHex.r);
         if (characterAtTarget) {
-            console.log(`Can't move to occupied hex: ${characterAtTarget.name}`);
             return;
         }
 
@@ -127,12 +124,9 @@ export class InputHandler {
         const path = this.findPath(startHex, targetHex, obstacles);
 
         if (path.length > 0) {
-            console.log(`Found path with ${path.length} steps`);
             this.game.pc.movementQueue = path;
             this.game.pc.isMoving = true;
             this.game.pc.currentMoveTimer = 0;
-        } else {
-            console.log(`No path found to hex: q=${targetHex.q}, r=${targetHex.r}`);
         }
     }
 
