@@ -74,47 +74,43 @@ export class GameStateManager {
     }
 
     processAITurns() {
-        // Simple AI: Bandit moves left/right
+        // Simple AI: Bandit moves in a pattern - 2 moves right, then 2 moves left
         const bandits = this.combatCharacters.filter(char => char.faction === 'enemy');
 
         bandits.forEach(bandit => {
+            // Initialize AI state if not present
             if (!bandit.aiDirection) {
                 bandit.aiDirection = 1; // 1 for right, -1 for left
+                bandit.aiMoveCount = 0; // Track how many moves in current direction
+            }
+
+            // Check if we need to change direction
+            if (bandit.aiMoveCount >= 2) {
+                bandit.aiDirection *= -1; // Reverse direction
+                bandit.aiMoveCount = 0; // Reset counter
             }
 
             // Try to move in current direction
             const targetQ = bandit.hexQ + bandit.aiDirection;
             const targetR = bandit.hexR;
 
-            // Check if target is occupied or if we should reverse direction
+            // Check if target is occupied
             const characterAtTarget = this.getCharacterAtHex(targetQ, targetR);
             if (characterAtTarget) {
-                // Can't move there, reverse direction
-                bandit.aiDirection *= -1;
-                // Try the other direction
-                const newTargetQ = bandit.hexQ + bandit.aiDirection;
-                const newTargetR = bandit.hexR;
-                const newCharacterAtTarget = this.getCharacterAtHex(newTargetQ, newTargetR);
-
-                if (!newCharacterAtTarget) {
-                    // Can move in new direction
-                    this.characterActions.set(bandit, {
-                        action: COMBAT_ACTIONS.MOVE,
-                        target: { q: newTargetQ, r: newTargetR }
-                    });
-                } else {
-                    // Nowhere to move, wait
-                    this.characterActions.set(bandit, {
-                        action: COMBAT_ACTIONS.WAIT,
-                        target: null
-                    });
-                }
+                // Can't move there, just wait this turn
+                this.characterActions.set(bandit, {
+                    action: COMBAT_ACTIONS.WAIT,
+                    target: null
+                });
+                // Don't increment move count if we couldn't move
             } else {
                 // Can move in current direction
                 this.characterActions.set(bandit, {
                     action: COMBAT_ACTIONS.MOVE,
                     target: { q: targetQ, r: targetR }
                 });
+                // Increment move count since we successfully moved
+                bandit.aiMoveCount++;
             }
         });
 
@@ -199,8 +195,8 @@ export class GameStateManager {
         this.game.npcs.forEach(npc => {
             npc.currentAnimation = 'idle';
             delete npc.aiDirection; // Reset AI state
+            delete npc.aiMoveCount; // Reset move counter
         });
-
     }
 
     canPlayerMove() {
