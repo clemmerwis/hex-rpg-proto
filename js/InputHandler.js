@@ -1,4 +1,4 @@
-import { GAME_STATES } from './GameStateManager.js';
+import { GAME_STATES, COMBAT_ACTIONS } from './GameStateManager.js';
 
 export class InputHandler {
     constructor(canvas, config) {
@@ -140,6 +140,26 @@ export class InputHandler {
             return;
         }
 
+        // Handle just Space for skipping turn in combat
+        if (e.key === ' ' && !e.shiftKey) {
+            e.preventDefault();
+            // Skip turn in combat input phase
+            if (this.gameStateManager.currentState === GAME_STATES.COMBAT_INPUT &&
+                !this.gameStateManager.characterActions.has(this.game.pc)) {
+                // Player chooses to wait
+                this.gameStateManager.characterActions.set(this.game.pc, {
+                    action: COMBAT_ACTIONS.WAIT,
+                    target: null
+                });
+
+                // Check if we should transition to execution
+                if (this.gameStateManager.isInputPhaseComplete()) {
+                    this.gameStateManager.setState(GAME_STATES.COMBAT_EXECUTION);
+                }
+            }
+            return;
+        }
+
         switch (e.key) {
             case '1':
             case '2':
@@ -161,17 +181,6 @@ export class InputHandler {
 
             case '8':
                 this.debugCharacterPositions();
-                break;
-
-            case 'n': // Next turn in combat (for testing)
-                if (this.gameStateManager.currentState === GAME_STATES.COMBAT_INPUT) {
-                    console.log('Force advancing to execution phase');
-                    this.gameStateManager.setState(GAME_STATES.COMBAT_EXECUTION);
-                } else if (this.gameStateManager.currentState === GAME_STATES.COMBAT_EXECUTION) {
-                    console.log('Force advancing to next input phase');
-                    this.gameStateManager.turnNumber++;
-                    this.gameStateManager.setState(GAME_STATES.COMBAT_INPUT);
-                }
                 break;
         }
     }
@@ -270,16 +279,11 @@ export class InputHandler {
     }
 
     debugCharacterPositions() {
-        console.log('=== CHARACTER POSITION DEBUG ===');
-        console.log(`PC: hex(${this.game.pc.hexQ},${this.game.pc.hexR}) faction: ${this.game.pc.faction}`);
 
         const foundPC = this.getCharacterAtHex(this.game.pc.hexQ, this.game.pc.hexR);
-        console.log(`Can find PC at its hex? ${foundPC ? foundPC.name : 'NO'}`);
 
         this.game.npcs.forEach(npc => {
-            console.log(`NPC ${npc.name}: hex(${npc.hexQ},${npc.hexR}) faction: ${npc.faction}`);
             const foundNPC = this.getCharacterAtHex(npc.hexQ, npc.hexR);
-            console.log(`Can find ${npc.name} at its hex? ${foundNPC ? foundNPC.name : 'NO'}`);
         });
     }
 

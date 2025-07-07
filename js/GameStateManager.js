@@ -89,18 +89,16 @@ export class GameStateManager {
             this.characterActions.set(enemy, action);
         });
 
-        this.checkInputPhaseComplete();
-    }
-
-    checkInputPhaseComplete() {
-        // Check if all characters have chosen actions
-        const allChosen = this.combatCharacters.every(char =>
-            this.characterActions.has(char)
-        );
-
-        if (allChosen) {
+        // Check if we should transition to execution
+        if (this.isInputPhaseComplete()) {
             this.setState(GAME_STATES.COMBAT_EXECUTION);
         }
+    }
+
+    isInputPhaseComplete() {
+        return this.combatCharacters.every(char =>
+            this.characterActions.has(char)
+        );
     }
 
     enterCombatExecution() {
@@ -220,7 +218,10 @@ export class GameStateManager {
             target: { q: hexQ, r: hexR }
         });
 
-        this.checkInputPhaseComplete();
+        // Check if we should transition to execution
+        if (this.isInputPhaseComplete()) {
+            this.setState(GAME_STATES.COMBAT_EXECUTION);
+        }
         return true;
     }
 
