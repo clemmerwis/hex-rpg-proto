@@ -95,7 +95,13 @@ export class Game {
                     name: 'Guard',
                     health: 60,
                     maxHealth: 80,
-                    faction: 'ally'
+                    faction: 'ally',
+                    movementQueue: [],
+                    isMoving: false,
+                    moveSpeed: 300,
+                    currentMoveTimer: 0,
+                    targetPixelX: 0,
+                    targetPixelY: 0
                 },
                 {
                     hexQ: 3,
@@ -109,7 +115,13 @@ export class Game {
                     name: 'Bandit',
                     health: 45,
                     maxHealth: 60,
-                    faction: 'enemy'
+                    faction: 'enemy',
+                    movementQueue: [],
+                    isMoving: false,
+                    moveSpeed: 300,
+                    currentMoveTimer: 0,
+                    targetPixelX: 0,
+                    targetPixelY: 0
                 }
             ]
         };
@@ -297,8 +309,8 @@ export class Game {
 
     startGameLoop() {
         const gameLoop = () => {
-            this.movementSystem.updateAnimations();
             this.movementSystem.updateMovement();
+            this.movementSystem.updateAnimations();
             this.inputHandler.updateKeyboardScrolling();
             this.render();
             requestAnimationFrame(gameLoop);
@@ -360,7 +372,14 @@ export class Game {
             name: randomFaction.charAt(0).toUpperCase() + randomFaction.slice(1),
             health: 50 + Math.floor(Math.random() * 30),
             maxHealth: 80,
-            faction: randomFaction
+            faction: randomFaction,
+            // Add movement properties
+            movementQueue: [],
+            isMoving: false,
+            moveSpeed: 300,
+            currentMoveTimer: 0,
+            targetPixelX: 0,
+            targetPixelY: 0
         };
 
         const enemyPos = this.hexGrid.hexToPixel(newEnemy.hexQ, newEnemy.hexR);

@@ -18,15 +18,25 @@ export class MovementSystem {
 
     // Update all movement for all characters
     updateMovement() {
-        // Update PC movement
-        if (this.game.pc.isMoving && this.game.pc.movementQueue.length > 0) {
-            this.updateCharacterMovement(this.game.pc);
+        // Get all characters (PC + NPCs)
+        const allCharacters = [this.game.pc, ...this.game.npcs];
+
+        // Debug: log any moving characters
+        const movingChars = allCharacters.filter(c => c.isMoving);
+        if (movingChars.length > 0) {
+            console.log(`MovementSystem: ${movingChars.length} characters moving`);
         }
 
-        // Could add NPC movement here in the future
+        allCharacters.forEach(character => {
+            if (!character.isMoving || character.movementQueue.length === 0) {
+                return;
+            }
+
+            // Call the existing method
+            this.updateCharacterMovement(character);
+        });
     }
 
-    // Update movement for a specific character
     updateCharacterMovement(character) {
         character.currentMoveTimer += this.FRAME_TIME;
 
@@ -43,12 +53,12 @@ export class MovementSystem {
         character.pixelY = startPos.y + (targetPos.y - startPos.y) * progress;
 
         // Update facing direction while moving
-        this.updateFacing(character, targetPos.x - startPos.x, targetPos.y - startPos.y);
+        this.updateFacing(character, targetPos.x - startPos.x, targetPos.y - startPos.y);  // Add 'this.'
 
         // Set walking animation
         if (character.currentAnimation === 'idle') {
             character.currentAnimation = 'walk';
-            if (this.onAnimationChange) {
+            if (this.onAnimationChange && character === this.game.pc) {
                 this.onAnimationChange(character.currentAnimation);
             }
         }

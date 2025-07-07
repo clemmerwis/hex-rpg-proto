@@ -140,16 +140,29 @@ export class GameStateManager {
 
     enterCombatExecution() {
         console.log('=== ENTERING COMBAT EXECUTION PHASE ===');
+        console.log('DEBUG: About to build execution queue');
 
         // Build execution queue (PC first for now, then others)
         this.executionQueue = [...this.combatCharacters];
         this.currentExecutionIndex = 0;
 
+        console.log('DEBUG: Execution queue built, length:', this.executionQueue.length);
+
+        // Log what we're about to execute
+        this.executionQueue.forEach((char, i) => {
+            const action = this.characterActions.get(char);
+            console.log(`Executing action for ${char.name}: ${action.action}`);
+        });
+
+        console.log('DEBUG: About to call executeNextAction');
         // Start executing actions
         this.executeNextAction();
+        console.log('DEBUG: executeNextAction called');
     }
 
     executeNextAction() {
+        console.log('executeNextAction called, index:', this.currentExecutionIndex, 'queue length:', this.executionQueue.length);
+
         if (this.currentExecutionIndex >= this.executionQueue.length) {
             // All actions executed, next turn
             this.turnNumber++;
@@ -163,22 +176,32 @@ export class GameStateManager {
         console.log(`Executing action for ${character.name}: ${action.action}`);
 
         if (action.action === COMBAT_ACTIONS.MOVE && action.target) {
-            // Execute move
-            character.hexQ = action.target.q;
-            character.hexR = action.target.r;
-            const newPos = this.hexGrid.hexToPixel(character.hexQ, character.hexR);
-            character.pixelX = newPos.x;
-            character.pixelY = newPos.y;
+            // Use the movement queue system for smooth movement
+            character.movementQueue = [action.target];
+            character.isMoving = true;
+            character.currentMoveTimer = 0;
 
-            // Brief animation
-            character.currentAnimation = 'walk';
-            setTimeout(() => {
-                character.currentAnimation = 'idle';
-                this.currentExecutionIndex++;
-                this.executeNextAction();
-            }, 500);
+            console.log(`Starting movement for ${character.name}, isMoving: ${character.isMoving}, queue length: ${character.movementQueue.length}`);
+            console.log(`Moving from (${character.hexQ}, ${character.hexR}) to (${action.target.q}, ${action.target.r})`);
+
+            // Set up a check for when movement completes
+            let checkCount = 0;
+            const checkMovementComplete = setInterval(() => {
+                checkCount++;
+                if (checkCount % 10 === 0) { // Log every 500ms
+                    console.log(`Still checking ${character.name}: isMoving=${character.isMoving}, queue=${character.movementQueue.length}`);
+                }
+
+                if (!character.isMoving) {
+                    console.log(`Movement complete for ${character.name} after ${checkCount * 50}ms`);
+                    clearInterval(checkMovementComplete);
+                    this.currentExecutionIndex++;
+                    this.executeNextAction();
+                }
+            }, 50); // Check every 50ms
         } else {
             // Wait action or no valid move
+            console.log(`${character.name} is waiting`);
             setTimeout(() => {
                 this.currentExecutionIndex++;
                 this.executeNextAction();
