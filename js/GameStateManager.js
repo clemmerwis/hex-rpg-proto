@@ -128,13 +128,22 @@ export class GameStateManager {
         const character = this.executionQueue[this.currentExecutionIndex];
         const action = this.characterActions.get(character);
 
-
         if (action.action === COMBAT_ACTIONS.MOVE && action.target) {
+            // Check if target hex is still available (another character might have moved there first)
+            const characterAtTarget = this.getCharacterAtHex(action.target.q, action.target.r);
+
+            if (characterAtTarget) {
+                // Target hex is now occupied, cancel this move
+                console.log(`${character.name}'s move cancelled - hex occupied by ${characterAtTarget.name}`);
+                this.currentExecutionIndex++;
+                this.executeNextAction();
+                return;
+            }
+
             // Use the movement queue system for smooth movement
             character.movementQueue = [action.target];
             character.isMoving = true;
             character.currentMoveTimer = 0;
-
 
             // Set up a check for when movement completes
             let checkCount = 0;
