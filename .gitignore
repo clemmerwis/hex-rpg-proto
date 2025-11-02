@@ -10,5 +10,14 @@
 !*.yml
 !Dockerfile
 
+# Track used assets
+!*.jpg
+!*.png
+
+# Ignore unused sprite directories (must come after the negations)
+sprites/KnightAdvCombat/**
+sprites/KnightExMovement/**
+sprites/Items/**
+
 # ...even if they are in subdirectories
 !*/
