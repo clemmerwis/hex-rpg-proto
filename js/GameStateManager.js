@@ -14,10 +14,11 @@ export const COMBAT_ACTIONS = {
 };
 
 export class GameStateManager {
-    constructor(game, hexGrid, getCharacterAtHex) {
+    constructor(game, hexGrid, getCharacterAtHex, movementSystem) {
         this.game = game;
         this.hexGrid = hexGrid;
         this.getCharacterAtHex = getCharacterAtHex;
+        this.movementSystem = movementSystem;
         this.aiSystem = new AISystem(hexGrid, getCharacterAtHex);
 
         // State
@@ -39,8 +40,15 @@ export class GameStateManager {
 
     setState(newState) {
         const oldState = this.currentState;
-        this.currentState = newState;
 
+        // Clean up callbacks when leaving combat execution
+        if (oldState === GAME_STATES.COMBAT_EXECUTION
+            && newState !== GAME_STATES.COMBAT_EXECUTION) {
+            this.movementSystem.clearAllCallbacks();
+            console.log('Cleared movement callbacks on state exit');
+        }
+
+        this.currentState = newState;
 
         // Handle state transitions
         if (newState === GAME_STATES.COMBAT_INPUT) {
@@ -144,17 +152,35 @@ export class GameStateManager {
             character.isMoving = true;
             character.currentMoveTimer = 0;
 
-            // Set up a check for when movement completes
-            let checkCount = 0;
-            const checkMovementComplete = setInterval(() => {
-                checkCount++;
+            // Register callback for movement completion
+            this.movementSystem.onMovementComplete(character, (success) => {
+                if (success) {
+                    console.log(`Movement complete for ${character.name || character.faction} at (${character.hexQ}, ${character.hexR})`);
+                } else {
+                    console.error('Movement failed or timed out');
+                }
 
-                if (!character.isMoving) {
-                    clearInterval(checkMovementComplete);
+                // Advance to next action
+                this.currentExecutionIndex++;
+                this.executeNextAction();
+            });
+
+            // Optional: Add failsafe timeout (safety net only, shouldn't normally trigger)
+            const timeoutId = setTimeout(() => {
+                // Check if callback already fired (character no longer has callback registered)
+                if (this.movementSystem.movementCompleteCallbacks.has(character)) {
+                    console.error('Movement timeout - forcing completion');
+                    this.movementSystem.removeMovementCallback(character);
+
+                    // Force movement stop
+                    character.isMoving = false;
+                    character.movementQueue = [];
+
+                    // Advance to next action
                     this.currentExecutionIndex++;
                     this.executeNextAction();
                 }
-            }, GAME_CONSTANTS.COMBAT_CHECK_INTERVAL);
+            }, GAME_CONSTANTS.MOVEMENT_TIMEOUT);
         } else {
             // Wait action or no valid move
             setTimeout(() => {

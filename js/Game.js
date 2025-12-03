@@ -148,11 +148,24 @@ export class Game {
 
         this.pathfinding = new Pathfinding(this.hexGrid);
 
+        // Initialize MovementSystem before GameStateManager (needed for dependency injection)
+        this.movementSystem = new MovementSystem({
+            hexGrid: this.hexGrid,
+            game: this.state,
+            gameStateManager: null, // Will be set after GameStateManager is created
+            animationConfig: ANIMATION_CONFIGS
+        });
+
+        // Now create GameStateManager with MovementSystem dependency
         this.gameStateManager = new GameStateManager(
             this.state,
             this.hexGrid,
-            this.getCharacterAtHex.bind(this)
+            this.getCharacterAtHex.bind(this),
+            this.movementSystem
         );
+
+        // Set the gameStateManager reference in MovementSystem (circular dependency)
+        this.movementSystem.gameStateManager = this.gameStateManager;
 
         this.renderer = new Renderer(this.canvas, this.ctx, {
             viewportWidth: this.config.viewport.width,
@@ -169,13 +182,6 @@ export class Game {
         });
 
         this.assetManager = new AssetManager();
-
-        this.movementSystem = new MovementSystem({
-            hexGrid: this.hexGrid,
-            game: this.state,
-            gameStateManager: this.gameStateManager,
-            animationConfig: ANIMATION_CONFIGS
-        });
     }
 
     setupCallbacks() {

@@ -12,6 +12,9 @@ export class MovementSystem {
         // Callbacks
         this.onAnimationChange = null;
         this.onDirectionChange = null;
+
+        // Movement completion callback registry
+        this.movementCompleteCallbacks = new Map(); // character -> callback
     }
 
     // Update all movement for all characters
@@ -82,8 +85,19 @@ export class MovementSystem {
                 this.onAnimationChange(character.currentAnimation);
             }
 
-            // In combat mode, end turn after movement
-            if (this.gameStateManager.currentState === GAME_STATES.COMBAT_EXECUTION) {
+            // Fire movement complete callback if registered
+            if (this.movementCompleteCallbacks.has(character)) {
+                const callback = this.movementCompleteCallbacks.get(character);
+                this.movementCompleteCallbacks.delete(character); // One-time callback
+
+                // Call asynchronously to avoid blocking movement update
+                setTimeout(() => {
+                    try {
+                        callback(true); // true = success
+                    } catch (error) {
+                        console.error('MovementSystem: Callback error', error);
+                    }
+                }, 0);
             }
         }
     }
@@ -151,5 +165,38 @@ export class MovementSystem {
         if (this.onAnimationChange) {
             this.onAnimationChange(character.currentAnimation);
         }
+    }
+
+    /**
+     * Register a callback to fire when character completes movement
+     * @param {Object} character - Character to watch
+     * @param {Function} callback - Function to call on completion (receives success boolean)
+     */
+    onMovementComplete(character, callback) {
+        if (!character) {
+            console.error('MovementSystem.onMovementComplete: Invalid character');
+            return;
+        }
+
+        if (this.movementCompleteCallbacks.has(character)) {
+            console.warn('MovementSystem.onMovementComplete: Overwriting existing callback');
+        }
+
+        this.movementCompleteCallbacks.set(character, callback);
+    }
+
+    /**
+     * Remove movement complete callback for character
+     * @param {Object} character - Character to stop watching
+     */
+    removeMovementCallback(character) {
+        this.movementCompleteCallbacks.delete(character);
+    }
+
+    /**
+     * Clear all movement callbacks (call when exiting combat, etc.)
+     */
+    clearAllCallbacks() {
+        this.movementCompleteCallbacks.clear();
     }
 }

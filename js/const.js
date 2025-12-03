@@ -1,7 +1,7 @@
 export const GAME_CONSTANTS = {
     // Movement
     MOVEMENT_SPEED: 300,      // ms per hex
-    COMBAT_CHECK_INTERVAL: 50, // ms between movement checks in combat
+    MOVEMENT_TIMEOUT: 5000,   // Failsafe timeout for movement completion (ms)
 
     // Animation
     ANIMATION_SPEED: 150,     // ms between animation frames
