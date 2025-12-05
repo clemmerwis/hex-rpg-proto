@@ -148,15 +148,7 @@ export class InputHandler {
             if (this.gameStateManager.currentState === GAME_STATES.COMBAT_INPUT &&
                 !this.gameStateManager.characterActions.has(this.game.pc)) {
                 // Player chooses to wait
-                this.gameStateManager.characterActions.set(this.game.pc, {
-                    action: COMBAT_ACTIONS.WAIT,
-                    target: null
-                });
-
-                // Check if we should transition to execution
-                if (this.gameStateManager.isInputPhaseComplete()) {
-                    this.gameStateManager.setState(GAME_STATES.COMBAT_EXECUTION);
-                }
+                this.gameStateManager.skipPlayerTurn();
             }
             return;
         }

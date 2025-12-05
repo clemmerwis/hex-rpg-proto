@@ -5,6 +5,7 @@ import { InputHandler } from './InputHandler.js';
 import { AssetManager } from './AssetManager.js';
 import { Pathfinding } from './Pathfinding.js';
 import { MovementSystem } from './MovementSystem.js';
+import { CombatSystem } from './CombatSystem.js';
 import { GAME_CONSTANTS, ANIMATION_CONFIGS, FACTIONS } from './const.js';
 
 export class Game {
@@ -45,12 +46,20 @@ export class Game {
                 health: 85,
                 maxHealth: 100,
                 faction: 'player',
+                attack_rating: 15,
+                defense_rating: 8,
+                speed: 12,
+                isDefeated: false,
                 movementQueue: [],
                 isMoving: false,
                 moveSpeed: 300,
                 currentMoveTimer: 0,
                 targetPixelX: 0,
-                targetPixelY: 0
+                targetPixelY: 0,
+                // Disposition properties
+                mode: 'aggressive',
+                enemies: null,  // Initialized in onAssetsLoaded
+                lastAttackedBy: null
             },
             npcs: [
                 {
@@ -65,13 +74,21 @@ export class Game {
                     name: 'Guard',
                     health: 60,
                     maxHealth: 80,
-                    faction: 'ally',
+                    faction: 'neutral',
+                    attack_rating: 13,
+                    defense_rating: 7,
+                    speed: 10,
+                    isDefeated: false,
                     movementQueue: [],
                     isMoving: false,
                     moveSpeed: 300,
                     currentMoveTimer: 0,
                     targetPixelX: 0,
-                    targetPixelY: 0
+                    targetPixelY: 0,
+                    // Disposition properties
+                    mode: 'neutral',
+                    enemies: null,  // Initialized in onAssetsLoaded
+                    lastAttackedBy: null
                 },
                 {
                     hexQ: 3,
@@ -86,12 +103,20 @@ export class Game {
                     health: 45,
                     maxHealth: 60,
                     faction: 'enemy',
+                    attack_rating: 12,
+                    defense_rating: 5,
+                    speed: 8,
+                    isDefeated: false,
                     movementQueue: [],
                     isMoving: false,
                     moveSpeed: 300,
                     currentMoveTimer: 0,
                     targetPixelX: 0,
-                    targetPixelY: 0
+                    targetPixelY: 0,
+                    // Disposition properties
+                    mode: 'aggressive',
+                    enemies: null,  // Initialized in onAssetsLoaded (will be [Hero, Guard])
+                    lastAttackedBy: null
                 }
             ]
         };
@@ -156,12 +181,19 @@ export class Game {
             animationConfig: ANIMATION_CONFIGS
         });
 
-        // Now create GameStateManager with MovementSystem dependency
+        // Initialize CombatSystem
+        this.combatSystem = new CombatSystem(
+            this.hexGrid,
+            this.getCharacterAtHex.bind(this)
+        );
+
+        // Now create GameStateManager with MovementSystem and CombatSystem
         this.gameStateManager = new GameStateManager(
             this.state,
             this.hexGrid,
             this.getCharacterAtHex.bind(this),
-            this.movementSystem
+            this.movementSystem,
+            this.combatSystem
         );
 
         // Set the gameStateManager reference in MovementSystem (circular dependency)
@@ -277,6 +309,20 @@ export class Game {
             npc.pixelY = npcStartPos.y;
         });
 
+        // Initialize enemy Sets (can't reference objects in object literals)
+        this.state.pc.enemies = new Set();
+        this.state.npcs.forEach(npc => {
+            npc.enemies = new Set();
+        });
+
+        // Bandit starts aggressive toward Hero and Guard
+        const bandit = this.state.npcs.find(n => n.name === 'Bandit');
+        if (bandit) {
+            bandit.enemies.add(this.state.pc);
+            const guard = this.state.npcs.find(n => n.name === 'Guard');
+            if (guard) bandit.enemies.add(guard);
+        }
+
         this.centerCameraOn(this.state.pc.pixelX, this.state.pc.pixelY);
         this.updateGameStateUI();
         this.startGameLoop();
@@ -335,6 +381,9 @@ export class Game {
         const factions = ['enemy', 'ally', 'neutral'];
         const randomFaction = factions[Math.floor(Math.random() * factions.length)];
 
+        // Determine mode based on faction
+        const mode = randomFaction === 'enemy' ? 'aggressive' : 'neutral';
+
         const newEnemy = {
             hexQ: this.state.pc.hexQ + Math.floor(Math.random() * 6) - 3,
             hexR: this.state.pc.hexR + Math.floor(Math.random() * 6) - 3,
@@ -348,14 +397,26 @@ export class Game {
             health: 50 + Math.floor(Math.random() * 30),
             maxHealth: 80,
             faction: randomFaction,
-            // Add movement properties
+            attack_rating: randomFaction === 'enemy' ? 12 : randomFaction === 'ally' ? 13 : 10,
+            defense_rating: randomFaction === 'enemy' ? 5 : randomFaction === 'ally' ? 7 : 6,
+            speed: randomFaction === 'enemy' ? 8 : randomFaction === 'ally' ? 10 : 6,
+            isDefeated: false,
             movementQueue: [],
             isMoving: false,
             moveSpeed: 300,
             currentMoveTimer: 0,
             targetPixelX: 0,
-            targetPixelY: 0
+            targetPixelY: 0,
+            // Disposition properties
+            mode: mode,
+            enemies: new Set(),
+            lastAttackedBy: null
         };
+
+        // If aggressive (enemy faction), add Hero to enemies
+        if (mode === 'aggressive') {
+            newEnemy.enemies.add(this.state.pc);
+        }
 
         const enemyPos = this.hexGrid.hexToPixel(newEnemy.hexQ, newEnemy.hexR);
         newEnemy.pixelX = enemyPos.x;
@@ -383,7 +444,7 @@ export class Game {
             elements.activeCharacter.textContent = this.gameStateManager.characterActions.has(this.state.pc)
                 ? 'Action Chosen' : 'Choose Action';
 
-            const enemyCount = this.state.npcs.filter(npc => npc.faction === 'enemy').length;
+            const enemyCount = this.state.npcs.filter(npc => npc.faction === 'enemy' && !npc.isDefeated).length;
             elements.enemyCount.textContent = enemyCount;
 
         } else if (currentState === GAME_STATES.COMBAT_EXECUTION) {
@@ -393,14 +454,33 @@ export class Game {
 
             elements.currentTurn.textContent = this.gameStateManager.turnNumber;
 
-            if (this.gameStateManager.currentExecutionIndex < this.gameStateManager.executionQueue.length) {
-                const executingChar = this.gameStateManager.executionQueue[this.gameStateManager.currentExecutionIndex];
-                elements.activeCharacter.textContent = `${executingChar.name} Acting`;
+            // Show current phase and character
+            const phase = this.gameStateManager.currentPhase;
+            let activeChar = null;
+
+            if (phase === 'move') {
+                const idx = this.gameStateManager.currentMoveIndex;
+                const queue = this.gameStateManager.moveQueue;
+                if (idx < queue.length) {
+                    activeChar = queue[idx];
+                }
+                elements.activeCharacter.textContent = activeChar
+                    ? `${activeChar.name} Moving`
+                    : 'Moves Complete';
+            } else if (phase === 'action') {
+                const idx = this.gameStateManager.currentActionIndex;
+                const queue = this.gameStateManager.actionQueue;
+                if (idx < queue.length) {
+                    activeChar = queue[idx];
+                }
+                elements.activeCharacter.textContent = activeChar
+                    ? `${activeChar.name} Attacking`
+                    : 'Attacks Complete';
             } else {
-                elements.activeCharacter.textContent = 'All Actions Complete';
+                elements.activeCharacter.textContent = 'Preparing...';
             }
 
-            const enemyCount = this.state.npcs.filter(npc => npc.faction === 'enemy').length;
+            const enemyCount = this.state.npcs.filter(npc => npc.faction === 'enemy' && !npc.isDefeated).length;
             elements.enemyCount.textContent = enemyCount;
 
         } else {

@@ -138,6 +138,15 @@ export class MovementSystem {
 
     // Update animation for a specific character
     updateCharacterAnimation(character) {
+        // If character is defeated and on 'die' animation, hold on last frame
+        if (character.isDefeated && character.currentAnimation === 'die') {
+            const dieConfig = this.animationConfig['die'];
+            if (dieConfig) {
+                character.animationFrame = dieConfig.frameCount - 1; // Hold on last frame
+            }
+            return; // Don't advance animation
+        }
+
         character.animationTimer += GAME_CONSTANTS.FRAME_TIME;
 
         if (character.animationTimer >= GAME_CONSTANTS.ANIMATION_SPEED) {
