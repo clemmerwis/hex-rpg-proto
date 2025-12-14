@@ -382,8 +382,8 @@ export class Game {
         const factions = ['enemy', 'ally', 'neutral'];
         const randomFaction = factions[Math.floor(Math.random() * factions.length)];
 
-        // Determine mode based on faction
-        const mode = randomFaction === 'enemy' ? 'aggressive' : 'neutral';
+        // Determine mode based on faction (allies are aggressive like enemies, neutrals wait)
+        const mode = (randomFaction === 'enemy' || randomFaction === 'ally') ? 'aggressive' : 'neutral';
 
         const newEnemy = {
             hexQ: this.state.pc.hexQ + Math.floor(Math.random() * 6) - 3,
@@ -394,7 +394,7 @@ export class Game {
             animationFrame: Math.floor(Math.random() * 17),
             animationTimer: Math.floor(Math.random() * 150),
             currentAnimation: 'idle',
-            name: randomFaction.charAt(0).toUpperCase() + randomFaction.slice(1),
+            name: randomFaction === 'enemy' ? 'Bandit' : randomFaction === 'ally' ? 'Companion' : 'Guard',
             health: 50 + Math.floor(Math.random() * 30),
             maxHealth: 80,
             faction: randomFaction,
@@ -414,9 +414,43 @@ export class Game {
             lastAttackedBy: null
         };
 
-        // If aggressive (enemy faction), add Hero to enemies
-        if (mode === 'aggressive') {
+        // Set up hostility based on faction
+        if (randomFaction === 'enemy') {
+            // Bandit considers PC an enemy
             newEnemy.enemies.add(this.state.pc);
+
+            // PC considers Bandit an enemy (companions inherit via getEffectiveEnemies)
+            this.state.pc.enemies.add(newEnemy);
+
+            // Bandit also considers all existing companions and guards enemies
+            // (Guards don't auto-aggro back - they only become hostile when attacked)
+            this.state.npcs.forEach(npc => {
+                if ((npc.faction === 'ally' || npc.faction === 'neutral') && !npc.isDefeated) {
+                    newEnemy.enemies.add(npc);
+                }
+            });
+
+            // Existing companions should also target this new bandit
+            this.state.npcs.forEach(npc => {
+                if (npc.faction === 'ally' && !npc.isDefeated) {
+                    npc.enemies.add(newEnemy);
+                }
+            });
+        } else if (randomFaction === 'ally') {
+            // Companion inherits PC's enemies and all existing bandits target them
+            // Copy PC's enemies to companion (they share faction enemies anyway, but explicit is clearer)
+            this.state.pc.enemies.forEach(enemy => {
+                if (!enemy.isDefeated) {
+                    newEnemy.enemies.add(enemy);
+                }
+            });
+
+            // All existing bandits should target this new companion
+            this.state.npcs.forEach(npc => {
+                if (npc.faction === 'enemy' && !npc.isDefeated) {
+                    npc.enemies.add(newEnemy);
+                }
+            });
         }
 
         const enemyPos = this.hexGrid.hexToPixel(newEnemy.hexQ, newEnemy.hexR);
