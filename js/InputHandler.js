@@ -29,7 +29,6 @@ export class InputHandler {
         this.onCameraUpdate = null;
         this.onDebugUpdate = null;
         this.onAnimationChange = null;
-        this.onSpawnEnemy = null;
         this.onMouseMove = null;
 
         // Bind methods
@@ -174,10 +173,6 @@ export class InputHandler {
                     this.game.pc.currentAnimation = animations[animIndex];
                     this.onAnimationChange?.(animations[animIndex]);
                 }
-                break;
-
-            case '7':
-                this.onSpawnEnemy?.();
                 break;
 
             case '8':

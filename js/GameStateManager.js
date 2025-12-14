@@ -1,5 +1,6 @@
 import { AISystem } from './AISystem.js';
 import { GAME_CONSTANTS } from './const.js';
+import { makeEnemies } from './utils.js';
 
 // Dev logging toggle - set to false to disable combat debug logs
 const DEV_LOG = true;
@@ -312,17 +313,9 @@ export class GameStateManager {
                 if (!targetChar.isDefeated) {
                     targetChar.lastAttackedBy = character;
 
-                    if (targetChar.mode === 'neutral') {
-                        // Switch from neutral to aggressive, add attacker as enemy
-                        targetChar.mode = 'aggressive';
-                        targetChar.enemies = targetChar.enemies || new Set();
-                        targetChar.enemies.add(character);
-                        devLog(`[HOSTILITY] ${targetChar.name} becomes aggressive toward ${character.name}!`);
-                    } else if (targetChar.mode === 'aggressive' && !targetChar.enemies.has(character)) {
-                        // Already aggressive, but add new attacker to enemies
-                        targetChar.enemies.add(character);
-                        devLog(`[HOSTILITY] ${targetChar.name} adds ${character.name} to enemies!`);
-                    }
+                    // Establish mutual hostility - attacking makes you enemies
+                    makeEnemies(character, targetChar);
+                    devLog(`[HOSTILITY] ${character.name} and ${targetChar.name} are now mutual enemies!`);
                 }
 
                 if (result.defenderDefeated) {

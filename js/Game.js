@@ -7,6 +7,7 @@ import { Pathfinding } from './Pathfinding.js';
 import { MovementSystem } from './MovementSystem.js';
 import { CombatSystem } from './CombatSystem.js';
 import { GAME_CONSTANTS, ANIMATION_CONFIGS, FACTIONS } from './const.js';
+import { makeEnemies } from './utils.js';
 
 export class Game {
     constructor() {
@@ -63,11 +64,38 @@ export class Game {
             },
             npcs: [
                 {
-                    hexQ: 7,
-                    hexR: -3,
+                    hexQ: 6,
+                    hexR: -4,
                     pixelX: 0,
                     pixelY: 0,
                     facing: 'dir4',
+                    animationFrame: 0,
+                    animationTimer: 0,
+                    currentAnimation: 'idle',
+                    name: 'Companion',
+                    health: 70,
+                    maxHealth: 90,
+                    faction: 'ally',
+                    attack_rating: 14,
+                    defense_rating: 6,
+                    speed: 11,
+                    isDefeated: false,
+                    movementQueue: [],
+                    isMoving: false,
+                    moveSpeed: 300,
+                    currentMoveTimer: 0,
+                    targetPixelX: 0,
+                    targetPixelY: 0,
+                    mode: 'aggressive',
+                    enemies: null,
+                    lastAttackedBy: null
+                },
+                {
+                    hexQ: 8,
+                    hexR: -3,
+                    pixelX: 0,
+                    pixelY: 0,
+                    facing: 'dir5',
                     animationFrame: 3,
                     animationTimer: 75,
                     currentAnimation: 'idle',
@@ -85,9 +113,35 @@ export class Game {
                     currentMoveTimer: 0,
                     targetPixelX: 0,
                     targetPixelY: 0,
-                    // Disposition properties
                     mode: 'neutral',
-                    enemies: null,  // Initialized in onAssetsLoaded
+                    enemies: null,
+                    lastAttackedBy: null
+                },
+                {
+                    hexQ: 9,
+                    hexR: -5,
+                    pixelX: 0,
+                    pixelY: 0,
+                    facing: 'dir3',
+                    animationFrame: 5,
+                    animationTimer: 50,
+                    currentAnimation: 'idle',
+                    name: 'Guard',
+                    health: 65,
+                    maxHealth: 80,
+                    faction: 'neutral',
+                    attack_rating: 13,
+                    defense_rating: 7,
+                    speed: 10,
+                    isDefeated: false,
+                    movementQueue: [],
+                    isMoving: false,
+                    moveSpeed: 300,
+                    currentMoveTimer: 0,
+                    targetPixelX: 0,
+                    targetPixelY: 0,
+                    mode: 'neutral',
+                    enemies: null,
                     lastAttackedBy: null
                 },
                 {
@@ -113,9 +167,35 @@ export class Game {
                     currentMoveTimer: 0,
                     targetPixelX: 0,
                     targetPixelY: 0,
-                    // Disposition properties
                     mode: 'aggressive',
-                    enemies: null,  // Initialized in onAssetsLoaded (will be [Hero, Guard])
+                    enemies: null,
+                    lastAttackedBy: null
+                },
+                {
+                    hexQ: 2,
+                    hexR: -4,
+                    pixelX: 0,
+                    pixelY: 0,
+                    facing: 'dir2',
+                    animationFrame: 2,
+                    animationTimer: 100,
+                    currentAnimation: 'idle',
+                    name: 'Bandit',
+                    health: 50,
+                    maxHealth: 60,
+                    faction: 'enemy',
+                    attack_rating: 11,
+                    defense_rating: 6,
+                    speed: 9,
+                    isDefeated: false,
+                    movementQueue: [],
+                    isMoving: false,
+                    moveSpeed: 300,
+                    currentMoveTimer: 0,
+                    targetPixelX: 0,
+                    targetPixelY: 0,
+                    mode: 'aggressive',
+                    enemies: null,
                     lastAttackedBy: null
                 }
             ]
@@ -263,15 +343,13 @@ export class Game {
             this.elements.animation.textContent = animation;
         };
 
-        this.inputHandler.onSpawnEnemy = () => this.spawnEnemy();
-
         // AssetManager callbacks
         this.assetManager.onProgress = (percent) => {
             this.elements.loadStatus.textContent = `Loading: ${percent}%`;
         };
 
         this.assetManager.onComplete = () => {
-            this.elements.loadStatus.textContent = 'Ready - Press 7 to spawn, Shift+Space for combat';
+            this.elements.loadStatus.textContent = 'Ready - Shift+Space for combat';
             this.elements.loadStatus.style.color = '#0f0';
             this.onAssetsLoaded();
         };
@@ -316,13 +394,21 @@ export class Game {
             npc.enemies = new Set();
         });
 
-        // Bandit starts aggressive toward Hero and Guard
-        const bandit = this.state.npcs.find(n => n.name === 'Bandit');
-        if (bandit) {
-            bandit.enemies.add(this.state.pc);
-            const guard = this.state.npcs.find(n => n.name === 'Guard');
-            if (guard) bandit.enemies.add(guard);
-        }
+        // Set up initial hostilities
+        const bandits = this.state.npcs.filter(n => n.faction === 'enemy');
+        const allies = this.state.npcs.filter(n => n.faction === 'ally');
+        const guards = this.state.npcs.filter(n => n.faction === 'neutral');
+
+        bandits.forEach(bandit => {
+            // Bandits <-> PC (bidirectional)
+            makeEnemies(bandit, this.state.pc);
+
+            // Bandits <-> Allies (bidirectional)
+            allies.forEach(ally => makeEnemies(bandit, ally));
+
+            // Bandits -> Guards (one-way, guards don't auto-aggro)
+            guards.forEach(guard => bandit.enemies.add(guard));
+        });
 
         this.centerCameraOn(this.state.pc.pixelX, this.state.pc.pixelY);
         this.updateGameStateUI();
@@ -376,94 +462,6 @@ export class Game {
         }
 
         return null;
-    }
-
-    spawnEnemy() {
-        const factions = ['enemy', 'ally', 'neutral'];
-        const randomFaction = factions[Math.floor(Math.random() * factions.length)];
-
-        // Determine mode based on faction (allies are aggressive like enemies, neutrals wait)
-        const mode = (randomFaction === 'enemy' || randomFaction === 'ally') ? 'aggressive' : 'neutral';
-
-        const newEnemy = {
-            hexQ: this.state.pc.hexQ + Math.floor(Math.random() * 6) - 3,
-            hexR: this.state.pc.hexR + Math.floor(Math.random() * 6) - 3,
-            pixelX: 0,
-            pixelY: 0,
-            facing: ['dir1', 'dir2', 'dir3', 'dir4', 'dir5', 'dir6', 'dir7', 'dir8'][Math.floor(Math.random() * 8)],
-            animationFrame: Math.floor(Math.random() * 17),
-            animationTimer: Math.floor(Math.random() * 150),
-            currentAnimation: 'idle',
-            name: randomFaction === 'enemy' ? 'Bandit' : randomFaction === 'ally' ? 'Companion' : 'Guard',
-            health: 50 + Math.floor(Math.random() * 30),
-            maxHealth: 80,
-            faction: randomFaction,
-            attack_rating: randomFaction === 'enemy' ? 12 : randomFaction === 'ally' ? 13 : 10,
-            defense_rating: randomFaction === 'enemy' ? 5 : randomFaction === 'ally' ? 7 : 6,
-            speed: randomFaction === 'enemy' ? 8 : randomFaction === 'ally' ? 10 : 6,
-            isDefeated: false,
-            movementQueue: [],
-            isMoving: false,
-            moveSpeed: 300,
-            currentMoveTimer: 0,
-            targetPixelX: 0,
-            targetPixelY: 0,
-            // Disposition properties
-            mode: mode,
-            enemies: new Set(),
-            lastAttackedBy: null
-        };
-
-        // Set up hostility based on faction
-        if (randomFaction === 'enemy') {
-            // Bandit considers PC an enemy
-            newEnemy.enemies.add(this.state.pc);
-
-            // PC considers Bandit an enemy (companions inherit via getEffectiveEnemies)
-            this.state.pc.enemies.add(newEnemy);
-
-            // Bandit also considers all existing companions and guards enemies
-            // (Guards don't auto-aggro back - they only become hostile when attacked)
-            this.state.npcs.forEach(npc => {
-                if ((npc.faction === 'ally' || npc.faction === 'neutral') && !npc.isDefeated) {
-                    newEnemy.enemies.add(npc);
-                }
-            });
-
-            // Existing companions should also target this new bandit
-            this.state.npcs.forEach(npc => {
-                if (npc.faction === 'ally' && !npc.isDefeated) {
-                    npc.enemies.add(newEnemy);
-                }
-            });
-        } else if (randomFaction === 'ally') {
-            // Companion inherits PC's enemies and all existing bandits target them
-            // Copy PC's enemies to companion (they share faction enemies anyway, but explicit is clearer)
-            this.state.pc.enemies.forEach(enemy => {
-                if (!enemy.isDefeated) {
-                    newEnemy.enemies.add(enemy);
-                }
-            });
-
-            // All existing bandits should target this new companion
-            this.state.npcs.forEach(npc => {
-                if (npc.faction === 'enemy' && !npc.isDefeated) {
-                    npc.enemies.add(newEnemy);
-                }
-            });
-        }
-
-        const enemyPos = this.hexGrid.hexToPixel(newEnemy.hexQ, newEnemy.hexR);
-        newEnemy.pixelX = enemyPos.x;
-        newEnemy.pixelY = enemyPos.y;
-
-        this.state.npcs.push(newEnemy);
-
-        // Update combat UI if in combat
-        if (this.gameStateManager.currentState === GAME_STATES.COMBAT_INPUT ||
-            this.gameStateManager.currentState === GAME_STATES.COMBAT_EXECUTION) {
-            this.updateGameStateUI();
-        }
     }
 
     updateGameStateUI() {
