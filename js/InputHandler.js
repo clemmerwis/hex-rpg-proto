@@ -13,6 +13,7 @@ export class InputHandler {
         this.keyboardScrollActive = false;
         this.mouseInEdgeZone = false;
         this.wasInEdgeZone = false;
+        this.hoveredHex = null;  // Current hex under mouse cursor
 
         // Keyboard state
         this.keys = {};
@@ -75,10 +76,17 @@ export class InputHandler {
         this.mouseX = e.clientX;
         this.mouseY = e.clientY;
 
+        const rect = this.canvas.getBoundingClientRect();
+        const canvasX = e.clientX - rect.left;
+        const canvasY = e.clientY - rect.top;
+
+        // Update hovered hex
+        const camera = this.onCameraUpdate?.() || { x: 0, y: 0, zoom: 1 };
+        const worldX = (canvasX + camera.x) / camera.zoom;
+        const worldY = (canvasY + camera.y) / camera.zoom;
+        this.hoveredHex = this.hexGrid.pixelToHex(worldX, worldY);
+
         if (this.onMouseMove) {
-            const rect = this.canvas.getBoundingClientRect();
-            const canvasX = e.clientX - rect.left;
-            const canvasY = e.clientY - rect.top;
             this.onMouseMove(canvasX, canvasY);
         }
     }

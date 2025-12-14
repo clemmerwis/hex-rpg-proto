@@ -44,8 +44,20 @@ export class MovementSystem {
         // Calculate movement progress (0 to 1)
         const progress = Math.min(character.currentMoveTimer / character.moveSpeed, 1);
 
-        // Interpolate position
-        const startPos = this.hexGrid.hexToPixel(character.hexQ, character.hexR);
+        // Track the starting hex for interpolation
+        if (character.previousHexQ === undefined) {
+            character.previousHexQ = character.hexQ;
+            character.previousHexR = character.hexR;
+        }
+
+        // Update hex position at halfway point (claim target hex as character crosses into it)
+        if (progress >= 0.5 && (character.hexQ !== target.q || character.hexR !== target.r)) {
+            character.hexQ = target.q;
+            character.hexR = target.r;
+        }
+
+        // Interpolate pixel position from previous hex to target
+        const startPos = this.hexGrid.hexToPixel(character.previousHexQ, character.previousHexR);
         character.pixelX = startPos.x + (targetPos.x - startPos.x) * progress;
         character.pixelY = startPos.y + (targetPos.y - startPos.y) * progress;
 
@@ -67,11 +79,15 @@ export class MovementSystem {
     }
 
     completeMovementStep(character, target, targetPos) {
-        // Move to target hex
+        // Finalize hex position (already set in updateCharacterMovement, but ensure it's correct)
         character.hexQ = target.q;
         character.hexR = target.r;
         character.pixelX = targetPos.x;
         character.pixelY = targetPos.y;
+
+        // Clear previous hex tracking
+        character.previousHexQ = undefined;
+        character.previousHexR = undefined;
 
         // Remove completed target
         character.movementQueue.shift();

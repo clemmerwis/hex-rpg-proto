@@ -229,6 +229,7 @@ export class Game {
             gameStateManager: this.gameStateManager,
             getCharacterAtHex: this.getCharacterAtHex.bind(this),
             animationConfig: ANIMATION_CONFIGS,
+            inputHandler: this.inputHandler,
         });
 
         // InputHandler dependencies and callbacks

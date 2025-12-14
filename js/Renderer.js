@@ -1,4 +1,5 @@
 import { GAME_CONSTANTS, FACTIONS } from './const.js';
+import { GAME_STATES } from './GameStateManager.js';
 
 export class Renderer {
     constructor(canvas, ctx, config) {
@@ -19,6 +20,7 @@ export class Renderer {
         this.gameStateManager = null;
         this.getCharacterAtHex = null;
         this.animationConfig = null;
+        this.inputHandler = null;
     }
 
     setDependencies(deps) {
@@ -27,6 +29,7 @@ export class Renderer {
         this.gameStateManager = deps.gameStateManager;
         this.getCharacterAtHex = deps.getCharacterAtHex;
         this.animationConfig = deps.animationConfig;
+        this.inputHandler = deps.inputHandler;
     }
 
     render(cameraX, cameraY, showGrid) {
@@ -126,16 +129,46 @@ export class Renderer {
             this.drawFactionBorders(hexPoints, q, r, characterHere);
         }
 
-        // Draw player selected move target
+        // Draw hover highlight for valid adjacent hexes during combat input
+        if (this.gameStateManager.currentState === GAME_STATES.COMBAT_INPUT &&
+            !this.gameStateManager.characterActions.has(this.game.pc)) {
+            const hoveredHex = this.inputHandler?.hoveredHex;
+            if (hoveredHex && hoveredHex.q === q && hoveredHex.r === r) {
+                // Check if this is a valid adjacent hex (distance 1 from player, unoccupied)
+                const pcHex = { q: this.game.pc.hexQ, r: this.game.pc.hexR };
+                const distance = this.hexGrid.hexDistance(pcHex, { q, r });
+                const isOccupied = this.getCharacterAtHex(q, r);
+
+                if (distance === 1 && !isOccupied) {
+                    this.drawHoverHex(hexPoints);
+                }
+            }
+        }
+
+        // Draw player selected move target (but not if character already there)
         if (this.gameStateManager.playerSelectedHex &&
             this.gameStateManager.playerSelectedHex.q === q &&
-            this.gameStateManager.playerSelectedHex.r === r) {
+            this.gameStateManager.playerSelectedHex.r === r &&
+            !characterHere) {
             this.drawSelectedHex(hexPoints);
         }
     }
 
     drawFactionBorders(hexPoints, q, r, character) {
         const factionData = FACTIONS[character.faction] || FACTIONS.neutral;
+
+        // Fill hex with very transparent faction color
+        this.ctx.beginPath();
+        hexPoints.forEach((point, i) => {
+            if (i === 0) {
+                this.ctx.moveTo(point.x, point.y);
+            } else {
+                this.ctx.lineTo(point.x, point.y);
+            }
+        });
+        this.ctx.closePath();
+        this.ctx.fillStyle = factionData.tintColor + '25';  // Very transparent (15% opacity)
+        this.ctx.fill();
 
         // Check for adjacent different factions
         const adjacentDirs = [
@@ -189,6 +222,23 @@ export class Renderer {
             this.ctx.lineWidth = 15;
             this.ctx.stroke();
         });
+    }
+
+    drawHoverHex(hexPoints) {
+        this.ctx.beginPath();
+        hexPoints.forEach((point, i) => {
+            if (i === 0) {
+                this.ctx.moveTo(point.x, point.y);
+            } else {
+                this.ctx.lineTo(point.x, point.y);
+            }
+        });
+        this.ctx.closePath();
+        this.ctx.fillStyle = 'rgba(173, 216, 230, 0.2)';  // More transparent than selected
+        this.ctx.fill();
+        this.ctx.strokeStyle = 'rgba(135, 206, 235, 0.6)';
+        this.ctx.lineWidth = 2;
+        this.ctx.stroke();
     }
 
     drawSelectedHex(hexPoints) {

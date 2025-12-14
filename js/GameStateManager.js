@@ -213,6 +213,11 @@ export class GameStateManager {
             return;
         }
 
+        // Clear player selection highlight when player starts moving
+        if (character === this.game.pc) {
+            this.playerSelectedHex = null;
+        }
+
         // Execute move with callback
         character.movementQueue = [action.target];
         character.isMoving = true;
