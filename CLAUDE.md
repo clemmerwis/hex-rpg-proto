@@ -11,7 +11,7 @@ This is a hex-grid based isometric RPG prototype built with vanilla JavaScript (
 ### Running the Application
 ```bash
 # Using Docker (recommended)
-docker-compose up
+docker compose -p $project_name up
 
 # Access at http://localhost:8080
 ```
