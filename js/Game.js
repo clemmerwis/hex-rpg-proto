@@ -419,10 +419,15 @@ export class Game {
     }
 
     startGameLoop() {
+        // DEBUG: FPS counter
+        let frameCount = 0;
+        let lastFPSCheck = null;
+
         const gameLoop = (currentTime) => {
             // Calculate delta time
             if (this.lastFrameTime === null) {
                 this.lastFrameTime = currentTime;
+                lastFPSCheck = currentTime; // Initialize FPS timer
             }
 
             let deltaTime = currentTime - this.lastFrameTime;
@@ -431,6 +436,14 @@ export class Game {
             // Cap delta time to prevent huge jumps (e.g., tab backgrounding)
             const MAX_DELTA_TIME = 100; // 100ms = 10fps minimum
             deltaTime = Math.min(deltaTime, MAX_DELTA_TIME);
+
+            // DEBUG: FPS counter (log every second)
+            frameCount++;
+            if (currentTime - lastFPSCheck >= 1000) {
+                console.log(`[FPS] ${frameCount} fps | Refresh rate: ~${frameCount}Hz`);
+                frameCount = 0;
+                lastFPSCheck = currentTime;
+            }
 
             // Update systems with delta time
             this.movementSystem.updateMovement(deltaTime);

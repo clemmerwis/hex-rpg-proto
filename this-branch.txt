@@ -1,0 +1,7 @@
+USE THIS BRANCH ON MULTIPLE MACHINES TO TEST ACROSS MULTIPLE DEVICES
+
+Use the debug logs to diagnose if frame rates are good across devices after commit made to address that:
+8757391 (HEAD -> animation-timing, origin/master, origin/HEAD, master) feat: implement delta time for frame-rate independence
+
+DPI should be looked into at some point:
+C:\Users\lemme\myComp\web-work\local-docker-dev\hex-rpg-proto\mdplans\future\resolution-independence.md

@@ -163,13 +163,37 @@ export class MovementSystem {
             return; // Don't advance animation
         }
 
+        // DEBUG: Track delta times for PC only
+        if (character === this.game.pc) {
+            if (!character.debugDeltaTimes) {
+                character.debugDeltaTimes = [];
+            }
+            character.debugDeltaTimes.push(deltaTime);
+
+            // Every 60 frames, show delta time statistics
+            if (character.debugDeltaTimes.length >= 60) {
+                const avg = character.debugDeltaTimes.reduce((a, b) => a + b) / character.debugDeltaTimes.length;
+                const min = Math.min(...character.debugDeltaTimes);
+                const max = Math.max(...character.debugDeltaTimes);
+                console.log(`[DELTA DEBUG] 60 frames | Avg: ${avg.toFixed(2)}ms | Min: ${min.toFixed(2)}ms | Max: ${max.toFixed(2)}ms`);
+                character.debugDeltaTimes = [];
+            }
+        }
+
         character.animationTimer += deltaTime;
 
         if (character.animationTimer >= GAME_CONSTANTS.ANIMATION_SPEED) {
+            const actualElapsed = character.animationTimer; // Capture before reset
             character.animationTimer = 0;
             const animConfig = this.animationConfig[character.currentAnimation];
             const frameCount = animConfig ? animConfig.frameCount : 6;
             character.animationFrame = (character.animationFrame + 1) % frameCount;
+
+            // DEBUG: Log animation frame advancement for PC only, every full cycle
+            if (character === this.game.pc && character.animationFrame === 0) {
+                const diff = actualElapsed - GAME_CONSTANTS.ANIMATION_SPEED;
+                console.log(`[ANIM DEBUG] Frame cycle complete | Animation: ${character.currentAnimation} | Elapsed: ${actualElapsed.toFixed(1)}ms | Target: ${GAME_CONSTANTS.ANIMATION_SPEED}ms | Diff: ${diff.toFixed(1)}ms`);
+            }
         }
     }
 
