@@ -18,7 +18,7 @@ export class MovementSystem {
     }
 
     // Update all movement for all characters
-    updateMovement() {
+    updateMovement(deltaTime) {
         // Get all characters (PC + NPCs)
         const allCharacters = [this.game.pc, ...this.game.npcs];
 
@@ -31,12 +31,12 @@ export class MovementSystem {
             }
 
             // Call the existing method
-            this.updateCharacterMovement(character);
+            this.updateCharacterMovement(character, deltaTime);
         });
     }
 
-    updateCharacterMovement(character) {
-        character.currentMoveTimer += GAME_CONSTANTS.FRAME_TIME;
+    updateCharacterMovement(character, deltaTime) {
+        character.currentMoveTimer += deltaTime;
         // Get current target
         const target = character.movementQueue[0];
         const targetPos = this.hexGrid.hexToPixel(target.q, target.r);
@@ -142,18 +142,18 @@ export class MovementSystem {
     }
 
     // Update all animations
-    updateAnimations() {
+    updateAnimations(deltaTime) {
         // Update PC animation
-        this.updateCharacterAnimation(this.game.pc);
+        this.updateCharacterAnimation(this.game.pc, deltaTime);
 
         // Update NPC animations
         this.game.npcs.forEach(npc => {
-            this.updateCharacterAnimation(npc);
+            this.updateCharacterAnimation(npc, deltaTime);
         });
     }
 
     // Update animation for a specific character
-    updateCharacterAnimation(character) {
+    updateCharacterAnimation(character, deltaTime) {
         // If character is defeated and on 'die' animation, hold on last frame
         if (character.isDefeated && character.currentAnimation === 'die') {
             const dieConfig = this.animationConfig['die'];
@@ -163,7 +163,7 @@ export class MovementSystem {
             return; // Don't advance animation
         }
 
-        character.animationTimer += GAME_CONSTANTS.FRAME_TIME;
+        character.animationTimer += deltaTime;
 
         if (character.animationTimer >= GAME_CONSTANTS.ANIMATION_SPEED) {
             character.animationTimer = 0;

@@ -201,6 +201,9 @@ export class Game {
             ]
         };
 
+        // Delta time tracking for consistent timing across refresh rates
+        this.lastFrameTime = null;
+
         // Get DOM elements
         this.initializeDOMElements();
 
@@ -416,15 +419,29 @@ export class Game {
     }
 
     startGameLoop() {
-        const gameLoop = () => {
-            this.movementSystem.updateMovement();
-            this.movementSystem.updateAnimations();
+        const gameLoop = (currentTime) => {
+            // Calculate delta time
+            if (this.lastFrameTime === null) {
+                this.lastFrameTime = currentTime;
+            }
+
+            let deltaTime = currentTime - this.lastFrameTime;
+            this.lastFrameTime = currentTime;
+
+            // Cap delta time to prevent huge jumps (e.g., tab backgrounding)
+            const MAX_DELTA_TIME = 100; // 100ms = 10fps minimum
+            deltaTime = Math.min(deltaTime, MAX_DELTA_TIME);
+
+            // Update systems with delta time
+            this.movementSystem.updateMovement(deltaTime);
+            this.movementSystem.updateAnimations(deltaTime);
             this.inputHandler.updateKeyboardScrolling();
             this.render();
+
             requestAnimationFrame(gameLoop);
         };
 
-        gameLoop();
+        requestAnimationFrame(gameLoop);
     }
 
     render() {

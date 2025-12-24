@@ -5,7 +5,7 @@ export const GAME_CONSTANTS = {
 
     // Animation
     ANIMATION_SPEED: 150,     // ms between animation frames
-    FRAME_TIME: 16,           // ~60fps
+    // FRAME_TIME removed - now using actual delta time from performance.now() to fix refresh-rate dependent timing
 
     // World and rendering
     HEX_SIZE: 70,
