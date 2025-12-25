@@ -152,6 +152,11 @@ export class Renderer {
             !characterHere) {
             this.drawSelectedHex(hexPoints);
         }
+
+        // Draw marked hexes (for map editing)
+        if (this.inputHandler?.markedHexes?.has(`${q},${r}`)) {
+            this.drawMarkedHex(hexPoints);
+        }
     }
 
     drawFactionBorders(hexPoints, q, r, character) {
@@ -254,6 +259,23 @@ export class Renderer {
         this.ctx.fillStyle = 'rgba(173, 216, 230, 0.4)';
         this.ctx.fill();
         this.ctx.strokeStyle = '#87CEEB';
+        this.ctx.lineWidth = 3;
+        this.ctx.stroke();
+    }
+
+    drawMarkedHex(hexPoints) {
+        this.ctx.beginPath();
+        hexPoints.forEach((point, i) => {
+            if (i === 0) {
+                this.ctx.moveTo(point.x, point.y);
+            } else {
+                this.ctx.lineTo(point.x, point.y);
+            }
+        });
+        this.ctx.closePath();
+        this.ctx.fillStyle = 'rgba(255, 165, 0, 0.5)';  // Orange with 50% opacity
+        this.ctx.fill();
+        this.ctx.strokeStyle = '#FF8C00';  // Dark orange border
         this.ctx.lineWidth = 3;
         this.ctx.stroke();
     }

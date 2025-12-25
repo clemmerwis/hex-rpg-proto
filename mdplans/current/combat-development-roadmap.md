@@ -70,14 +70,14 @@ Per-character AI behavior with mode-based targeting and dynamic hostility.
 
 **Features:**
 - ✅ Two behavior modes: `neutral` and `aggressive`
-- ✅ Per-character `enemies` Set for tracking personal enemies
+- ✅ Per-character `enemies` Set for tracking opposition
 - ✅ `lastAttackedBy` for tiebreaker targeting
 - ✅ Hostility trigger: being attacked adds attacker to enemies and switches to aggressive
 - ✅ All living NPCs participate in combat (not just faction=enemy)
 
 **Mode Behaviors:**
 - `neutral`: Move toward nearest character, wait if adjacent, never attack
-- `aggressive`: Move toward closest enemy from personal enemies Set, attack if adjacent
+- `aggressive`: Move toward closest enemy from opposition Set, attack if adjacent
 
 **Example:**
 - Guard starts neutral → moves toward nearest character

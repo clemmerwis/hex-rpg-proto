@@ -30,6 +30,14 @@
         <div>Hex: <span id="hexPos">-, -</span></div>
         <div>Assets: <span id="loadStatus">Loading...</span></div>
         <div><label><input type="checkbox" id="showGrid" checked> Show Grid</label></div>
+        <div style="margin-top: 8px;">
+            <label><input type="checkbox" id="hexMarkerMode"> Hex Marker Mode</label>
+        </div>
+        <div id="hexMarkerControls" style="margin-top: 5px; display: none;">
+            <button id="exportHexes" style="font-size: 11px; padding: 3px 8px;">Export to Console</button>
+            <button id="clearHexes" style="font-size: 11px; padding: 3px 8px;">Clear All</button>
+            <div id="markedCount" style="font-size: 11px; margin-top: 3px;">Marked: 0</div>
+        </div>
         <div style="margin-top: 10px; font-size: 12px;">
             <strong>Edge Scroll:</strong> Move mouse to edges<br>
             <strong>Camera:</strong> <span id="cameraPos">0, 0</span><br>

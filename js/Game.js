@@ -237,7 +237,14 @@ export class Game {
             combatInfo: document.getElementById('combatInfo'),
             currentTurn: document.getElementById('currentTurn'),
             activeCharacter: document.getElementById('activeCharacter'),
-            enemyCount: document.getElementById('enemyCount')
+            enemyCount: document.getElementById('enemyCount'),
+
+            // Hex marker elements
+            hexMarkerMode: document.getElementById('hexMarkerMode'),
+            hexMarkerControls: document.getElementById('hexMarkerControls'),
+            exportHexes: document.getElementById('exportHexes'),
+            clearHexes: document.getElementById('clearHexes'),
+            markedCount: document.getElementById('markedCount')
         };
     }
 
@@ -346,6 +353,10 @@ export class Game {
             this.elements.animation.textContent = animation;
         };
 
+        this.inputHandler.onMarkedHexesChange = () => {
+            this.updateMarkedHexCount();
+        };
+
         // AssetManager callbacks
         this.assetManager.onProgress = (percent) => {
             this.elements.loadStatus.textContent = `Loading: ${percent}%`;
@@ -369,6 +380,23 @@ export class Game {
         // Checkbox event
         this.elements.showGrid.addEventListener('change', () => {
             requestAnimationFrame(() => this.render());
+        });
+
+        // Hex marker mode controls
+        this.elements.hexMarkerMode.addEventListener('change', (e) => {
+            const enabled = e.target.checked;
+            this.inputHandler.setHexMarkerMode(enabled);
+            this.elements.hexMarkerControls.style.display = enabled ? 'block' : 'none';
+            this.updateMarkedHexCount();
+        });
+
+        this.elements.exportHexes.addEventListener('click', () => {
+            this.inputHandler.exportMarkedHexes();
+        });
+
+        this.elements.clearHexes.addEventListener('click', () => {
+            this.inputHandler.clearMarkedHexes();
+            this.updateMarkedHexCount();
         });
     }
 
@@ -463,6 +491,11 @@ export class Game {
         this.camera.y = Math.max(0, Math.min(this.camera.y, maxCameraY));
 
         this.elements.cameraPos.textContent = `${Math.round(this.camera.x)}, ${Math.round(this.camera.y)}`;
+    }
+
+    updateMarkedHexCount() {
+        const count = this.inputHandler.markedHexes.size;
+        this.elements.markedCount.textContent = `Marked: ${count}`;
     }
 
     getCharacterAtHex(q, r) {

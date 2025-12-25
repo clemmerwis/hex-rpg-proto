@@ -15,6 +15,10 @@ export class InputHandler {
         this.wasInEdgeZone = false;
         this.hoveredHex = null;  // Current hex under mouse cursor
 
+        // Hex marker mode (for map editing)
+        this.hexMarkerMode = false;
+        this.markedHexes = new Map(); // Key: "q,r", Value: {q, r}
+
         // Keyboard state
         this.keys = {};
 
@@ -30,6 +34,7 @@ export class InputHandler {
         this.onDebugUpdate = null;
         this.onAnimationChange = null;
         this.onMouseMove = null;
+        this.onMarkedHexesChange = null;
 
         // Bind methods
         this.handleMouseMove = this.handleMouseMove.bind(this);
@@ -100,6 +105,12 @@ export class InputHandler {
         const worldY = (canvasY + camera.y) / camera.zoom;
 
         const targetHex = this.hexGrid.pixelToHex(worldX, worldY);
+
+        // Handle hex marker mode (only when not in combat)
+        if (this.hexMarkerMode && this.gameStateManager.currentState !== GAME_STATES.COMBAT_INPUT) {
+            this.toggleMarkedHex(targetHex.q, targetHex.r);
+            return;
+        }
 
         // Handle combat input phase
         if (this.gameStateManager.currentState === GAME_STATES.COMBAT_INPUT) {
@@ -276,6 +287,47 @@ export class InputHandler {
         this.game.npcs.forEach(npc => {
             const foundNPC = this.getCharacterAtHex(npc.hexQ, npc.hexR);
         });
+    }
+
+    // Hex marker mode methods
+    setHexMarkerMode(enabled) {
+        this.hexMarkerMode = enabled;
+        console.log(`Hex marker mode: ${enabled ? 'ON' : 'OFF'}`);
+    }
+
+    toggleMarkedHex(q, r) {
+        const key = `${q},${r}`;
+        if (this.markedHexes.has(key)) {
+            this.markedHexes.delete(key);
+        } else {
+            this.markedHexes.set(key, { q, r });
+        }
+        this.onMarkedHexesChange?.();
+    }
+
+    clearMarkedHexes() {
+        this.markedHexes.clear();
+        console.log('Cleared all marked hexes');
+    }
+
+    exportMarkedHexes() {
+        const hexes = Array.from(this.markedHexes.values());
+        if (hexes.length === 0) {
+            console.log('No hexes marked');
+            return [];
+        }
+
+        // Sort by q then r for readability
+        hexes.sort((a, b) => a.q !== b.q ? a.q - b.q : a.r - b.r);
+
+        // Output as JSON array
+        const json = JSON.stringify(hexes, null, 2);
+        console.log('=== MARKED HEXES ===');
+        console.log(json);
+        console.log('====================');
+        console.log(`Total: ${hexes.length} hexes`);
+
+        return hexes;
     }
 
     cleanup() {

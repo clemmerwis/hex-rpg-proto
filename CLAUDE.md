@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+For detailed reference (controls, data structures, debug features): see [docs/reference.md](docs/reference.md).
+
 ## Project Overview
 
 This is a hex-grid based isometric RPG prototype built with vanilla JavaScript (ES6 modules). The game features turn-based tactical combat on a hexagonal grid with smooth character movement, pathfinding, and an AI system for enemy behavior.
@@ -37,6 +39,7 @@ The codebase uses ES6 modules with dependency injection pattern. All modules are
 - **Pathfinding.js** - A* pathfinding for hex grids with obstacle avoidance
 - **AISystem.js** - AI decision making for enemy characters (currently greedy movement toward player)
 - **AssetManager.js** - Asynchronous sprite and image loading with progress tracking
+- **AreaManager.js** - Area loading, transitions, blocked hexes, and spawn points (BG-style discrete maps)
 - **const.js** - Centralized configuration (GAME_CONSTANTS, ANIMATION_CONFIGS, FACTIONS)
 
 ### State Management Pattern
@@ -55,24 +58,6 @@ Uses **axial coordinate system** (q, r) for hex positions. Key conversion functi
 - `getNeighbors(hex)` - Get 6 adjacent hexes
 
 Characters store both hex position (`hexQ`, `hexR`) and pixel position (`pixelX`, `pixelY`) for smooth interpolated movement.
-
-### Character Data Structure
-All characters (PC and NPCs) share this structure:
-```javascript
-{
-    hexQ, hexR,              // Current hex position
-    pixelX, pixelY,          // Current pixel position (for smooth movement)
-    facing,                  // Direction facing (dir1-dir8)
-    currentAnimation,        // Current animation state (idle, walk, run, etc.)
-    animationFrame,          // Current frame in animation
-    faction,                 // 'player', 'enemy', 'ally', 'neutral'
-    health, maxHealth,
-    movementQueue,           // Array of hex targets for pathfinding
-    isMoving,                // Boolean movement state
-    moveSpeed,               // ms per hex movement
-    currentMoveTimer         // Movement interpolation timer
-}
-```
 
 ### Movement System
 Movement uses a queue-based interpolation system:
@@ -108,21 +93,6 @@ All magic numbers centralized in `const.js`:
 ### Dependency Injection
 Modules don't import each other directly. Game.js creates all modules and injects dependencies via `setDependencies()` methods. This prevents circular dependencies and makes testing easier.
 
-### Coordinate Systems
-Three coordinate systems in use:
-1. **Canvas coordinates** - Mouse position relative to canvas element
-2. **World coordinates** - Pixel coordinates in the game world (before zoom/camera)
-3. **Hex coordinates** - Axial (q, r) coordinates for grid logic
-
-Always convert through appropriate methods: canvas → world (factor in camera/zoom) → hex (use hexGrid.pixelToHex).
-
-### Rendering Order
-Layers rendered in this order:
-1. Background image
-2. Hex grid (if enabled via checkbox)
-3. Characters (sorted by Y position for proper overlap)
-4. UI overlays (nameplates, health bars)
-
 ## Common Tasks
 
 ### Adding New Character Animations
@@ -149,24 +119,9 @@ Edit values in `const.js`:
 - World size: `WORLD_WIDTH`, `WORLD_HEIGHT`
 - Hex grid size: `HEX_SIZE`
 
-## Debug Features
-
-In-game debug panel shows:
-- Mouse position (world coordinates)
-- Current hex (q, r coordinates)
-- Asset loading status
-- Camera position
-- PC facing direction
-- Current animation state
-
-### Keyboard Controls
-- **1-6**: Trigger different animations
-- **7**: Spawn random enemy near player
-- **Shift+Space**: Toggle combat mode
-- **Space**: Skip turn (during combat)
-- **Arrow keys**: Camera scrolling
-- **Click**: Move character (exploration) or select hex (combat)
-- **Edge scrolling**: Mouse near canvas edges
-
-### Grid Toggle
-Checkbox in debug panel enables/disables hex grid overlay for easier debugging.
+### Adding New Areas
+1. Create folder `areas/{area_id}/`
+2. Add `area.json` with area definition (see [docs/reference.md](docs/reference.md) for schema)
+3. Add `background.jpg` (area dimensions match image native size)
+4. Define blocked hexes, spawn points, and exits to other areas
+5. Load via `areaManager.loadArea('area_id', 'spawn_point')`
