@@ -165,9 +165,11 @@ export class MovementSystem {
 
         character.animationTimer += deltaTime;
 
-        if (character.animationTimer >= GAME_CONSTANTS.ANIMATION_SPEED) {
+        const animConfig = this.animationConfig[character.currentAnimation];
+        const frameSpeed = animConfig?.speed ?? GAME_CONSTANTS.ANIMATION_SPEED;
+
+        if (character.animationTimer >= frameSpeed) {
             character.animationTimer = 0;
-            const animConfig = this.animationConfig[character.currentAnimation];
             const frameCount = animConfig ? animConfig.frameCount : 6;
             character.animationFrame = (character.animationFrame + 1) % frameCount;
         }

@@ -3,6 +3,7 @@ import { GameStateManager, GAME_STATES, COMBAT_ACTIONS } from './GameStateManage
 import { Renderer } from './Renderer.js';
 import { InputHandler } from './InputHandler.js';
 import { AssetManager } from './AssetManager.js';
+import { AreaManager } from './AreaManager.js';
 import { Pathfinding } from './Pathfinding.js';
 import { MovementSystem } from './MovementSystem.js';
 import { CombatSystem } from './CombatSystem.js';
@@ -36,7 +37,7 @@ export class Game {
             },
             pc: {
                 hexQ: 5,
-                hexR: -5,
+                hexR: -6,
                 pixelX: 0,
                 pixelY: 0,
                 facing: 'dir8',
@@ -263,6 +264,14 @@ export class Game {
 
         this.pathfinding = new Pathfinding(this.hexGrid);
 
+        // Initialize AreaManager for map loading
+        this.areaManager = new AreaManager();
+        this.areaManager.setDependencies({
+            hexGrid: this.hexGrid,
+            pathfinding: this.pathfinding,
+            game: this
+        });
+
         // Initialize MovementSystem before GameStateManager (needed for dependency injection)
         this.movementSystem = new MovementSystem({
             hexGrid: this.hexGrid,
@@ -320,6 +329,7 @@ export class Game {
             getCharacterAtHex: this.getCharacterAtHex.bind(this),
             animationConfig: ANIMATION_CONFIGS,
             inputHandler: this.inputHandler,
+            areaManager: this.areaManager,
         });
 
         // InputHandler dependencies and callbacks
@@ -401,9 +411,22 @@ export class Game {
     }
 
     async init() {
-        // Load assets
+        // Load assets (sprites)
         const assets = await this.assetManager.loadAssets();
         this.state.assets = assets;
+
+        // Load initial area
+        await this.areaManager.loadArea('bridge_crossing');
+
+        // Store area background for renderer fallback
+        this.state.assets.background = this.areaManager.getBackground();
+
+        // Update world dimensions from area
+        const dims = this.areaManager.getDimensions();
+        this.config.world.width = dims.width;
+        this.config.world.height = dims.height;
+        this.renderer.worldWidth = dims.width;
+        this.renderer.worldHeight = dims.height;
     }
 
     onAssetsLoaded() {

@@ -57,4 +57,9 @@ export class HexGrid {
             r: hex.r + dr
         }));
     }
+
+    resize(width, height) {
+        this.worldWidth = width;
+        this.worldHeight = height;
+    }
 }

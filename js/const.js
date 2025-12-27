@@ -4,7 +4,7 @@ export const GAME_CONSTANTS = {
   MOVEMENT_TIMEOUT: 5000, // Failsafe timeout for movement completion (ms)
 
   // Animation
-  ANIMATION_SPEED: 18, // ms between animation frames
+  ANIMATION_SPEED: 17, // ms between animation frames
 
   // World and rendering
   HEX_SIZE: 70,
@@ -31,14 +31,14 @@ export const GAME_CONSTANTS = {
   SPRITE_FRAME_SIZE: 256,
 };
 
-// Animation configurations
+// Animation configurations (optional 'speed' overrides ANIMATION_SPEED)
 export const ANIMATION_CONFIGS = {
-  idle: { cols: 5, rows: 4, frameCount: 17 },
+  idle: { cols: 5, rows: 4, frameCount: 17, speed: 120 },
   walk: { cols: 4, rows: 3, frameCount: 11 },
   run: { cols: 3, rows: 3, frameCount: 8 },
   jump: { cols: 4, rows: 3, frameCount: 11 },
   attack: { cols: 4, rows: 4, frameCount: 15 },
-  die: { cols: 6, rows: 5, frameCount: 27 },
+  die: { cols: 6, rows: 5, frameCount: 27, speed: 60 },
 };
 
 // Faction configurations

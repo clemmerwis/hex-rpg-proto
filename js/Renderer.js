@@ -21,6 +21,7 @@ export class Renderer {
         this.getCharacterAtHex = null;
         this.animationConfig = null;
         this.inputHandler = null;
+        this.areaManager = null;
     }
 
     setDependencies(deps) {
@@ -30,6 +31,7 @@ export class Renderer {
         this.getCharacterAtHex = deps.getCharacterAtHex;
         this.animationConfig = deps.animationConfig;
         this.inputHandler = deps.inputHandler;
+        this.areaManager = deps.areaManager;
     }
 
     render(cameraX, cameraY, showGrid) {
@@ -52,8 +54,11 @@ export class Renderer {
     }
 
     drawBackground() {
-        if (this.game.assets.background) {
-            this.ctx.drawImage(this.game.assets.background, 0, 0, this.worldWidth, this.worldHeight);
+        // Try to get background from AreaManager first, fallback to assets
+        const background = this.areaManager?.getBackground() || this.game.assets.background;
+
+        if (background) {
+            this.ctx.drawImage(background, 0, 0, this.worldWidth, this.worldHeight);
         } else {
             // Placeholder background
             this.ctx.fillStyle = '#1a3a1a';

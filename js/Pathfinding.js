@@ -7,6 +7,7 @@ export class Pathfinding {
         this.maxDistance = GAME_CONSTANTS.PATHFINDING_MAX_DISTANCE;
         this.maxIterations = GAME_CONSTANTS.PATHFINDING_MAX_ITERATIONS;
         this.maxOpenSetSize = GAME_CONSTANTS.PATHFINDING_MAX_OPEN_SET;
+        this.blockedHexes = new Set(); // Persistent blocked hexes from area definition
     }
 
     findPath(start, goal, obstacles = []) {
@@ -85,8 +86,8 @@ export class Pathfinding {
         for (const neighbor of neighbors) {
             const neighborKey = `${neighbor.q},${neighbor.r}`;
 
-            // Skip if already processed or blocked
-            if (closedSet.has(neighborKey) || obstacleSet.has(neighborKey)) {
+            // Skip if already processed, blocked by obstacle, or blocked by terrain
+            if (closedSet.has(neighborKey) || obstacleSet.has(neighborKey) || this.blockedHexes.has(neighborKey)) {
                 continue;
             }
 
@@ -131,5 +132,9 @@ export class Pathfinding {
 
     setMaxIterations(iterations) {
         this.maxIterations = iterations;
+    }
+
+    setBlockedHexes(hexes) {
+        this.blockedHexes = new Set(hexes.map(h => `${h.q},${h.r}`));
     }
 }
