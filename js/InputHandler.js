@@ -290,9 +290,15 @@ export class InputHandler {
     }
 
     // Hex marker mode methods
-    setHexMarkerMode(enabled) {
+    setHexMarkerMode(enabled, blockedHexes = []) {
         this.hexMarkerMode = enabled;
-        console.log(`Hex marker mode: ${enabled ? 'ON' : 'OFF'}`);
+        if (enabled && blockedHexes.length > 0) {
+            // Pre-populate with existing blocked hexes
+            blockedHexes.forEach(hex => {
+                this.markedHexes.set(`${hex.q},${hex.r}`, { q: hex.q, r: hex.r });
+            });
+        }
+        console.log(`Hex marker mode: ${enabled ? 'ON' : 'OFF'}${enabled ? ` (${this.markedHexes.size} blocked hexes loaded)` : ''}`);
     }
 
     toggleMarkedHex(q, r) {

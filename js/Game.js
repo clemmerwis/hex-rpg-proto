@@ -174,7 +174,7 @@ export class Game {
                 },
                 {
                     hexQ: 2,
-                    hexR: -4,
+                    hexR: -2,
                     pixelX: 0,
                     pixelY: 0,
                     facing: 'dir2',
@@ -395,7 +395,9 @@ export class Game {
         // Hex marker mode controls
         this.elements.hexMarkerMode.addEventListener('change', (e) => {
             const enabled = e.target.checked;
-            this.inputHandler.setHexMarkerMode(enabled);
+            // Pass existing blocked hexes when enabling marker mode
+            const blockedHexes = enabled ? (this.areaManager.currentArea?.blocked || []) : [];
+            this.inputHandler.setHexMarkerMode(enabled, blockedHexes);
             this.elements.hexMarkerControls.style.display = enabled ? 'block' : 'none';
             this.updateMarkedHexCount();
         });
