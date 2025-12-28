@@ -8,9 +8,10 @@ function devLog(...args) {
 }
 
 export class AISystem {
-    constructor(hexGrid, getCharacterAtHex) {
+    constructor(hexGrid, getCharacterAtHex, pathfinding) {
         this.hexGrid = hexGrid;
         this.getCharacterAtHex = getCharacterAtHex;
+        this.pathfinding = pathfinding;
     }
 
     /**
@@ -194,6 +195,9 @@ export class AISystem {
             // Check if hex is occupied
             const occupied = this.getCharacterAtHex(neighbor.q, neighbor.r);
             if (occupied) continue;
+
+            // Check if hex is blocked terrain
+            if (this.pathfinding?.blockedHexes?.has(`${neighbor.q},${neighbor.r}`)) continue;
 
             // Calculate distance from this neighbor to target
             const distance = this.hexGrid.hexDistance(neighbor, {

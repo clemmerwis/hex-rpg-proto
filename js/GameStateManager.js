@@ -25,13 +25,14 @@ export const COMBAT_ACTIONS = {
 };
 
 export class GameStateManager {
-    constructor(game, hexGrid, getCharacterAtHex, movementSystem, combatSystem) {
+    constructor(game, hexGrid, getCharacterAtHex, movementSystem, combatSystem, pathfinding) {
         this.game = game;
         this.hexGrid = hexGrid;
         this.getCharacterAtHex = getCharacterAtHex;
         this.movementSystem = movementSystem;
         this.combatSystem = combatSystem;
-        this.aiSystem = new AISystem(hexGrid, getCharacterAtHex);
+        this.pathfinding = pathfinding;
+        this.aiSystem = new AISystem(hexGrid, getCharacterAtHex, pathfinding);
 
         // State
         this.currentState = GAME_STATES.EXPLORATION;
@@ -418,6 +419,11 @@ export class GameStateManager {
         // Check if hex is occupied
         const characterAtTarget = this.getCharacterAtHex(hexQ, hexR);
         if (characterAtTarget) {
+            return false;
+        }
+
+        // Check if hex is blocked terrain
+        if (this.pathfinding?.blockedHexes?.has(`${hexQ},${hexR}`)) {
             return false;
         }
 

@@ -292,7 +292,8 @@ export class Game {
             this.hexGrid,
             this.getCharacterAtHex.bind(this),
             this.movementSystem,
-            this.combatSystem
+            this.combatSystem,
+            this.pathfinding
         );
 
         // Set the gameStateManager reference in MovementSystem (circular dependency)
