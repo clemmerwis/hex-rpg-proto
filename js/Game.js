@@ -19,8 +19,8 @@ export class Game {
                 height: GAME_CONSTANTS.WORLD_HEIGHT
             },
             viewport: {
-                width: Math.min(window.innerWidth * 0.9, 1600),
-                height: Math.min(window.innerHeight * 0.85, 900)
+                width: 1280,
+                height: 720
             },
             zoom: GAME_CONSTANTS.ZOOM_LEVEL,
             hexSize: GAME_CONSTANTS.HEX_SIZE

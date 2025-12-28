@@ -23,6 +23,10 @@ export class Renderer {
         this.inputHandler = null;
         this.areaManager = null;
         this.pathfinding = null;
+
+        // Cache for connected blocked hexes (flood-fill)
+        this._cachedConnectedBlockedHexes = null;
+        this._cachedHoveredBlockedKey = null;
     }
 
     setDependencies(deps) {
@@ -45,6 +49,33 @@ export class Renderer {
             return FACTIONS.pc_ally;
         }
         return FACTIONS[character.faction] || FACTIONS.guard;
+    }
+
+    // Find all blocked hexes connected to the starting hex (flood-fill)
+    getConnectedBlockedHexes(startQ, startR) {
+        const connected = new Set();
+        const queue = [{q: startQ, r: startR}];
+
+        while (queue.length > 0) {
+            const current = queue.shift();
+            const key = `${current.q},${current.r}`;
+
+            if (connected.has(key)) continue;
+            if (!this.pathfinding?.blockedHexes?.has(key)) continue;
+
+            connected.add(key);
+
+            // Add all neighbors to queue
+            const neighbors = this.hexGrid.getNeighbors(current);
+            for (const neighbor of neighbors) {
+                const neighborKey = `${neighbor.q},${neighbor.r}`;
+                if (!connected.has(neighborKey)) {
+                    queue.push(neighbor);
+                }
+            }
+        }
+
+        return connected;
     }
 
     render(cameraX, cameraY, showGrid) {
@@ -142,19 +173,36 @@ export class Renderer {
         this.ctx.lineWidth = 1;
         this.ctx.stroke();
 
-        // Draw subtle dark overlay for blocked hexes
-        if (this.pathfinding?.blockedHexes?.has(`${q},${r}`)) {
-            this.ctx.beginPath();
-            hexPoints.forEach((point, i) => {
-                if (i === 0) {
-                    this.ctx.moveTo(point.x, point.y);
-                } else {
-                    this.ctx.lineTo(point.x, point.y);
+        // Draw dark overlay for blocked hexes (only when hovering blocked terrain)
+        const isBlocked = this.pathfinding?.blockedHexes?.has(`${q},${r}`);
+        if (isBlocked) {
+            const hoveredHex = this.inputHandler?.hoveredHex;
+            if (hoveredHex) {
+                const hoveredKey = `${hoveredHex.q},${hoveredHex.r}`;
+                const isHoveredBlocked = this.pathfinding?.blockedHexes?.has(hoveredKey);
+
+                if (isHoveredBlocked) {
+                    // Use cached connected set, or compute if hovered hex changed
+                    if (this._cachedHoveredBlockedKey !== hoveredKey) {
+                        this._cachedConnectedBlockedHexes = this.getConnectedBlockedHexes(hoveredHex.q, hoveredHex.r);
+                        this._cachedHoveredBlockedKey = hoveredKey;
+                    }
+
+                    if (this._cachedConnectedBlockedHexes?.has(`${q},${r}`)) {
+                        this.ctx.beginPath();
+                        hexPoints.forEach((point, i) => {
+                            if (i === 0) {
+                                this.ctx.moveTo(point.x, point.y);
+                            } else {
+                                this.ctx.lineTo(point.x, point.y);
+                            }
+                        });
+                        this.ctx.closePath();
+                        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.20)';
+                        this.ctx.fill();
+                    }
                 }
-            });
-            this.ctx.closePath();
-            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.12)';
-            this.ctx.fill();
+            }
         }
 
         // Draw faction borders if character present
