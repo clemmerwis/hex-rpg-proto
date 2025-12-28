@@ -22,6 +22,7 @@ export class Renderer {
         this.animationConfig = null;
         this.inputHandler = null;
         this.areaManager = null;
+        this.pathfinding = null;
     }
 
     setDependencies(deps) {
@@ -32,6 +33,18 @@ export class Renderer {
         this.animationConfig = deps.animationConfig;
         this.inputHandler = deps.inputHandler;
         this.areaManager = deps.areaManager;
+        this.pathfinding = deps.pathfinding;
+    }
+
+    // Get faction display data (companions use different color than hero)
+    getFactionData(character) {
+        if (character === this.game.pc) {
+            return FACTIONS.pc;
+        }
+        if (character.faction === 'pc') {
+            return FACTIONS.pc_ally;
+        }
+        return FACTIONS[character.faction] || FACTIONS.guard;
     }
 
     render(cameraX, cameraY, showGrid) {
@@ -129,6 +142,21 @@ export class Renderer {
         this.ctx.lineWidth = 1;
         this.ctx.stroke();
 
+        // Draw subtle dark overlay for blocked hexes
+        if (this.pathfinding?.blockedHexes?.has(`${q},${r}`)) {
+            this.ctx.beginPath();
+            hexPoints.forEach((point, i) => {
+                if (i === 0) {
+                    this.ctx.moveTo(point.x, point.y);
+                } else {
+                    this.ctx.lineTo(point.x, point.y);
+                }
+            });
+            this.ctx.closePath();
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.12)';
+            this.ctx.fill();
+        }
+
         // Draw faction borders if character present
         if (characterHere) {
             this.drawFactionBorders(hexPoints, q, r, characterHere);
@@ -139,12 +167,13 @@ export class Renderer {
             !this.gameStateManager.characterActions.has(this.game.pc)) {
             const hoveredHex = this.inputHandler?.hoveredHex;
             if (hoveredHex && hoveredHex.q === q && hoveredHex.r === r) {
-                // Check if this is a valid adjacent hex (distance 1 from player, unoccupied)
+                // Check if this is a valid adjacent hex (distance 1 from player, unoccupied, not blocked)
                 const pcHex = { q: this.game.pc.hexQ, r: this.game.pc.hexR };
                 const distance = this.hexGrid.hexDistance(pcHex, { q, r });
                 const isOccupied = this.getCharacterAtHex(q, r);
+                const isBlocked = this.pathfinding?.blockedHexes?.has(`${q},${r}`);
 
-                if (distance === 1 && !isOccupied) {
+                if (distance === 1 && !isOccupied && !isBlocked) {
                     this.drawHoverHex(hexPoints);
                 }
             }
@@ -165,7 +194,7 @@ export class Renderer {
     }
 
     drawFactionBorders(hexPoints, q, r, character) {
-        const factionData = FACTIONS[character.faction] || FACTIONS.neutral;
+        const factionData = this.getFactionData(character);
 
         // Fill hex with very transparent faction color
         this.ctx.beginPath();
@@ -212,7 +241,7 @@ export class Renderer {
         sharedEdges.forEach(edgeIndex => {
             const [dq, dr] = adjacentDirs[edgeIndex];
             const adjCharacter = this.getCharacterAtHex(q + dq, r + dr);
-            const adjFactionData = FACTIONS[adjCharacter.faction] || FACTIONS.neutral;
+            const adjFactionData = this.getFactionData(adjCharacter);
 
             const startPoint = hexPoints[edgeIndex];
             const endPoint = hexPoints[(edgeIndex + 1) % 6];
@@ -244,9 +273,9 @@ export class Renderer {
             }
         });
         this.ctx.closePath();
-        this.ctx.fillStyle = 'rgba(173, 216, 230, 0.2)';  // More transparent than selected
+        this.ctx.fillStyle = 'rgba(33, 150, 243, 0.25)';  // Blue fill
         this.ctx.fill();
-        this.ctx.strokeStyle = 'rgba(135, 206, 235, 0.6)';
+        this.ctx.strokeStyle = 'rgba(33, 150, 243, 0.7)';  // Blue stroke
         this.ctx.lineWidth = 2;
         this.ctx.stroke();
     }
@@ -329,7 +358,7 @@ export class Renderer {
             }
         } else {
             // Placeholder
-            const factionData = FACTIONS[character.faction] || FACTIONS.neutral;
+            const factionData = this.getFactionData(character);
             this.ctx.fillStyle = factionData.tintColor;
             this.ctx.beginPath();
             this.ctx.arc(character.pixelX, character.pixelY, 30, 0, Math.PI * 2);
@@ -354,15 +383,16 @@ export class Renderer {
 
         this.ctx.save();
 
-        // Check if executing
-        const isExecutingCharacter = this.gameStateManager.isExecutingCharacter(character);
+        // Check if executing (but don't highlight PC faction - they stay green)
+        const isExecutingCharacter = character.faction !== 'pc' &&
+            this.gameStateManager.isExecutingCharacter(character);
 
         // Background
         this.ctx.fillStyle = isExecutingCharacter ? 'rgba(255, 255, 0, 0.3)' : 'rgba(0, 0, 0, 0.6)';
         this.ctx.fillRect(nameplateX, nameplateBackgroundY, nameplateWidth, nameplateHeight);
 
         // Border
-        const factionData = FACTIONS[character.faction] || FACTIONS.neutral;
+        const factionData = this.getFactionData(character);
         this.ctx.strokeStyle = isExecutingCharacter ? '#ffff00' : factionData.nameplateColor;
         this.ctx.lineWidth = isExecutingCharacter ? 3 : 2;
         this.ctx.strokeRect(nameplateX, nameplateBackgroundY, nameplateWidth, nameplateHeight);

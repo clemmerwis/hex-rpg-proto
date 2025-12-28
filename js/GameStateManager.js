@@ -101,16 +101,16 @@ export class GameStateManager {
         // Stop any current movement
         this.game.pc.isMoving = false;
         this.game.pc.movementQueue = [];
-        if (!this.game.pc.isDefeated) {
+        if (!this.game.pc.isDead) {
             this.game.pc.currentAnimation = 'idle';
         }
 
         // Build list of ALL living characters (not just enemies)
         this.combatCharacters = [];
-        if (!this.game.pc.isDefeated) {
+        if (!this.game.pc.isDead) {
             this.combatCharacters.push(this.game.pc);
         }
-        const livingNPCs = this.game.npcs.filter(npc => !npc.isDefeated);
+        const livingNPCs = this.game.npcs.filter(npc => !npc.isDead);
         this.combatCharacters.push(...livingNPCs);
 
         devLog('=== COMBAT INPUT PHASE ===');
@@ -193,7 +193,7 @@ export class GameStateManager {
         const character = this.moveQueue[this.currentMoveIndex];
 
         // Skip if character was defeated during this phase
-        if (character.isDefeated) {
+        if (character.isDead) {
             devLog(`[MOVE] Skipping ${character.name} - already defeated`);
             this.currentMoveIndex++;
             this.executeNextMove();
@@ -263,7 +263,7 @@ export class GameStateManager {
         const character = this.actionQueue[this.currentActionIndex];
 
         // Skip if character was defeated during this phase
-        if (character.isDefeated) {
+        if (character.isDead) {
             devLog(`[ATTACK] Skipping ${character.name} - already defeated`);
             this.currentActionIndex++;
             this.executeNextAttack();
@@ -280,7 +280,7 @@ export class GameStateManager {
         // Attacks hit whoever is on the hex, even allies (accidents happen)
         const targetChar = this.getCharacterAtHex(action.target.q, action.target.r);
 
-        devLog(`[ATTACK ${attackNum}/${totalAttacks}] Target at hex:`, targetChar ? `${targetChar.name} (defeated:${targetChar.isDefeated})` : 'EMPTY');
+        devLog(`[ATTACK ${attackNum}/${totalAttacks}] Target at hex:`, targetChar ? `${targetChar.name} (defeated:${targetChar.isDead})` : 'EMPTY');
 
         // Face the target hex regardless of whether target is there
         const targetPixel = this.hexGrid.hexToPixel(action.target.q, action.target.r);
@@ -301,7 +301,7 @@ export class GameStateManager {
             } else if (targetChar === character) {
                 // Can't hit yourself
                 devLog(`[ATTACK ${attackNum}/${totalAttacks}] ${character.name} swings at own hex - MISS!`);
-            } else if (targetChar.isDefeated) {
+            } else if (targetChar.isDead) {
                 // Target already dead
                 devLog(`[ATTACK ${attackNum}/${totalAttacks}] ${character.name} attacks dead body - no effect`);
             } else {
@@ -311,7 +311,7 @@ export class GameStateManager {
                 devLog(`[ATTACK ${attackNum}/${totalAttacks}] Result: hit=${result.hit}, damage=${result.damage}, defeated=${result.defenderDefeated}`);
 
                 // Hostility trigger: target becomes hostile to attacker (even on miss!)
-                if (!targetChar.isDefeated) {
+                if (!targetChar.isDead) {
                     targetChar.lastAttackedBy = character;
 
                     // Establish mutual hostility - attacking makes you enemies
@@ -340,7 +340,7 @@ export class GameStateManager {
     handleCharacterDefeat(character) {
         devLog(`[DEFEAT] ${character.name} defeated at (${character.hexQ},${character.hexR}) - body remains as obstacle`);
 
-        character.isDefeated = true;
+        character.isDead = true;
         character.currentAnimation = 'die';
 
         // Remove from combatCharacters (they don't get turns anymore)
@@ -369,7 +369,7 @@ export class GameStateManager {
         // Return all living characters to idle
         this.game.pc.currentAnimation = 'idle';
         this.game.npcs.forEach(npc => {
-            if (!npc.isDefeated) {
+            if (!npc.isDead) {
                 npc.currentAnimation = 'idle';
             }
         });
@@ -441,7 +441,7 @@ export class GameStateManager {
 
     // For UI updates
     getEnemyCount() {
-        return this.game.npcs.filter(npc => npc.faction === 'enemy').length;
+        return this.game.npcs.filter(npc => npc.faction === 'bandit').length;
     }
 
     isExecutingCharacter(character) {

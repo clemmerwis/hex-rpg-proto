@@ -20,7 +20,7 @@ export class AISystem {
      * @param {Array} allCharacters - All living characters in combat
      */
     getAIAction(character, allCharacters) {
-        const livingChars = allCharacters.filter(c => !c.isDefeated && c !== character);
+        const livingChars = allCharacters.filter(c => !c.isDead && c !== character);
 
         // Get enemies shared across faction
         const enemies = this.getEffectiveEnemies(character, allCharacters);
@@ -73,7 +73,7 @@ export class AISystem {
      * Get all enemies for this character (shared across faction)
      */
     getEffectiveEnemies(character, allCharacters) {
-        const livingChars = allCharacters.filter(c => !c.isDefeated && c !== character);
+        const livingChars = allCharacters.filter(c => !c.isDead && c !== character);
 
         // Collect enemies from all same-faction characters
         const allEnemies = new Set();
@@ -131,7 +131,7 @@ export class AISystem {
         const neighbors = this.hexGrid.getNeighbors({ q: character.hexQ, r: character.hexR });
         for (const hex of neighbors) {
             const occupant = this.getCharacterAtHex(hex.q, hex.r);
-            if (occupant && enemies.includes(occupant) && !occupant.isDefeated) {
+            if (occupant && enemies.includes(occupant) && !occupant.isDead) {
                 return occupant;
             }
         }
@@ -146,7 +146,7 @@ export class AISystem {
         let minDist = Infinity;
 
         for (const enemy of enemies) {
-            if (enemy.isDefeated) continue;  // Skip defeated enemies
+            if (enemy.isDead) continue;  // Skip defeated enemies
 
             const dist = this.hexGrid.hexDistance(
                 { q: character.hexQ, r: character.hexR },

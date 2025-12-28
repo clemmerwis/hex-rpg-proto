@@ -43,23 +43,23 @@ export const ANIMATION_CONFIGS = {
 
 // Faction configurations
 export const FACTIONS = {
-  player: {
-    name: "Player",
+  pc: {
+    name: "PC",
     tintColor: "#4CAF50",
     nameplateColor: "#00ff00",
   },
-  enemy: {
-    name: "Enemy",
-    tintColor: "#F44336",
-    nameplateColor: "#ff4444",
+  pc_ally: {
+    name: "Companion",
+    tintColor: "#4169E1",
+    nameplateColor: "#6495ED",
   },
-  ally: {
-    name: "Ally",
-    tintColor: "#2196F3",
-    nameplateColor: "#4488ff",
+  bandit: {
+    name: "Bandit",
+    tintColor: "#B22222",
+    nameplateColor: "#cc3333",
   },
-  neutral: {
-    name: "Neutral",
+  guard: {
+    name: "Guard",
     tintColor: "#FF9800",
     nameplateColor: "#ffaa44",
   },

@@ -47,11 +47,11 @@ export class Game {
                 name: 'Hero',
                 health: 85,
                 maxHealth: 100,
-                faction: 'player',
+                faction: 'pc',
                 attack_rating: 15,
                 defense_rating: 8,
                 speed: 12,
-                isDefeated: false,
+                isDead: false,
                 movementQueue: [],
                 isMoving: false,
                 moveSpeed: 300,
@@ -76,11 +76,11 @@ export class Game {
                     name: 'Companion',
                     health: 70,
                     maxHealth: 90,
-                    faction: 'ally',
+                    faction: 'pc',
                     attack_rating: 14,
                     defense_rating: 6,
                     speed: 11,
-                    isDefeated: false,
+                    isDead: false,
                     movementQueue: [],
                     isMoving: false,
                     moveSpeed: 300,
@@ -103,11 +103,11 @@ export class Game {
                     name: 'Guard',
                     health: 60,
                     maxHealth: 80,
-                    faction: 'neutral',
+                    faction: 'guard',
                     attack_rating: 13,
                     defense_rating: 7,
                     speed: 10,
-                    isDefeated: false,
+                    isDead: false,
                     movementQueue: [],
                     isMoving: false,
                     moveSpeed: 300,
@@ -130,11 +130,11 @@ export class Game {
                     name: 'Guard',
                     health: 65,
                     maxHealth: 80,
-                    faction: 'neutral',
+                    faction: 'guard',
                     attack_rating: 13,
                     defense_rating: 7,
                     speed: 10,
-                    isDefeated: false,
+                    isDead: false,
                     movementQueue: [],
                     isMoving: false,
                     moveSpeed: 300,
@@ -157,11 +157,11 @@ export class Game {
                     name: 'Bandit',
                     health: 45,
                     maxHealth: 60,
-                    faction: 'enemy',
+                    faction: 'bandit',
                     attack_rating: 12,
                     defense_rating: 5,
                     speed: 8,
-                    isDefeated: false,
+                    isDead: false,
                     movementQueue: [],
                     isMoving: false,
                     moveSpeed: 300,
@@ -184,11 +184,11 @@ export class Game {
                     name: 'Bandit',
                     health: 50,
                     maxHealth: 60,
-                    faction: 'enemy',
+                    faction: 'bandit',
                     attack_rating: 11,
                     defense_rating: 6,
                     speed: 9,
-                    isDefeated: false,
+                    isDead: false,
                     movementQueue: [],
                     isMoving: false,
                     moveSpeed: 300,
@@ -331,6 +331,7 @@ export class Game {
             animationConfig: ANIMATION_CONFIGS,
             inputHandler: this.inputHandler,
             areaManager: this.areaManager,
+            pathfinding: this.pathfinding,
         });
 
         // InputHandler dependencies and callbacks
@@ -452,16 +453,13 @@ export class Game {
         });
 
         // Set up initial hostilities
-        const bandits = this.state.npcs.filter(n => n.faction === 'enemy');
-        const allies = this.state.npcs.filter(n => n.faction === 'ally');
-        const guards = this.state.npcs.filter(n => n.faction === 'neutral');
+        const bandits = this.state.npcs.filter(n => n.faction === 'bandit');
+        const pcFaction = [this.state.pc, ...this.state.npcs.filter(n => n.faction === 'pc')];
+        const guards = this.state.npcs.filter(n => n.faction === 'guard');
 
         bandits.forEach(bandit => {
-            // Bandits <-> PC (bidirectional)
-            makeEnemies(bandit, this.state.pc);
-
-            // Bandits <-> Allies (bidirectional)
-            allies.forEach(ally => makeEnemies(bandit, ally));
+            // Bandits <-> PC faction (bidirectional)
+            pcFaction.forEach(char => makeEnemies(bandit, char));
 
             // Bandits -> Guards (one-way, guards don't auto-aggro)
             guards.forEach(guard => bandit.enemies.add(guard));
@@ -553,7 +551,7 @@ export class Game {
             elements.activeCharacter.textContent = this.gameStateManager.characterActions.has(this.state.pc)
                 ? 'Action Chosen' : 'Choose Action';
 
-            const enemyCount = this.state.npcs.filter(npc => npc.faction === 'enemy' && !npc.isDefeated).length;
+            const enemyCount = this.state.npcs.filter(npc => npc.faction === 'bandit' && !npc.isDead).length;
             elements.enemyCount.textContent = enemyCount;
 
         } else if (currentState === GAME_STATES.COMBAT_EXECUTION) {
@@ -589,7 +587,7 @@ export class Game {
                 elements.activeCharacter.textContent = 'Preparing...';
             }
 
-            const enemyCount = this.state.npcs.filter(npc => npc.faction === 'enemy' && !npc.isDefeated).length;
+            const enemyCount = this.state.npcs.filter(npc => npc.faction === 'bandit' && !npc.isDead).length;
             elements.enemyCount.textContent = enemyCount;
 
         } else {
