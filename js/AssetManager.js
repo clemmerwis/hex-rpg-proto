@@ -25,9 +25,9 @@ export class AssetManager {
         this.loadingState.assetsLoaded = 0;
         this.loadingState.totalAssets = 1; // Start with background
 
-        // Count total assets (8 directions × 6 animations)
+        // Get animations from config
         const directions = ['dir1', 'dir2', 'dir3', 'dir4', 'dir5', 'dir6', 'dir7', 'dir8'];
-        const animations = ['Idle', 'Walk', 'Run', 'Attack', 'Jump', 'Die'];
+        const animations = Object.keys(ANIMATION_CONFIGS);
         this.loadingState.totalAssets += directions.length * animations.length;
 
         // Load background
@@ -80,23 +80,27 @@ export class AssetManager {
     async loadSprite(direction, animation) {
         return new Promise((resolve) => {
             const sprite = new Image();
+            const animKey = animation.toLowerCase();
+            const folder = ANIMATION_CONFIGS[animKey]?.folder ?? 'KnightBasic';
+            // Capitalize first letter for folder/file naming
+            const animName = animation.charAt(0).toUpperCase() + animation.slice(1).toLowerCase();
 
             sprite.onload = () => {
-                this.assets.baseKnightSprites[direction][animation.toLowerCase()] = sprite;
+                this.assets.baseKnightSprites[direction][animKey] = sprite;
                 this.incrementProgress();
                 resolve();
             };
 
             sprite.onerror = () => {
-                this.assets.baseKnightSprites[direction][animation.toLowerCase()] = null;
+                this.assets.baseKnightSprites[direction][animKey] = null;
                 this.incrementProgress();
                 if (this.onError) {
-                    this.onError(`Failed to load Knight_${animation}_${direction}.png`);
+                    this.onError(`Failed to load Knight_${animName}_${direction}.png`);
                 }
                 resolve();
             };
 
-            sprite.src = `sprites/KnightBasic/${animation}/Knight_${animation}_${direction}.png`;
+            sprite.src = `sprites/${folder}/${animName}/Knight_${animName}_${direction}.png`;
         });
     }
 

@@ -29,6 +29,11 @@ export class CombatSystem {
         if (defeated) {
             console.log(`${defender.name} has been defeated!`);
             defender.currentAnimation = 'die';
+            defender.animationFrame = 0;
+        } else {
+            // Play impact animation when hit but not defeated
+            defender.currentAnimation = 'impact';
+            defender.animationFrame = 0;
         }
 
         return { hit: true, damage: damage, defenderDefeated: defeated };

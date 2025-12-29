@@ -31,14 +31,17 @@ export const GAME_CONSTANTS = {
   SPRITE_FRAME_SIZE: 256,
 };
 
-// Animation configurations (optional 'speed' overrides ANIMATION_SPEED)
+// Animation configurations
+// - 'speed' overrides ANIMATION_SPEED (optional)
+// - 'folder' specifies sprite folder (defaults to 'KnightBasic')
 export const ANIMATION_CONFIGS = {
   idle: { cols: 5, rows: 4, frameCount: 17, speed: 120 },
   walk: { cols: 4, rows: 3, frameCount: 11 },
   run: { cols: 3, rows: 3, frameCount: 8 },
   jump: { cols: 4, rows: 3, frameCount: 11 },
-  attack: { cols: 4, rows: 4, frameCount: 15 },
+  attack: { cols: 4, rows: 4, frameCount: 15, oneShot: true },
   die: { cols: 6, rows: 5, frameCount: 27, speed: 60 },
+  impact: { cols: 3, rows: 3, frameCount: 9, folder: "KnightAdvCombat", oneShot: true },
 };
 
 // Faction configurations

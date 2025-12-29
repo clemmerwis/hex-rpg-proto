@@ -171,7 +171,15 @@ export class MovementSystem {
         if (character.animationTimer >= frameSpeed) {
             character.animationTimer = 0;
             const frameCount = animConfig ? animConfig.frameCount : 6;
-            character.animationFrame = (character.animationFrame + 1) % frameCount;
+            const nextFrame = character.animationFrame + 1;
+
+            // Handle oneShot animations - return to idle after last frame
+            if (animConfig?.oneShot && nextFrame >= frameCount) {
+                character.currentAnimation = 'idle';
+                character.animationFrame = 0;
+            } else {
+                character.animationFrame = nextFrame % frameCount;
+            }
         }
     }
 
