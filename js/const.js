@@ -42,6 +42,7 @@ export const ANIMATION_CONFIGS = {
   attack: { cols: 4, rows: 4, frameCount: 15, oneShot: true },
   die: { cols: 6, rows: 5, frameCount: 27, speed: 60 },
   impact: { cols: 3, rows: 3, frameCount: 9, folder: "KnightAdvCombat", oneShot: true },
+  idle2: { cols: 5, rows: 5, frameCount: 25, folder: "KnightExMovement", oneShot: true, speed: 142 },
 };
 
 // Faction configurations

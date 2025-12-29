@@ -1,4 +1,3 @@
-import { GAME_STATES } from './GameStateManager.js';
 import { GAME_CONSTANTS } from './const.js';
 
 
@@ -177,8 +176,28 @@ export class MovementSystem {
             if (animConfig?.oneShot && nextFrame >= frameCount) {
                 character.currentAnimation = 'idle';
                 character.animationFrame = 0;
+            } else if (nextFrame >= frameCount) {
+                // Animation loop completed
+                character.animationFrame = 0;
+
+                // Combat idle variation: occasionally play idle2
+                if (character.currentAnimation === 'idle' && this.gameStateManager.isInCombat()) {
+                    // Lazy init idle loop tracking
+                    if (character.idleLoopCount === undefined) {
+                        character.idleLoopCount = 0;
+                        character.idleLoopThreshold = Math.floor(Math.random() * 5) + 4;
+                    }
+
+                    character.idleLoopCount++;
+                    if (character.idleLoopCount >= character.idleLoopThreshold) {
+                        character.currentAnimation = 'idle2';
+                        character.animationFrame = 0;
+                        character.idleLoopCount = 0;
+                        character.idleLoopThreshold = Math.floor(Math.random() * 5) + 4;
+                    }
+                }
             } else {
-                character.animationFrame = nextFrame % frameCount;
+                character.animationFrame = nextFrame;
             }
         }
     }

@@ -379,6 +379,11 @@ export class GameStateManager {
         return this.currentState === GAME_STATES.EXPLORATION;
     }
 
+    isInCombat() {
+        return this.currentState === GAME_STATES.COMBAT_INPUT ||
+               this.currentState === GAME_STATES.COMBAT_EXECUTION;
+    }
+
     toggleCombat() {
         if (this.currentState === GAME_STATES.EXPLORATION) {
             this.setState(GAME_STATES.COMBAT_INPUT);
