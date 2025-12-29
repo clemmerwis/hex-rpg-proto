@@ -173,9 +173,10 @@ export class Renderer {
         this.ctx.lineWidth = 1;
         this.ctx.stroke();
 
-        // Draw dark overlay for blocked hexes (only when hovering blocked terrain)
+        // Draw dark overlay for blocked hexes (only during combat when hovering blocked terrain)
         const isBlocked = this.pathfinding?.blockedHexes?.has(`${q},${r}`);
-        if (isBlocked) {
+        const inCombat = this.gameStateManager?.currentState !== GAME_STATES.EXPLORATION;
+        if (isBlocked && inCombat) {
             const hoveredHex = this.inputHandler?.hoveredHex;
             if (hoveredHex) {
                 const hoveredKey = `${hoveredHex.q},${hoveredHex.r}`;
