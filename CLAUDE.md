@@ -26,6 +26,7 @@ The application runs in an nginx container serving static files. No build step r
 - Check browser console for runtime errors and debug logs
 
 ## Architecture Overview
+Note! Tab size 4 for most files (especially js files)
 
 ### Module System
 The codebase uses ES6 modules with dependency injection pattern. All modules are in `js/` directory:

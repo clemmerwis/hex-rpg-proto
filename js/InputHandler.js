@@ -152,6 +152,12 @@ export class InputHandler {
     handleKeyDown(e) {
         this.keys[e.key] = true;
 
+        // Prevent Tab from switching focus (used for show all nameplates)
+        if (e.key === 'Tab') {
+            e.preventDefault();
+            return;
+        }
+
         // Handle Shift+Space for combat toggle
         if (e.key === ' ' && e.shiftKey) {
             e.preventDefault();
@@ -334,6 +340,10 @@ export class InputHandler {
         console.log(`Total: ${hexes.length} hexes`);
 
         return hexes;
+    }
+
+    isShowAllNameplates() {
+        return this.keys['Tab'] === true;
     }
 
     cleanup() {

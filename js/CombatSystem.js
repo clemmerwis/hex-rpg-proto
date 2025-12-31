@@ -1,7 +1,8 @@
 export class CombatSystem {
-    constructor(hexGrid, getCharacterAtHex) {
+    constructor(hexGrid, getCharacterAtHex, gameStateManager) {
         this.hexGrid = hexGrid;
         this.getCharacterAtHex = getCharacterAtHex;
+        this.gameStateManager = gameStateManager;
     }
 
     /**
@@ -24,6 +25,9 @@ export class CombatSystem {
         defender.health = Math.max(0, defender.health);
 
         const defeated = defender.health <= 0;
+
+        // Mark defender as recently hit for health bar display
+        this.gameStateManager.markCharacterHit(defender);
 
         console.log(`${attacker.name} hits ${defender.name} for ${damage} damage!`);
         if (defeated) {

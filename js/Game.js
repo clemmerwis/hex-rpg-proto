@@ -51,7 +51,7 @@ export class Game {
                 attack_rating: 15,
                 defense_rating: 8,
                 speed: 12,
-                isDead: false,
+                isDefeated: false,
                 movementQueue: [],
                 isMoving: false,
                 moveSpeed: 300,
@@ -80,7 +80,7 @@ export class Game {
                     attack_rating: 14,
                     defense_rating: 6,
                     speed: 11,
-                    isDead: false,
+                    isDefeated: false,
                     movementQueue: [],
                     isMoving: false,
                     moveSpeed: 300,
@@ -107,7 +107,7 @@ export class Game {
                     attack_rating: 13,
                     defense_rating: 7,
                     speed: 10,
-                    isDead: false,
+                    isDefeated: false,
                     movementQueue: [],
                     isMoving: false,
                     moveSpeed: 300,
@@ -134,7 +134,7 @@ export class Game {
                     attack_rating: 13,
                     defense_rating: 7,
                     speed: 10,
-                    isDead: false,
+                    isDefeated: false,
                     movementQueue: [],
                     isMoving: false,
                     moveSpeed: 300,
@@ -161,7 +161,7 @@ export class Game {
                     attack_rating: 12,
                     defense_rating: 5,
                     speed: 8,
-                    isDead: false,
+                    isDefeated: false,
                     movementQueue: [],
                     isMoving: false,
                     moveSpeed: 300,
@@ -188,7 +188,7 @@ export class Game {
                     attack_rating: 11,
                     defense_rating: 6,
                     speed: 9,
-                    isDead: false,
+                    isDefeated: false,
                     movementQueue: [],
                     isMoving: false,
                     moveSpeed: 300,
@@ -283,7 +283,8 @@ export class Game {
         // Initialize CombatSystem
         this.combatSystem = new CombatSystem(
             this.hexGrid,
-            this.getCharacterAtHex.bind(this)
+            this.getCharacterAtHex.bind(this),
+            null // Will be set after GameStateManager is created
         );
 
         // Now create GameStateManager with MovementSystem and CombatSystem
@@ -296,8 +297,9 @@ export class Game {
             this.pathfinding
         );
 
-        // Set the gameStateManager reference in MovementSystem (circular dependency)
+        // Set the gameStateManager reference in dependent systems (circular dependency)
         this.movementSystem.gameStateManager = this.gameStateManager;
+        this.combatSystem.gameStateManager = this.gameStateManager;
 
         this.renderer = new Renderer(this.canvas, this.ctx, {
             viewportWidth: this.config.viewport.width,
@@ -551,7 +553,7 @@ export class Game {
             elements.activeCharacter.textContent = this.gameStateManager.characterActions.has(this.state.pc)
                 ? 'Action Chosen' : 'Choose Action';
 
-            const enemyCount = this.state.npcs.filter(npc => npc.faction === 'bandit' && !npc.isDead).length;
+            const enemyCount = this.state.npcs.filter(npc => npc.faction === 'bandit' && !npc.isDefeated).length;
             elements.enemyCount.textContent = enemyCount;
 
         } else if (currentState === GAME_STATES.COMBAT_EXECUTION) {
@@ -587,7 +589,7 @@ export class Game {
                 elements.activeCharacter.textContent = 'Preparing...';
             }
 
-            const enemyCount = this.state.npcs.filter(npc => npc.faction === 'bandit' && !npc.isDead).length;
+            const enemyCount = this.state.npcs.filter(npc => npc.faction === 'bandit' && !npc.isDefeated).length;
             elements.enemyCount.textContent = enemyCount;
 
         } else {

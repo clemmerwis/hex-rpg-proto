@@ -154,7 +154,7 @@ export class MovementSystem {
     // Update animation for a specific character
     updateCharacterAnimation(character, deltaTime) {
         // Hold death animation on final frame
-        if (character.isDead && character.currentAnimation === 'die') {
+        if (character.isDefeated && character.currentAnimation === 'die') {
             const dieConfig = this.animationConfig['die'];
             if (dieConfig) {
                 character.animationFrame = dieConfig.frameCount - 1; // Hold on last frame

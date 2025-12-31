@@ -54,6 +54,9 @@ export class GameStateManager {
         // Input phase data
         this.playerSelectedHex = null;
 
+        // Track characters that were just hit (show their health bar temporarily)
+        this.recentlyHitCharacters = new Set();
+
         // UI update callback
         this.onStateChange = null;
     }
@@ -98,19 +101,22 @@ export class GameStateManager {
     }
 
     enterCombatInput() {
+        // Clear recently hit characters from previous turn
+        this.clearRecentlyHitCharacters();
+
         // Stop any current movement
         this.game.pc.isMoving = false;
         this.game.pc.movementQueue = [];
-        if (!this.game.pc.isDead) {
+        if (!this.game.pc.isDefeated) {
             this.game.pc.currentAnimation = 'idle';
         }
 
         // Build list of ALL living characters (not just enemies)
         this.combatCharacters = [];
-        if (!this.game.pc.isDead) {
+        if (!this.game.pc.isDefeated) {
             this.combatCharacters.push(this.game.pc);
         }
-        const livingNPCs = this.game.npcs.filter(npc => !npc.isDead);
+        const livingNPCs = this.game.npcs.filter(npc => !npc.isDefeated);
         this.combatCharacters.push(...livingNPCs);
 
         devLog('=== COMBAT INPUT PHASE ===');
@@ -193,12 +199,15 @@ export class GameStateManager {
         const character = this.moveQueue[this.currentMoveIndex];
 
         // Skip if character was defeated during this phase
-        if (character.isDead) {
+        if (character.isDefeated) {
             devLog(`[MOVE] Skipping ${character.name} - already defeated`);
             this.currentMoveIndex++;
             this.executeNextMove();
             return;
         }
+
+        // Clear recently hit - new character is starting their turn
+        this.clearRecentlyHitCharacters();
 
         const action = this.characterActions.get(character);
         const moveNum = this.currentMoveIndex + 1;
@@ -263,12 +272,15 @@ export class GameStateManager {
         const character = this.actionQueue[this.currentActionIndex];
 
         // Skip if character was defeated during this phase
-        if (character.isDead) {
+        if (character.isDefeated) {
             devLog(`[ATTACK] Skipping ${character.name} - already defeated`);
             this.currentActionIndex++;
             this.executeNextAttack();
             return;
         }
+
+        // Clear recently hit - new character is starting their turn
+        this.clearRecentlyHitCharacters();
 
         const action = this.characterActions.get(character);
         const attackNum = this.currentActionIndex + 1;
@@ -280,7 +292,7 @@ export class GameStateManager {
         // Attacks hit whoever is on the hex, even allies (accidents happen)
         const targetChar = this.getCharacterAtHex(action.target.q, action.target.r);
 
-        devLog(`[ATTACK ${attackNum}/${totalAttacks}] Target at hex:`, targetChar ? `${targetChar.name} (defeated:${targetChar.isDead})` : 'EMPTY');
+        devLog(`[ATTACK ${attackNum}/${totalAttacks}] Target at hex:`, targetChar ? `${targetChar.name} (defeated:${targetChar.isDefeated})` : 'EMPTY');
 
         // Face the target hex regardless of whether target is there
         const targetPixel = this.hexGrid.hexToPixel(action.target.q, action.target.r);
@@ -301,7 +313,7 @@ export class GameStateManager {
             } else if (targetChar === character) {
                 // Can't hit yourself
                 devLog(`[ATTACK ${attackNum}/${totalAttacks}] ${character.name} swings at own hex - MISS!`);
-            } else if (targetChar.isDead) {
+            } else if (targetChar.isDefeated) {
                 // Target already dead
                 devLog(`[ATTACK ${attackNum}/${totalAttacks}] ${character.name} attacks dead body - no effect`);
             } else {
@@ -311,7 +323,7 @@ export class GameStateManager {
                 devLog(`[ATTACK ${attackNum}/${totalAttacks}] Result: hit=${result.hit}, damage=${result.damage}, defeated=${result.defenderDefeated}`);
 
                 // Hostility trigger: target becomes hostile to attacker (even on miss!)
-                if (!targetChar.isDead) {
+                if (!targetChar.isDefeated) {
                     targetChar.lastAttackedBy = character;
 
                     // Establish mutual hostility - attacking makes you enemies
@@ -340,7 +352,7 @@ export class GameStateManager {
     handleCharacterDefeat(character) {
         devLog(`[DEFEAT] ${character.name} defeated at (${character.hexQ},${character.hexR}) - body remains as obstacle`);
 
-        character.isDead = true;
+        character.isDefeated = true;
         character.currentAnimation = 'die';
 
         // Remove from combatCharacters (they don't get turns anymore)
@@ -369,7 +381,7 @@ export class GameStateManager {
         // Return all living characters to idle
         this.game.pc.currentAnimation = 'idle';
         this.game.npcs.forEach(npc => {
-            if (!npc.isDead) {
+            if (!npc.isDefeated) {
                 npc.currentAnimation = 'idle';
             }
         });
@@ -382,6 +394,14 @@ export class GameStateManager {
     isInCombat() {
         return this.currentState === GAME_STATES.COMBAT_INPUT ||
                this.currentState === GAME_STATES.COMBAT_EXECUTION;
+    }
+
+    isInCombatInput() {
+        return this.currentState === GAME_STATES.COMBAT_INPUT;
+    }
+
+    isInCombatExecution() {
+        return this.currentState === GAME_STATES.COMBAT_EXECUTION;
     }
 
     toggleCombat() {
@@ -450,9 +470,36 @@ export class GameStateManager {
     }
 
     isExecutingCharacter(character) {
-        return this.currentState === GAME_STATES.COMBAT_EXECUTION &&
-            this.executionQueue.length > 0 &&
-            this.currentExecutionIndex < this.executionQueue.length &&
-            this.executionQueue[this.currentExecutionIndex] === character;
+        if (this.currentState !== GAME_STATES.COMBAT_EXECUTION) return false;
+
+        // Check move phase
+        if (this.currentPhase === 'move' &&
+            this.moveQueue?.length > 0 &&
+            this.currentMoveIndex < this.moveQueue.length &&
+            this.moveQueue[this.currentMoveIndex] === character) {
+            return true;
+        }
+
+        // Check action (attack) phase
+        if (this.currentPhase === 'action' &&
+            this.actionQueue?.length > 0 &&
+            this.currentActionIndex < this.actionQueue.length &&
+            this.actionQueue[this.currentActionIndex] === character) {
+            return true;
+        }
+
+        return false;
+    }
+
+    markCharacterHit(character) {
+        this.recentlyHitCharacters.add(character);
+    }
+
+    clearRecentlyHitCharacters() {
+        this.recentlyHitCharacters.clear();
+    }
+
+    wasRecentlyHit(character) {
+        return this.recentlyHitCharacters.has(character);
     }
 }
