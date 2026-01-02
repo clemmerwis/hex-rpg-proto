@@ -7,7 +7,7 @@ import { AreaManager } from './AreaManager.js';
 import { Pathfinding } from './Pathfinding.js';
 import { MovementSystem } from './MovementSystem.js';
 import { CombatSystem } from './CombatSystem.js';
-import { GAME_CONSTANTS, ANIMATION_CONFIGS, FACTIONS } from './const.js';
+import { GAME_CONSTANTS, FACTIONS, calculateMaxHP, calculateHPBuffer } from './const.js';
 import { makeEnemies } from './utils.js';
 
 export class Game {
@@ -33,7 +33,7 @@ export class Game {
         this.state = {
             assets: {
                 background: null,
-                baseKnightSprites: {}
+                sprites: {}
             },
             pc: {
                 hexQ: 5,
@@ -45,9 +45,23 @@ export class Game {
                 animationTimer: 0,
                 currentAnimation: 'idle',
                 name: 'Hero',
-                health: 85,
-                maxHealth: 100,
+                stats: {
+                    str: 7, int: 5,
+                    dex: 6, per: 6,
+                    con: 8, will: 5,
+                    beauty: 5, cha: 6,
+                    instinct: 6, wis: 6
+                }, // Total: 60
+                health: null,    // Set after definition
+                maxHealth: null,
+                hpBufferMax: null,        // Temp HP per attacker
+                hpBufferByAttacker: null, // Map<attacker, remaining buffer>
+                equipment: {
+                    mainHand: 'unarmed',
+                    offHand: null,
+                },
                 faction: 'pc',
+                spriteSet: 'baseKnight',
                 attack_rating: 15,
                 defense_rating: 8,
                 speed: 12,
@@ -74,9 +88,23 @@ export class Game {
                     animationTimer: 0,
                     currentAnimation: 'idle',
                     name: 'Companion',
-                    health: 70,
-                    maxHealth: 90,
+                    stats: {
+                        str: 5, int: 6,
+                        dex: 7, per: 7,
+                        con: 4, will: 6,
+                        beauty: 6, cha: 6,
+                        instinct: 7, wis: 6
+                    }, // Total: 60
+                    health: null,
+                    maxHealth: null,
+                    hpBufferMax: null,
+                    hpBufferByAttacker: null,
+                    equipment: {
+                        mainHand: 'shortSword',
+                        offHand: 'basicShield',
+                    },
                     faction: 'pc',
+                    spriteSet: 'swordShieldKnight',
                     attack_rating: 14,
                     defense_rating: 6,
                     speed: 11,
@@ -101,9 +129,23 @@ export class Game {
                     animationTimer: 75,
                     currentAnimation: 'idle',
                     name: 'Guard',
-                    health: 60,
-                    maxHealth: 80,
+                    stats: {
+                        str: 7, int: 5,
+                        dex: 6, per: 7,
+                        con: 7, will: 6,
+                        beauty: 5, cha: 5,
+                        instinct: 6, wis: 6
+                    }, // Total: 60
+                    health: null,
+                    maxHealth: null,
+                    hpBufferMax: null,
+                    hpBufferByAttacker: null,
+                    equipment: {
+                        mainHand: 'unarmed',
+                        offHand: null,
+                    },
                     faction: 'guard',
+                    spriteSet: 'baseKnight',
                     attack_rating: 13,
                     defense_rating: 7,
                     speed: 10,
@@ -128,9 +170,23 @@ export class Game {
                     animationTimer: 50,
                     currentAnimation: 'idle',
                     name: 'Guard',
-                    health: 65,
-                    maxHealth: 80,
+                    stats: {
+                        str: 7, int: 5,
+                        dex: 6, per: 7,
+                        con: 7, will: 6,
+                        beauty: 5, cha: 5,
+                        instinct: 6, wis: 6
+                    }, // Total: 60
+                    health: null,
+                    maxHealth: null,
+                    hpBufferMax: null,
+                    hpBufferByAttacker: null,
+                    equipment: {
+                        mainHand: 'unarmed',
+                        offHand: null,
+                    },
                     faction: 'guard',
+                    spriteSet: 'baseKnight',
                     attack_rating: 13,
                     defense_rating: 7,
                     speed: 10,
@@ -155,9 +211,23 @@ export class Game {
                     animationTimer: 25,
                     currentAnimation: 'idle',
                     name: 'Bandit',
-                    health: 45,
-                    maxHealth: 60,
+                    stats: {
+                        str: 6, int: 5,
+                        dex: 8, per: 6,
+                        con: 5, will: 5,
+                        beauty: 4, cha: 6,
+                        instinct: 8, wis: 7
+                    }, // Total: 60
+                    health: null,
+                    maxHealth: null,
+                    hpBufferMax: null,
+                    hpBufferByAttacker: null,
+                    equipment: {
+                        mainHand: 'unarmed',
+                        offHand: null,
+                    },
                     faction: 'bandit',
+                    spriteSet: 'baseKnight',
                     attack_rating: 12,
                     defense_rating: 5,
                     speed: 8,
@@ -182,9 +252,23 @@ export class Game {
                     animationTimer: 100,
                     currentAnimation: 'idle',
                     name: 'Bandit',
-                    health: 50,
-                    maxHealth: 60,
+                    stats: {
+                        str: 5, int: 5,
+                        dex: 7, per: 7,
+                        con: 6, will: 5,
+                        beauty: 4, cha: 6,
+                        instinct: 8, wis: 7
+                    }, // Total: 60
+                    health: null,
+                    maxHealth: null,
+                    hpBufferMax: null,
+                    hpBufferByAttacker: null,
+                    equipment: {
+                        mainHand: 'unarmed',
+                        offHand: null,
+                    },
                     faction: 'bandit',
+                    spriteSet: 'baseKnight',
                     attack_rating: 11,
                     defense_rating: 6,
                     speed: 9,
@@ -276,8 +360,7 @@ export class Game {
         this.movementSystem = new MovementSystem({
             hexGrid: this.hexGrid,
             game: this.state,
-            gameStateManager: null, // Will be set after GameStateManager is created
-            animationConfig: ANIMATION_CONFIGS
+            gameStateManager: null // Will be set after GameStateManager is created
         });
 
         // Initialize CombatSystem
@@ -330,7 +413,6 @@ export class Game {
             hexGrid: this.hexGrid,
             gameStateManager: this.gameStateManager,
             getCharacterAtHex: this.getCharacterAtHex.bind(this),
-            animationConfig: ANIMATION_CONFIGS,
             inputHandler: this.inputHandler,
             areaManager: this.areaManager,
             pathfinding: this.pathfinding,
@@ -446,6 +528,18 @@ export class Game {
             const npcStartPos = this.hexGrid.hexToPixel(npc.hexQ, npc.hexR);
             npc.pixelX = npcStartPos.x;
             npc.pixelY = npcStartPos.y;
+        });
+
+        // Initialize HP and buffer from stats
+        this.state.pc.maxHealth = calculateMaxHP(this.state.pc.stats);
+        this.state.pc.health = this.state.pc.maxHealth;
+        this.state.pc.hpBufferMax = calculateHPBuffer(this.state.pc.stats);
+        this.state.pc.hpBufferByAttacker = new Map();
+        this.state.npcs.forEach(npc => {
+            npc.maxHealth = calculateMaxHP(npc.stats);
+            npc.health = npc.maxHealth;
+            npc.hpBufferMax = calculateHPBuffer(npc.stats);
+            npc.hpBufferByAttacker = new Map();
         });
 
         // Initialize enemy Sets (can't reference objects in object literals)

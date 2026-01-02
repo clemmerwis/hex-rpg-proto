@@ -181,47 +181,48 @@ export class AISystem {
     }
 
     getMoveTowardAction(character, target, allCharacters) {
-        // Get all adjacent hexes
-        const neighbors = this.hexGrid.getNeighbors({
-            q: character.hexQ,
-            r: character.hexR
-        });
+        const currentHex = { q: character.hexQ, r: character.hexR };
+        const targetHex = { q: target.hexQ, r: target.hexR };
 
-        // Find the neighbor that gets us closest to target
-        let bestMove = null;
-        let bestDistance = Infinity;
+        // Already adjacent to target? No need to move
+        const distToTarget = this.hexGrid.hexDistance(currentHex, targetHex);
+        if (distToTarget <= 1) {
+            return { action: 'wait', target: null };
+        }
 
-        for (const neighbor of neighbors) {
-            // Check if hex is occupied
-            const occupied = this.getCharacterAtHex(neighbor.q, neighbor.r);
-            if (occupied) continue;
+        // Build obstacles: living characters except self and target
+        const obstacles = allCharacters
+            .filter(c => c !== character && c !== target && !c.isDefeated)
+            .map(c => ({ q: c.hexQ, r: c.hexR }));
 
-            // Check if hex is blocked terrain
-            if (this.pathfinding?.blockedHexes?.has(`${neighbor.q},${neighbor.r}`)) continue;
+        // Find shortest path to any valid hex adjacent to target
+        const targetNeighbors = this.hexGrid.getNeighbors(targetHex);
 
-            // Calculate distance from this neighbor to target
-            const distance = this.hexGrid.hexDistance(neighbor, {
-                q: target.hexQ,
-                r: target.hexR
-            });
+        let bestPath = null;
+        let bestPathLength = Infinity;
 
-            if (distance < bestDistance) {
-                bestDistance = distance;
-                bestMove = neighbor;
+        for (const goalHex of targetNeighbors) {
+            const goalKey = `${goalHex.q},${goalHex.r}`;
+
+            // Skip blocked terrain
+            if (this.pathfinding?.blockedHexes?.has(goalKey)) continue;
+
+            // Skip if occupied by someone other than self
+            const occupant = this.getCharacterAtHex(goalHex.q, goalHex.r);
+            if (occupant && occupant !== character) continue;
+
+            // Find path to this adjacent hex
+            const path = this.pathfinding.findPath(currentHex, goalHex, obstacles);
+            if (path && path.length > 0 && path.length < bestPathLength) {
+                bestPath = path;
+                bestPathLength = path.length;
             }
         }
 
-        // Return move action or wait if no valid moves
-        if (bestMove) {
-            return {
-                action: 'move',
-                target: bestMove
-            };
-        } else {
-            return {
-                action: 'wait',
-                target: null
-            };
+        if (bestPath) {
+            return { action: 'move', target: bestPath[0] };
         }
+
+        return { action: 'wait', target: null };
     }
 }

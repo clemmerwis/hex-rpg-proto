@@ -1,4 +1,4 @@
-import { GAME_CONSTANTS, FACTIONS } from "./const.js";
+import { GAME_CONSTANTS, FACTIONS, SPRITE_SETS } from "./const.js";
 import { GAME_STATES, COMBAT_ACTIONS } from "./GameStateManager.js";
 
 export class Renderer {
@@ -19,7 +19,6 @@ export class Renderer {
         this.hexGrid = null;
         this.gameStateManager = null;
         this.getCharacterAtHex = null;
-        this.animationConfig = null;
         this.inputHandler = null;
         this.areaManager = null;
         this.pathfinding = null;
@@ -34,7 +33,6 @@ export class Renderer {
         this.hexGrid = deps.hexGrid;
         this.gameStateManager = deps.gameStateManager;
         this.getCharacterAtHex = deps.getCharacterAtHex;
-        this.animationConfig = deps.animationConfig;
         this.inputHandler = deps.inputHandler;
         this.areaManager = deps.areaManager;
         this.pathfinding = deps.pathfinding;
@@ -501,15 +499,14 @@ export class Renderer {
     }
 
     drawCharacter(character) {
-        const sprite =
-            this.game.assets.baseKnightSprites[character.facing] &&
-            this.game.assets.baseKnightSprites[character.facing][
-                character.currentAnimation
-            ];
+        // Get sprite set from character's spriteSet property
+        const spriteSetData = this.game.assets.sprites[character.spriteSet];
+        const sprite = spriteSetData?.[character.facing]?.[character.currentAnimation];
 
         if (sprite && sprite.complete) {
             const frameSize = GAME_CONSTANTS.SPRITE_FRAME_SIZE;
-            const animConfig = this.animationConfig[character.currentAnimation];
+            // Get animation config from SPRITE_SETS registry
+            const animConfig = SPRITE_SETS[character.spriteSet]?.animations[character.currentAnimation];
             const framesPerRow = animConfig
                 ? animConfig.cols
                 : Math.floor(sprite.width / frameSize);

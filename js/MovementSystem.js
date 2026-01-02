@@ -1,4 +1,4 @@
-import { GAME_CONSTANTS } from './const.js';
+import { GAME_CONSTANTS, SPRITE_SETS } from './const.js';
 
 
 export class MovementSystem {
@@ -6,7 +6,6 @@ export class MovementSystem {
         this.hexGrid = config.hexGrid;
         this.game = config.game;
         this.gameStateManager = config.gameStateManager;
-        this.animationConfig = config.animationConfig;
 
         // Callbacks
         this.onAnimationChange = null;
@@ -14,6 +13,11 @@ export class MovementSystem {
 
         // Movement completion callback registry
         this.movementCompleteCallbacks = new Map(); // character -> callback
+    }
+
+    // Get the animation config for a character from SPRITE_SETS registry
+    getAnimConfigForCharacter(character, animName) {
+        return SPRITE_SETS[character.spriteSet]?.animations[animName];
     }
 
     // Update all movement for all characters
@@ -155,7 +159,7 @@ export class MovementSystem {
     updateCharacterAnimation(character, deltaTime) {
         // Hold death animation on final frame
         if (character.isDefeated && character.currentAnimation === 'die') {
-            const dieConfig = this.animationConfig['die'];
+            const dieConfig = this.getAnimConfigForCharacter(character, 'die');
             if (dieConfig) {
                 character.animationFrame = dieConfig.frameCount - 1; // Hold on last frame
             }
@@ -164,7 +168,7 @@ export class MovementSystem {
 
         character.animationTimer += deltaTime;
 
-        const animConfig = this.animationConfig[character.currentAnimation];
+        const animConfig = this.getAnimConfigForCharacter(character, character.currentAnimation);
         const frameSpeed = animConfig?.speed ?? GAME_CONSTANTS.ANIMATION_SPEED;
 
         if (character.animationTimer >= frameSpeed) {

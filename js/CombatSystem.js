@@ -1,3 +1,5 @@
+import { calculateDamage } from './const.js';
+
 export class CombatSystem {
     constructor(hexGrid, getCharacterAtHex, gameStateManager) {
         this.hexGrid = hexGrid;
@@ -19,17 +21,24 @@ export class CombatSystem {
             return { hit: false, damage: 0, defenderDefeated: false };
         }
 
-        // Simple fixed damage for now
-        const damage = 10;
-        defender.health -= damage;
-        defender.health = Math.max(0, defender.health);
+        // Calculate damage from stats and weapon
+        const damage = calculateDamage(attacker.stats, attacker.equipment.mainHand);
+
+        // Apply damage through buffer first (per-attacker temp HP)
+        const { bufferDamage, healthDamage } = this.applyDamage(attacker, defender, damage);
 
         const defeated = defender.health <= 0;
 
         // Mark defender as recently hit for health bar display
         this.gameStateManager.markCharacterHit(defender);
 
-        console.log(`${attacker.name} hits ${defender.name} for ${damage} damage!`);
+        if (bufferDamage > 0 && healthDamage > 0) {
+            console.log(`${attacker.name} hits ${defender.name} for ${damage} (${bufferDamage} buffer, ${healthDamage} HP)!`);
+        } else if (bufferDamage > 0) {
+            console.log(`${attacker.name} hits ${defender.name} for ${bufferDamage} buffer damage!`);
+        } else {
+            console.log(`${attacker.name} hits ${defender.name} for ${healthDamage} HP damage!`);
+        }
         if (defeated) {
             console.log(`${defender.name} has been defeated!`);
             defender.currentAnimation = 'die';
@@ -41,6 +50,41 @@ export class CombatSystem {
         }
 
         return { hit: true, damage: damage, defenderDefeated: defeated };
+    }
+
+    /**
+     * Apply damage through buffer first, then to health
+     * Buffer is per-attacker: each attacker must deplete it individually
+     */
+    applyDamage(attacker, defender, damage) {
+        // Initialize buffer for this attacker if not set
+        if (!defender.hpBufferByAttacker.has(attacker)) {
+            defender.hpBufferByAttacker.set(attacker, defender.hpBufferMax);
+        }
+
+        let remainingBuffer = defender.hpBufferByAttacker.get(attacker);
+        let bufferDamage = 0;
+        let healthDamage = 0;
+
+        if (remainingBuffer > 0) {
+            // Apply to buffer first
+            bufferDamage = Math.min(damage, remainingBuffer);
+            remainingBuffer -= bufferDamage;
+            defender.hpBufferByAttacker.set(attacker, remainingBuffer);
+
+            // Overflow goes to health
+            healthDamage = damage - bufferDamage;
+        } else {
+            // Buffer depleted, all damage to health
+            healthDamage = damage;
+        }
+
+        if (healthDamage > 0) {
+            defender.health -= healthDamage;
+            defender.health = Math.max(0, defender.health);
+        }
+
+        return { bufferDamage, healthDamage };
     }
 
     /**

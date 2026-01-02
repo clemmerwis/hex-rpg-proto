@@ -378,6 +378,12 @@ export class GameStateManager {
         this.currentActionIndex = 0;
         this.turnNumber = 1;
 
+        // Reset HP buffers (temp HP resets after combat)
+        this.game.pc.hpBufferByAttacker.clear();
+        this.game.npcs.forEach(npc => {
+            npc.hpBufferByAttacker.clear();
+        });
+
         // Return all living characters to idle
         this.game.pc.currentAnimation = 'idle';
         this.game.npcs.forEach(npc => {
