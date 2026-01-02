@@ -190,20 +190,20 @@ export function createDefaultSkills() {
 
 /**
  * Calculate Attack Rating
- * Formula: weapon_skill_lvl + Dex + Str + mainHand.attributes.attackR
+ * Formula: (skill * 5) + (Str * 3) + (Dex * 2) + equipment.attackR
  */
 export function calculateAttackRating(character) {
 	const weaponKey = character.equipment.mainHand;
 	const weapon = WEAPONS[weaponKey];
 	const skillLevel = character.skills[weaponKey] || 1;
 	const attrBonus = weapon.attributes.attackR || 0;
-	return skillLevel + character.stats.dex + character.stats.str + attrBonus;
+	return (skillLevel * 5) + (character.stats.str * 3) + (character.stats.dex * 2) + attrBonus;
 }
 
 /**
  * Calculate Defense Rating
- * Formula: (block or dodge skill) + Dex + Instinct + offHand.attributes.defenseR
- * Uses block if holding shield, dodge otherwise
+ * Formula: (skill * 5) + (Dex * 3) + (Instinct * 2) + equipment.defenseR
+ * Uses block skill if holding shield, dodge skill otherwise
  */
 export function calculateDefenseRating(character) {
 	const offHandKey = character.equipment.offHand;
@@ -211,7 +211,7 @@ export function calculateDefenseRating(character) {
 	const hasShield = offHand && offHand.grip === 'off';
 	const skillLevel = hasShield ? character.skills.block : character.skills.dodge;
 	const attrBonus = offHand ? (offHand.attributes.defenseR || 0) : 0;
-	return skillLevel + character.stats.dex + character.stats.instinct + attrBonus;
+	return (skillLevel * 5) + (character.stats.dex * 3) + (character.stats.instinct * 2) + attrBonus;
 }
 
 /**

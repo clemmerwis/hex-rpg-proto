@@ -645,7 +645,7 @@ export class Renderer {
         if (healthOnly && character.lastAttackedBy && character.hpBufferByAttacker) {
             const remainingBuffer = character.hpBufferByAttacker.get(character.lastAttackedBy);
             if (remainingBuffer !== undefined && character.hpBufferMax > 0) {
-                const bufferBarHeight = 6;
+                const bufferBarHeight = 8;
                 const bufferBarY = barY - bufferBarHeight - 1;
                 const bufferPercent = remainingBuffer / character.hpBufferMax;
                 const bufferWidth = barWidth * bufferPercent;
