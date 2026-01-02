@@ -145,19 +145,68 @@ export function validateStats(stats) {
 }
 
 // Equipment definitions
+// grip: 'one' (short/unarmed - mainHand only), 'two' (long weapons), 'off' (shields - offHand only)
 export const WEAPONS = {
-	unarmed:    { name: 'Unarmed',     base: 2,  type: 'blunt',    force: 1 },
-	shortSpear: { name: 'Short Spear', base: 3,  type: 'piercing', force: 1 },
-	shortSword: { name: 'Short Sword', base: 4,  type: 'slash',    force: 2 },
-	shortBlunt: { name: 'Short Blunt', base: 6,  type: 'blunt',    force: 3 },
-	longSword:  { name: 'Long Sword',  base: 8,  type: 'slash',    force: 4 },
-	longSpear:  { name: 'Long Spear',  base: 6,  type: 'piercing', force: 4 },
-	longBlunt:  { name: 'Long Blunt',  base: 10, type: 'blunt',    force: 6 },
+	unarmed:     { name: 'Unarmed',      base: 2,  type: 'blunt',    force: 1, speed: 1, grip: 'one', attributes: {} },
+	shortSpear:  { name: 'Short Spear',  base: 3,  type: 'piercing', force: 1, speed: 3, grip: 'one', attributes: {} },
+	shortSword:  { name: 'Short Sword',  base: 4,  type: 'slash',    force: 2, speed: 2, grip: 'one', attributes: {} },
+	shortBlunt:  { name: 'Short Blunt',  base: 6,  type: 'blunt',    force: 3, speed: 4, grip: 'one', attributes: {} },
+	longSword:   { name: 'Long Sword',   base: 8,  type: 'slash',    force: 4, speed: 4, grip: 'two', attributes: {} },
+	longSpear:   { name: 'Long Spear',   base: 6,  type: 'piercing', force: 4, speed: 4, grip: 'two', attributes: {} },
+	longBlunt:   { name: 'Long Blunt',   base: 10, type: 'blunt',    force: 6, speed: 5, grip: 'two', attributes: {} },
+	smallShield: { name: 'Small Shield', base: 1,  type: 'blunt',    force: 2, speed: 1, grip: 'off', attributes: { defenseR: 2 } },
+	largeShield: { name: 'Large Shield', base: 1,  type: 'blunt',    force: 3, speed: 4, grip: 'off', attributes: { defenseR: 4 } },
 };
 
-export const SHIELDS = {
-	basicShield: { name: 'Shield' },
+// Skill definitions (all range 1-10)
+// Weapon skills use the weapon key directly (e.g., skills.shortSword)
+export const SKILLS = {
+	defense: ['block', 'dodge'],
+	weapons: ['unarmed', 'shortSword', 'longSword', 'shortSpear', 'longSpear', 'shortBlunt', 'longBlunt'],
 };
+
+// Default skills object (all level 1)
+export function createDefaultSkills() {
+	return {
+		// Defense
+		block: 1,
+		dodge: 1,
+		// Weapons
+		unarmed: 1,
+		shortSword: 1,
+		longSword: 1,
+		shortSpear: 1,
+		longSpear: 1,
+		shortBlunt: 1,
+		longBlunt: 1,
+	};
+}
+
+/**
+ * Calculate Attack Rating
+ * Formula: weapon_skill_lvl + Dex + Str + mainHand.attributes.attackR
+ */
+export function calculateAttackRating(character) {
+	const weaponKey = character.equipment.mainHand;
+	const weapon = WEAPONS[weaponKey];
+	const skillLevel = character.skills[weaponKey] || 1;
+	const attrBonus = weapon.attributes.attackR || 0;
+	return skillLevel + character.stats.dex + character.stats.str + attrBonus;
+}
+
+/**
+ * Calculate Defense Rating
+ * Formula: (block or dodge skill) + Dex + Instinct + offHand.attributes.defenseR
+ * Uses block if holding shield, dodge otherwise
+ */
+export function calculateDefenseRating(character) {
+	const offHandKey = character.equipment.offHand;
+	const offHand = offHandKey ? WEAPONS[offHandKey] : null;
+	const hasShield = offHand && offHand.grip === 'off';
+	const skillLevel = hasShield ? character.skills.block : character.skills.dodge;
+	const attrBonus = offHand ? (offHand.attributes.defenseR || 0) : 0;
+	return skillLevel + character.stats.dex + character.stats.instinct + attrBonus;
+}
 
 /**
  * Calculate damage from stats and weapon

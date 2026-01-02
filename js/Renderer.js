@@ -641,6 +641,25 @@ export class Renderer {
         this.ctx.lineWidth = 3;
         this.ctx.strokeRect(barX, barY, barWidth, barHeight);
 
+        // Buffer bar (thin pink bar above health bar, only when recently hit)
+        if (healthOnly && character.lastAttackedBy && character.hpBufferByAttacker) {
+            const remainingBuffer = character.hpBufferByAttacker.get(character.lastAttackedBy);
+            if (remainingBuffer !== undefined && character.hpBufferMax > 0) {
+                const bufferBarHeight = 6;
+                const bufferBarY = barY - bufferBarHeight - 1;
+                const bufferPercent = remainingBuffer / character.hpBufferMax;
+                const bufferWidth = barWidth * bufferPercent;
+
+                // Buffer background (depleted portion)
+                this.ctx.fillStyle = "rgba(80, 40, 40, 0.8)";
+                this.ctx.fillRect(barX, bufferBarY, barWidth, bufferBarHeight);
+
+                // Buffer fill (remaining)
+                this.ctx.fillStyle = "rgba(255, 105, 180, 0.9)";
+                this.ctx.fillRect(barX, bufferBarY, bufferWidth, bufferBarHeight);
+            }
+        }
+
         // Health text
         this.ctx.font = "bold 18px Arial";
         this.ctx.fillStyle = "white";

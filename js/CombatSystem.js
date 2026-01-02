@@ -1,4 +1,4 @@
-import { calculateDamage } from './const.js';
+import { calculateDamage, calculateAttackRating, calculateDefenseRating } from './const.js';
 
 export class CombatSystem {
     constructor(hexGrid, getCharacterAtHex, gameStateManager) {
@@ -12,8 +12,12 @@ export class CombatSystem {
      * THC = Attack_R - Defense_R + 50%
      */
     executeAttack(attacker, defender) {
+        // Calculate ratings from skills and stats
+        const attackRating = calculateAttackRating(attacker);
+        const defenseRating = calculateDefenseRating(defender);
+
         // Calculate to-hit chance
-        const thc = (attacker.attack_rating - defender.defense_rating + 50) / 100;
+        const thc = (attackRating - defenseRating + 50) / 100;
         const hit = Math.random() < thc;
 
         if (!hit) {

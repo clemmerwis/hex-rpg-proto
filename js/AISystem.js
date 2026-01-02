@@ -190,9 +190,9 @@ export class AISystem {
             return { action: 'wait', target: null };
         }
 
-        // Build obstacles: living characters except self and target
+        // Build obstacles: all characters except self (dead bodies block too)
         const obstacles = allCharacters
-            .filter(c => c !== character && c !== target && !c.isDefeated)
+            .filter(c => c !== character && c !== target)
             .map(c => ({ q: c.hexQ, r: c.hexR }));
 
         // Find shortest path to any valid hex adjacent to target

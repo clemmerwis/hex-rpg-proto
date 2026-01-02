@@ -7,7 +7,7 @@ import { AreaManager } from './AreaManager.js';
 import { Pathfinding } from './Pathfinding.js';
 import { MovementSystem } from './MovementSystem.js';
 import { CombatSystem } from './CombatSystem.js';
-import { GAME_CONSTANTS, FACTIONS, calculateMaxHP, calculateHPBuffer } from './const.js';
+import { GAME_CONSTANTS, FACTIONS, calculateMaxHP, calculateHPBuffer, createDefaultSkills } from './const.js';
 import { makeEnemies } from './utils.js';
 
 export class Game {
@@ -62,8 +62,7 @@ export class Game {
                 },
                 faction: 'pc',
                 spriteSet: 'baseKnight',
-                attack_rating: 15,
-                defense_rating: 8,
+                skills: createDefaultSkills(),
                 speed: 12,
                 isDefeated: false,
                 movementQueue: [],
@@ -101,12 +100,11 @@ export class Game {
                     hpBufferByAttacker: null,
                     equipment: {
                         mainHand: 'shortSword',
-                        offHand: 'basicShield',
+                        offHand: 'largeShield',
                     },
                     faction: 'pc',
                     spriteSet: 'swordShieldKnight',
-                    attack_rating: 14,
-                    defense_rating: 6,
+                    skills: createDefaultSkills(),
                     speed: 11,
                     isDefeated: false,
                     movementQueue: [],
@@ -146,8 +144,7 @@ export class Game {
                     },
                     faction: 'guard',
                     spriteSet: 'baseKnight',
-                    attack_rating: 13,
-                    defense_rating: 7,
+                    skills: createDefaultSkills(),
                     speed: 10,
                     isDefeated: false,
                     movementQueue: [],
@@ -187,8 +184,7 @@ export class Game {
                     },
                     faction: 'guard',
                     spriteSet: 'baseKnight',
-                    attack_rating: 13,
-                    defense_rating: 7,
+                    skills: createDefaultSkills(),
                     speed: 10,
                     isDefeated: false,
                     movementQueue: [],
@@ -228,8 +224,7 @@ export class Game {
                     },
                     faction: 'bandit',
                     spriteSet: 'baseKnight',
-                    attack_rating: 12,
-                    defense_rating: 5,
+                    skills: createDefaultSkills(),
                     speed: 8,
                     isDefeated: false,
                     movementQueue: [],
@@ -269,8 +264,7 @@ export class Game {
                     },
                     faction: 'bandit',
                     spriteSet: 'baseKnight',
-                    attack_rating: 11,
-                    defense_rating: 6,
+                    skills: createDefaultSkills(),
                     speed: 9,
                     isDefeated: false,
                     movementQueue: [],
