@@ -3,6 +3,12 @@ export const GAME_CONSTANTS = {
   MOVEMENT_SPEED: 300, // ms per hex
   MOVEMENT_TIMEOUT: 5000, // Failsafe timeout for movement completion (ms)
 
+  // Combat timing
+  COMBAT_PHASE_TRANSITION: 100, // ms delay between move and action phases
+  COMBAT_ATTACK_WINDUP: 100, // ms delay before attack resolves (for animation)
+  COMBAT_ATTACK_RECOVERY: 500, // ms delay after attack before next character
+  COMBAT_MOVE_BLOCKED_DELAY: 50, // ms delay when move is blocked before next
+
   // Animation
   ANIMATION_SPEED: 17, // ms between animation frames
 

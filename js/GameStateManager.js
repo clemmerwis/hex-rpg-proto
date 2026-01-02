@@ -192,7 +192,7 @@ export class GameStateManager {
             setTimeout(() => {
                 devLog('Animation settle complete, starting action phase');
                 this.executeActionPhase();
-            }, 100);
+            }, GAME_CONSTANTS.COMBAT_PHASE_TRANSITION);
             return;
         }
 
@@ -342,8 +342,8 @@ export class GameStateManager {
                 character.currentAnimation = 'idle';
                 this.currentActionIndex++;
                 this.executeNextAttack();
-            }, 1000);
-        }, 200);
+            }, GAME_CONSTANTS.COMBAT_ATTACK_RECOVERY);
+        }, GAME_CONSTANTS.COMBAT_ATTACK_WINDUP);
     }
 
     /**
