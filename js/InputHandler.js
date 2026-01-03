@@ -1,5 +1,5 @@
 import { GAME_STATES, COMBAT_ACTIONS } from './GameStateManager.js';
-import { GAME_CONSTANTS } from './const.js';
+import { GAME_CONSTANTS, rotateFacing } from './const.js';
 
 export class InputHandler {
     constructor(canvas, config) {
@@ -18,6 +18,9 @@ export class InputHandler {
         // Hex marker mode (for map editing)
         this.hexMarkerMode = false;
         this.markedHexes = new Map(); // Key: "q,r", Value: {q, r}
+
+        // Combat attack mode (when player presses 1 or 2 for light/heavy attack)
+        this.attackModeActive = false;
 
         // Keyboard state
         this.keys = {};
@@ -114,7 +117,16 @@ export class InputHandler {
 
         // Handle combat input phase
         if (this.gameStateManager.currentState === GAME_STATES.COMBAT_INPUT) {
-            this.gameStateManager.selectPlayerMoveTarget(targetHex.q, targetHex.r);
+            if (this.attackModeActive) {
+                // Attack mode: click adjacent hex to attack it
+                const success = this.gameStateManager.selectPlayerAttackTarget(targetHex.q, targetHex.r);
+                if (success) {
+                    this.attackModeActive = false;  // Reset after successful attack selection
+                }
+            } else {
+                // Move mode: click adjacent hex to move to it
+                this.gameStateManager.selectPlayerMoveTarget(targetHex.q, targetHex.r);
+            }
             return;
         }
 
@@ -177,6 +189,48 @@ export class InputHandler {
             return;
         }
 
+        // Handle facing rotation during combat input (ArrowLeft/ArrowRight)
+        // Ctrl+Arrow rotates 2 steps for faster direction change
+        if (this.gameStateManager.currentState === GAME_STATES.COMBAT_INPUT) {
+            if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                const steps = e.ctrlKey ? 2 : 1;
+                this.game.pc.facing = rotateFacing(this.game.pc.facing, false, steps);
+                return;
+            }
+            if (e.key === 'ArrowRight') {
+                e.preventDefault();
+                const steps = e.ctrlKey ? 2 : 1;
+                this.game.pc.facing = rotateFacing(this.game.pc.facing, true, steps);
+                return;
+            }
+
+            // Attack type selection during combat input
+            if (e.key === '1') {
+                e.preventDefault();
+                this.gameStateManager.setPlayerAttackType('light');
+                this.attackModeActive = true;
+                return;
+            }
+            if (e.key === '2') {
+                e.preventDefault();
+                this.gameStateManager.setPlayerAttackType('heavy');
+                this.attackModeActive = true;
+                return;
+            }
+
+            // Enter key repeats last attack action
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const success = this.gameStateManager.repeatLastAttack();
+                if (success) {
+                    this.attackModeActive = false;
+                }
+                return;
+            }
+        }
+
+        // Non-combat key bindings
         switch (e.key) {
             case '1':
             case '2':
@@ -184,11 +238,14 @@ export class InputHandler {
             case '4':
             case '5':
             case '6':
-                const animations = ['idle', 'walk', 'run', 'attack', 'jump', 'die'];
-                const animIndex = parseInt(e.key) - 1;
-                if (animIndex >= 0 && animIndex < animations.length) {
-                    this.game.pc.currentAnimation = animations[animIndex];
-                    this.onAnimationChange?.(animations[animIndex]);
+                // Only change animations outside of combat
+                if (this.gameStateManager.currentState !== GAME_STATES.COMBAT_INPUT) {
+                    const animations = ['idle', 'walk', 'run', 'attack', 'jump', 'die'];
+                    const animIndex = parseInt(e.key) - 1;
+                    if (animIndex >= 0 && animIndex < animations.length) {
+                        this.game.pc.currentAnimation = animations[animIndex];
+                        this.onAnimationChange?.(animations[animIndex]);
+                    }
                 }
                 break;
 

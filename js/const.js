@@ -73,6 +73,21 @@ export const SPRITE_SETS = {
 			impact: { animationName: 'Impact', cols: 3, rows: 3, frameCount: 9, oneShot: true },
 			idle2:  { animationName: 'Idle2', cols: 5, rows: 5, frameCount: 25, oneShot: true, speed: 142 },
 		}
+	},
+	swordKnight: {
+		folder: 'KnightSword',
+		prefix: 'KnightSword',
+		folderOverrides: {},
+		animations: {
+			idle:   { animationName: 'Idle', cols: 5, rows: 4, frameCount: 17, speed: 120 },
+			walk:   { animationName: 'Walk', cols: 4, rows: 3, frameCount: 11 },
+			run:    { animationName: 'Run', cols: 3, rows: 3, frameCount: 8 },
+			jump:   { animationName: 'Jump', cols: 3, rows: 3, frameCount: 9 },
+			attack: { animationName: 'Attack', cols: 4, rows: 4, frameCount: 15, oneShot: true },
+			die:    { animationName: 'Die', cols: 6, rows: 5, frameCount: 27, speed: 60 },
+			impact: { animationName: 'Impact', cols: 3, rows: 3, frameCount: 9, oneShot: true },
+			idle2:  { animationName: 'Idle2', cols: 5, rows: 5, frameCount: 25, oneShot: true, speed: 142 },
+		}
 	}
 };
 
@@ -142,6 +157,22 @@ export function calculateHPBuffer(stats) {
 }
 
 /**
+ * Calculate Cerebral Presence (awareness/attention capacity)
+ * Formula: Per + Wis + Int
+ */
+export function calculateCerebralPresence(stats) {
+	return stats.per + stats.wis + stats.int;
+}
+
+/**
+ * Calculate maximum number of enemies a character can engage simultaneously
+ * Formula: floor(Cerebral Presence / 4)
+ */
+export function calculateEngagedMax(stats) {
+	return Math.floor(calculateCerebralPresence(stats) / 4);
+}
+
+/**
  * Validate that a stats object has correct point distribution
  */
 export function validateStats(stats) {
@@ -150,25 +181,160 @@ export function validateStats(stats) {
 	return { valid: total === STATS.TOTAL_POINTS && validRange, total };
 }
 
+// Passive bonus properties on equipment (direct numeric values)
+// These are accessed directly in calculation functions
+export const PASSIVE_BONUSES = {
+	defenseR: 'Applied to Defense Rating via calculateDefenseRating()',
+	attackR: 'Applied to Attack Rating via calculateAttackRating()',
+	critMultiplier: 'Multiplies critical hit damage (stacks with base 2x crit)',
+};
+
+// Triggered effect definitions (stubbed for future implementation)
+// These activate under specific conditions during combat
+export const WEAPON_EFFECTS = {
+	// Conditions - applied to target on hit
+	rockedOnHit:        { type: 'condition', effect: 'rocked', trigger: 'onHit', always: true },
+	bleedingLight:      { type: 'condition', effect: 'bleeding', trigger: 'onHit', intensity: 'light' },
+	bleedingHeavy:      { type: 'condition', effect: 'bleeding', trigger: 'onHit', intensity: 'heavy' },
+	// Enhancements - modify attack properties
+	vulnerableLight:    { type: 'enhancement', effect: 'vulnerable', intensity: 'light' },
+	vulnerableHeavy:    { type: 'enhancement', effect: 'vulnerable', intensity: 'heavy' },
+	armorDamageLight:   { type: 'enhancement', effect: 'armorDamage', intensity: 'light' },
+	armorDamageHeavy:   { type: 'enhancement', effect: 'armorDamage', intensity: 'heavy' },
+};
+
 // Equipment definitions
 // grip: 'one' (short/unarmed - mainHand only), 'two' (long weapons), 'off' (shields - offHand only)
+// passives: { defenseR, attackR, critMultiplier, evasionBonus, ... } - gathered via getEquipmentBonus()
+// effects: triggered effects referencing WEAPON_EFFECTS keys
 export const WEAPONS = {
-	unarmed:     { name: 'Unarmed',      base: 2,  type: 'blunt',    force: 1, speed: 1, grip: 'one', attributes: {} },
-	shortSpear:  { name: 'Short Spear',  base: 3,  type: 'piercing', force: 1, speed: 3, grip: 'one', attributes: {} },
-	shortSword:  { name: 'Short Sword',  base: 4,  type: 'slash',    force: 2, speed: 2, grip: 'one', attributes: {} },
-	shortBlunt:  { name: 'Short Blunt',  base: 6,  type: 'blunt',    force: 3, speed: 4, grip: 'one', attributes: {} },
-	longSword:   { name: 'Long Sword',   base: 8,  type: 'slash',    force: 4, speed: 4, grip: 'two', attributes: {} },
-	longSpear:   { name: 'Long Spear',   base: 6,  type: 'piercing', force: 4, speed: 4, grip: 'two', attributes: {} },
-	longBlunt:   { name: 'Long Blunt',   base: 10, type: 'blunt',    force: 6, speed: 5, grip: 'two', attributes: {} },
-	smallShield: { name: 'Small Shield', base: 1,  type: 'blunt',    force: 2, speed: 1, grip: 'off', attributes: { defenseR: 2 } },
-	largeShield: { name: 'Large Shield', base: 1,  type: 'blunt',    force: 3, speed: 4, grip: 'off', attributes: { defenseR: 4 } },
+	unarmed:     { name: 'Unarmed',      base: 2,  type: 'blunt',    force: 1, speed: 16, grip: 'one', passives: { critMultiplier: 2, evasionBonus: 5 }, effects: ['rockedOnHit'] },
+	shortSpear:  { name: 'Short Spear',  base: 3,  type: 'piercing', force: 1, speed: 19, grip: 'one', passives: {}, effects: ['vulnerableLight'] },
+	shortSword:  { name: 'Short Sword',  base: 4,  type: 'slash',    force: 2, speed: 18, grip: 'one', passives: {}, effects: ['bleedingLight'] },
+	shortBlunt:  { name: 'Short Blunt',  base: 6,  type: 'blunt',    force: 3, speed: 20, grip: 'one', passives: {}, effects: ['armorDamageLight'] },
+	longSword:   { name: 'Long Sword',   base: 8,  type: 'slash',    force: 4, speed: 20, grip: 'two', passives: {}, effects: ['bleedingHeavy'] },
+	longSpear:   { name: 'Long Spear',   base: 6,  type: 'piercing', force: 4, speed: 20, grip: 'two', passives: {}, effects: ['vulnerableHeavy'] },
+	longBlunt:   { name: 'Long Blunt',   base: 10, type: 'blunt',    force: 6, speed: 21, grip: 'two', passives: {}, effects: ['armorDamageHeavy'] },
+	smallShield: { name: 'Small Shield', base: 1,  type: 'blunt',    force: 2, speed: 17, grip: 'off', passives: { defenseR: 4 }, effects: [] },
+	largeShield: { name: 'Large Shield', base: 1,  type: 'blunt',    force: 3, speed: 20, grip: 'off', passives: { defenseR: 8 }, effects: [] },
 };
+
+// Attack types - affect action speed and damage
+export const ATTACK_TYPES = {
+	light: { name: 'Light Attack', speedMod: 12, damageMod: 0 },
+	heavy: { name: 'Heavy Attack', speedMod: 22, damageMod: 10 },
+};
+
+// Armor definitions
+// mobility affects move speed (reduced by Str), flankingDefense affects DR when flanked
+// passives: { ... } - gathered via getEquipmentBonus() along with weapon/shield passives
+export const ARMOR_TYPES = {
+	none:       { name: 'Unarmored',       defense: 0,  mobility: 20, weight: 'none',   noise: 'none',   resistantAgainst: [],                  vulnerableAgainst: [],           flankingDefense: 1.0, passives: {} },
+	leather:    { name: 'Leather',         defense: 6,  mobility: 20, weight: 'light',  noise: 'none',   resistantAgainst: ['piercing'],        vulnerableAgainst: ['blunt'],    flankingDefense: 1.5, passives: {} },
+	scale:      { name: 'Scale',           defense: 8,  mobility: 25, weight: 'medium', noise: 'medium', resistantAgainst: ['slash'],           vulnerableAgainst: ['piercing'], flankingDefense: 0.0, passives: {} },
+	brigandine: { name: 'Brigandine',      defense: 10, mobility: 23, weight: 'medium', noise: 'low',    resistantAgainst: ['piercing','slash'],vulnerableAgainst: ['blunt'],    flankingDefense: 0.5, passives: {} },
+	chain:      { name: 'Chain (Heavy)',   defense: 10, mobility: 28, weight: 'heavy',  noise: 'medium', resistantAgainst: ['slash'],           vulnerableAgainst: ['blunt','piercing'], flankingDefense: 0.25, passives: {} },
+	plate:      { name: 'Plate',           defense: 12, mobility: 30, weight: 'heavy',  noise: 'high',   resistantAgainst: ['slash','blunt'],   vulnerableAgainst: ['piercing'], flankingDefense: 0.75, passives: {} },
+};
+
+// Turn speed tiers - lower total speed = faster tier
+// Move phase uses armor.mobility, Action phase uses weapon+shield speed + attackType - Dex
+export const TURN_SPEED_TIERS = [
+	{ tier: 1, min: 0,  max: 20, name: '1/4' },
+	{ tier: 2, min: 21, max: 40, name: '2/4' },
+	{ tier: 3, min: 41, max: 55, name: '3/4' },
+	{ tier: 4, min: 56, max: Infinity, name: '4/4' },
+];
+
+/**
+ * Get speed tier for a given speed value
+ */
+export function getSpeedTier(speed) {
+	for (const tier of TURN_SPEED_TIERS) {
+		if (speed >= tier.min && speed <= tier.max) {
+			return tier;
+		}
+	}
+	return TURN_SPEED_TIERS[TURN_SPEED_TIERS.length - 1]; // Default to slowest
+}
+
+/**
+ * Calculate action speed (for attacks)
+ * Formula: weapon.speed + shield.speed (if not 2h) + attackType.speedMod - Dex
+ */
+export function calculateActionSpeed(character, attackType = 'light') {
+	const weaponKey = character.equipment.mainHand;
+	const weapon = WEAPONS[weaponKey];
+	const offHandKey = character.equipment.offHand;
+	const offHand = offHandKey ? WEAPONS[offHandKey] : null;
+
+	let speed = weapon.speed;
+
+	// Add shield speed if not two-handed
+	if (weapon.grip !== 'two' && offHand) {
+		speed += offHand.speed;
+	}
+
+	// Add attack type modifier, reduced by Dex
+	const attackMod = ATTACK_TYPES[attackType]?.speedMod || 10;
+	speed += attackMod - character.stats.dex;
+
+	return Math.max(0, speed);
+}
+
+/**
+ * Calculate move speed (for movement phase)
+ * Formula: armor.mobility - Str
+ */
+export function calculateMoveSpeed(character) {
+	const armorKey = character.equipment.armor || 'none';
+	const armor = ARMOR_TYPES[armorKey];
+	const mobility = armor ? armor.mobility : ARMOR_TYPES.none.mobility;
+	return Math.max(0, mobility - character.stats.str);
+}
+
+/**
+ * Calculate initiative (order within speed tier)
+ * Formula: Will + Instinct (higher goes first)
+ */
+export function calculateInitiative(character) {
+	return character.stats.will + character.stats.instinct;
+}
+
+/**
+ * Calculate Critical Strike Attack Rating
+ * Formula: (criticalStrike skill * 5) + (Int * 3) + (Str * 2)
+ */
+export function calculateCSA_R(character) {
+	const skillLevel = character.skills.criticalStrike || 1;
+	return (skillLevel * 5) + (character.stats.int * 3) + (character.stats.str * 2);
+}
+
+/**
+ * Calculate Critical Strike Defense Rating
+ * Formula: (criticalDefense skill * 5) + (Dex * 3) + (Per * 2) + Instinct
+ */
+export function calculateCSD_R(character) {
+	const skillLevel = character.skills.criticalDefense || 1;
+	return (skillLevel * 5) + (character.stats.dex * 3) + (character.stats.per * 2) + character.stats.instinct;
+}
+
+/**
+ * Calculate Critical Strike Chance
+ * Formula: ((CSA_R - CSD_R) + 50) / 100
+ */
+export function calculateCSC(attacker, defender) {
+	const csaR = calculateCSA_R(attacker);
+	const csdR = calculateCSD_R(defender);
+	return ((csaR - csdR) + 50) / 100;
+}
 
 // Skill definitions (all range 1-10)
 // Weapon skills use the weapon key directly (e.g., skills.shortSword)
 export const SKILLS = {
 	defense: ['block', 'dodge'],
 	weapons: ['unarmed', 'shortSword', 'longSword', 'shortSpear', 'longSpear', 'shortBlunt', 'longBlunt'],
+	critical: ['criticalStrike', 'criticalDefense'],
 };
 
 // Default skills object (all level 1)
@@ -185,24 +351,41 @@ export function createDefaultSkills() {
 		longSpear: 1,
 		shortBlunt: 1,
 		longBlunt: 1,
+		// Critical
+		criticalStrike: 1,
+		criticalDefense: 1,
 	};
 }
 
 /**
  * Calculate Attack Rating
- * Formula: (skill * 5) + (Str * 3) + (Dex * 2) + equipment.attackR
+ * Formula: (skill * 5) + (Str * 3) + (Dex * 2) + weapon.attackR
  */
 export function calculateAttackRating(character) {
 	const weaponKey = character.equipment.mainHand;
 	const weapon = WEAPONS[weaponKey];
 	const skillLevel = character.skills[weaponKey] || 1;
-	const attrBonus = weapon.attributes.attackR || 0;
+	const attrBonus = weapon.attackR || 0;
 	return (skillLevel * 5) + (character.stats.str * 3) + (character.stats.dex * 2) + attrBonus;
 }
 
 /**
+ * Get total passive bonus from all equipped items
+ * Checks mainHand, offHand, and armor for the specified bonus
+ */
+export function getEquipmentBonus(character, bonusName) {
+	const weapon = WEAPONS[character.equipment.mainHand];
+	const offHand = character.equipment.offHand ? WEAPONS[character.equipment.offHand] : null;
+	const armor = ARMOR_TYPES[character.equipment.armor];
+
+	return (weapon?.passives?.[bonusName] || 0)
+		 + (offHand?.passives?.[bonusName] || 0)
+		 + (armor?.passives?.[bonusName] || 0);
+}
+
+/**
  * Calculate Defense Rating
- * Formula: (skill * 5) + (Dex * 3) + (Instinct * 2) + equipment.defenseR
+ * Formula: (skill * 5) + (Dex * 3) + (Instinct * 2) + defenseR (from passives)
  * Uses block skill if holding shield, dodge skill otherwise
  */
 export function calculateDefenseRating(character) {
@@ -210,18 +393,19 @@ export function calculateDefenseRating(character) {
 	const offHand = offHandKey ? WEAPONS[offHandKey] : null;
 	const hasShield = offHand && offHand.grip === 'off';
 	const skillLevel = hasShield ? character.skills.block : character.skills.dodge;
-	const attrBonus = offHand ? (offHand.attributes.defenseR || 0) : 0;
-	return (skillLevel * 5) + (character.stats.dex * 3) + (character.stats.instinct * 2) + attrBonus;
+	const defenseBonus = getEquipmentBonus(character, 'defenseR');
+	return (skillLevel * 5) + (character.stats.dex * 3) + (character.stats.instinct * 2) + defenseBonus;
 }
 
 /**
  * Calculate damage from stats and weapon
  * Formula: base + ceil(force * StrMultiplier)
  */
-export function calculateDamage(stats, weaponKey) {
+export function calculateDamage(stats, weaponKey, attackType = 'light') {
 	const weapon = WEAPONS[weaponKey];
 	const strMult = STAT_BONUSES.MULTIPLIER[stats.str] ?? 1;
-	return weapon.base + Math.ceil(weapon.force * strMult);
+	const attackMod = ATTACK_TYPES[attackType]?.damageMod || 0;
+	return weapon.base + Math.ceil(weapon.force * strMult) + attackMod;
 }
 
 // Faction configurations
@@ -247,3 +431,66 @@ export const FACTIONS = {
     nameplateColor: "#ffaa44",
   },
 };
+
+// Direction helpers for facing and flanking
+// Only 6 directions used - matches hex grid neighbors (no pure N/S movement)
+// Hex angles: 0°→dir6, 60°→dir7, 120°→dir1, 180°→dir2, 240°→dir3, 300°→dir5
+const OPPOSITE_DIRECTION = {
+	dir1: 'dir5', dir5: 'dir1',  // 120° ↔ 300°
+	dir2: 'dir6', dir6: 'dir2',  // 180° ↔ 0°
+	dir3: 'dir7', dir7: 'dir3'   // 240° ↔ 60°
+};
+
+/**
+ * Get facing direction from pixel delta
+ * Returns one of 6 hex directions (60° segments)
+ * dir6=0°, dir7=60°, dir1=120°, dir2=180°, dir3=240°, dir5=300°
+ */
+export function getFacingFromDelta(dx, dy) {
+	if (dx === 0 && dy === 0) return 'dir6'; // Default
+	let angle = Math.atan2(dy, dx) * 180 / Math.PI;
+	angle = (angle + 360) % 360;
+	// 6 segments of 60° each, centered on hex directions
+	if (angle >= 330 || angle < 30) return 'dir6';   // 0°
+	else if (angle < 90) return 'dir7';              // 60°
+	else if (angle < 150) return 'dir1';             // 120°
+	else if (angle < 210) return 'dir2';             // 180°
+	else if (angle < 270) return 'dir3';             // 240°
+	else return 'dir5';                              // 300°
+}
+
+/**
+ * Get the opposite of a facing direction
+ */
+export function getOppositeDirection(facing) {
+	return OPPOSITE_DIRECTION[facing];
+}
+
+/**
+ * Check if attacker is flanking defender (attacking from behind)
+ */
+export function isFlanking(attackerHex, defenderHex, defenderFacing, hexGrid) {
+	const attackerPixel = hexGrid.hexToPixel(attackerHex.q, attackerHex.r);
+	const defenderPixel = hexGrid.hexToPixel(defenderHex.q, defenderHex.r);
+	const dx = attackerPixel.x - defenderPixel.x;
+	const dy = attackerPixel.y - defenderPixel.y;
+	const attackDirection = getFacingFromDelta(dx, dy);
+	const behindDirection = getOppositeDirection(defenderFacing);
+	return attackDirection === behindDirection;
+}
+
+/**
+ * Rotate facing direction clockwise or counter-clockwise
+ * Only 6 directions matching hex grid: dir6→dir7→dir1→dir2→dir3→dir5→...
+ * @param {string} facing - Current facing direction
+ * @param {boolean} clockwise - Direction to rotate
+ * @param {number} steps - Number of 60-degree steps to rotate (default 1)
+ */
+export function rotateFacing(facing, clockwise, steps = 1) {
+	const order = ['dir6', 'dir7', 'dir1', 'dir2', 'dir3', 'dir5'];
+	const idx = order.indexOf(facing);
+	if (idx === -1) return facing;
+	const offset = clockwise ? steps : (6 - (steps % 6)) % 6;
+	const newIdx = (idx + offset) % 6;
+	return order[newIdx];
+}

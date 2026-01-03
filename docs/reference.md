@@ -7,160 +7,380 @@ Detailed reference material for the RPG prototype. For architectural guidance an
 All characters (PC and NPCs) share this structure:
 ```javascript
 {
-    hexQ, hexR,              // Current hex position
-    pixelX, pixelY,          // Current pixel position (for smooth movement)
-    facing,                  // Direction facing (dir1-dir8)
-    currentAnimation,        // Current animation state (idle, walk, run, etc.)
-    animationFrame,          // Current frame in animation
-    faction,                 // 'player', 'enemy', 'ally', 'neutral'
-    health, maxHealth,
-    movementQueue,           // Array of hex targets for pathfinding
-    isMoving,                // Boolean movement state
-    moveSpeed,               // ms per hex movement
-    currentMoveTimer         // Movement interpolation timer
+    // Position
+    hexQ, hexR,                    // Axial hex coordinates
+    pixelX, pixelY,                // Rendered pixel position
+    targetPixelX, targetPixelY,    // Movement interpolation targets
+
+    // Animation
+    facing,                        // Direction (dir1, dir2, dir3, dir5, dir6, dir7 - 6 hex directions)
+    currentAnimation,              // Animation state (idle, walk, run, attack, jump, die, impact, idle2)
+    animationFrame,                // Current frame index
+    animationTimer,                // Timer for frame progression
+
+    // Identity
+    name,                          // Display name
+    faction,                       // Faction key: 'pc', 'pc_ally', 'bandit', 'guard'
+    spriteSet,                     // Sprite set key: 'baseKnight', 'swordShieldKnight', 'swordKnight'
+
+    // Stats (10 stats, 60 total points, min 3 / max 10 per stat)
+    stats: {
+        str, int,                  // Power (Physical/Cerebral)
+        dex, per,                  // Prowess (Physical/Cerebral)
+        con, will,                 // Resistance (Physical/Cerebral)
+        beauty, cha,               // Appearance (Physical/Cerebral)
+        instinct, wis              // Spirit (Physical/Cerebral)
+    },
+
+    // Equipment
+    equipment: {
+        mainHand,                  // Weapon key ('unarmed', 'shortSword', 'longSword', etc.)
+        offHand,                   // Shield or null ('smallShield', 'largeShield')
+        armor                      // Armor key ('none', 'leather', 'scale', 'brigandine', 'chain', 'plate')
+    },
+
+    // Skills (all range 1-10)
+    skills: {
+        block, dodge,              // Defense skills
+        unarmed, shortSword, longSword, shortSpear, longSpear, shortBlunt, longBlunt,  // Weapon skills
+        criticalStrike, criticalDefense  // Critical skills
+    },
+
+    // Health
+    health, maxHealth,             // Current and max HP
+    hpBufferMax,                   // Temp HP per attacker (Instinct * WillMultiplier)
+    hpBufferByAttacker,            // Map<attacker, remaining buffer>
+
+    // Combat State
+    isDefeated,                    // Boolean - character defeated
+    mode,                          // 'aggressive' or 'neutral' (AI behavior)
+    enemies,                       // Set<character> - hostile targets
+    lastAttackedBy,                // Reference to last attacker
+
+    // Engagement (multi-opponent tracking)
+    engagedBy,                     // Set<character> - who is engaging this character
+    engagedMax,                    // Max simultaneous engagements (Cerebral Presence / 4)
+
+    // Movement
+    movementQueue,                 // Array of hex targets
+    isMoving,                      // Boolean - currently moving
+    moveSpeed,                     // ms per hex (default 300)
+    currentMoveTimer               // Current interpolation progress
 }
 ```
 
-## Coordinate Systems
+## Faction System
 
-Three coordinate systems in use:
-1. **Canvas coordinates** - Mouse position relative to canvas element
-2. **World coordinates** - Pixel coordinates in the game world (before zoom/camera)
-3. **Hex coordinates** - Axial (q, r) coordinates for grid logic
+Factions define visual styling and hostility. Defined in `const.js`:
 
-Conversion flow: canvas → world (factor in camera/zoom) → hex (use hexGrid.pixelToHex).
+| Faction Key | Name | Tint Color | Nameplate Color |
+|-------------|------|------------|-----------------|
+| `pc` | PC | #4CAF50 (green) | #00ff00 |
+| `pc_ally` | Companion | #4169E1 (blue) | #6495ED |
+| `bandit` | Bandit | #B22222 (red) | #cc3333 |
+| `guard` | Guard | #FF9800 (orange) | #ffaa44 |
 
-## Rendering Order
+**Hostility Rules:**
+- Same faction = allies (cannot attack each other)
+- Bandits ↔ PC faction = mutual enemies (bidirectional)
+- Bandits → Guards = one-way aggro (guards neutral until attacked)
+- Attacking makes you mutual enemies
 
-Layers rendered in this order:
-1. Background image
-2. Hex grid (if enabled via checkbox)
-3. Characters (sorted by Y position for proper overlap)
-4. UI overlays (nameplates, health bars)
+## Stats & Combat Calculations
+
+### Stat System
+- 10 stats in 5 categories (Physical/Cerebral pairs)
+- Each stat: min 3, max 10
+- Total points per character: 60
+
+### Stat Bonuses
+
+**Constitution Bonus (additive HP modifier):**
+| Con | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
+|-----|---|---|---|---|---|---|---|---|
+| Bonus | -4 | -2 | 0 | +1 | +2 | +4 | +6 | +8 |
+
+**Multiplier Scale (used by Str, Will):**
+| Stat | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
+|------|---|---|---|---|---|---|---|---|
+| Mult | 1.0 | 1.25 | 1.5 | 1.75 | 2.0 | 2.25 | 2.5 | 3.0 |
+
+### Derived Values
+```javascript
+maxHealth = ceil((15 + CON_BONUS[con]) * MULTIPLIER[str])
+hpBufferMax = ceil(instinct * MULTIPLIER[will])
+engagedMax = floor((per + wis + int) / 4)  // Cerebral Presence
+```
+
+### Combat Formulas
+
+**Attack Rating:**
+```
+attackR = (weaponSkill * 5) + (str * 3) + (dex * 2) + weapon.attackR
+```
+
+**Defense Rating:**
+```
+defenseR = (skill * 5) + (dex * 3) + (instinct * 2) + shield.defenseR
+// Uses block skill if shield, dodge skill otherwise
+```
+
+**To-Hit Chance:**
+```
+THC = ((attackR - defenseR) + 50) / 100
+```
+
+**Critical Strike Ratings:**
+```
+CSA_R = (criticalStrike * 5) + (int * 3) + (str * 2)
+CSD_R = (criticalDefense * 5) + (dex * 3) + (per * 2) + instinct
+CSC = ((CSA_R - CSD_R) + 50) / 100
+```
+
+**Damage Calculation:**
+1. Base: `weapon.base + ceil(weapon.force * MULTIPLIER[str]) + attackType.damageMod`
+2. Critical Hit: Multiply by 2, then by weapon.critMultiplier if present
+3. Armor Defense: Subtract min(damage, armor.defense)
+4. Flanking: If flanking, multiply defense by armor.flankingDefense
+5. Resistance/Vulnerability: After DR, multiply by 0.5 (resistant) or 1.5 (vulnerable)
+
+### Speed & Turn Order
+
+**Move Speed (movement phase):**
+```
+moveSpeed = armor.mobility - str  // Lower = faster
+```
+
+**Action Speed (attack phase):**
+```
+actionSpeed = weapon.speed + shield.speed (if not 2h) + attackType.speedMod - dex
+```
+
+**Speed Tiers:**
+| Tier | Speed Range | Name |
+|------|-------------|------|
+| 1 | 0-20 | 1/4 (fastest) |
+| 2 | 21-40 | 2/4 |
+| 3 | 41-55 | 3/4 |
+| 4 | 56+ | 4/4 (slowest) |
+
+**Initiative (tiebreaker within tier):**
+```
+initiative = will + instinct  // Higher goes first
+```
+
+### HP Buffer System
+Each attacker must deplete a character's buffer individually before dealing real HP damage. Represents stamina/composure that resets per-opponent.
+
+## Equipment
+
+### Weapons
+| Weapon | Base | Type | Force | Speed | Grip | Special |
+|--------|------|------|-------|-------|------|---------|
+| Unarmed | 2 | blunt | 1 | 16 | one | critMultiplier: 2 |
+| Short Spear | 3 | piercing | 1 | 19 | one | vulnerableLight |
+| Short Sword | 4 | slash | 2 | 18 | one | bleedingLight |
+| Short Blunt | 6 | blunt | 3 | 20 | one | armorDamageLight |
+| Long Sword | 8 | slash | 4 | 20 | two | bleedingHeavy |
+| Long Spear | 6 | piercing | 4 | 20 | two | vulnerableHeavy |
+| Long Blunt | 10 | blunt | 6 | 21 | two | armorDamageHeavy |
+| Small Shield | 1 | blunt | 2 | 17 | off | defenseR: 4 |
+| Large Shield | 1 | blunt | 3 | 20 | off | defenseR: 8 |
+
+**Grip types:** `one` (mainHand only), `two` (both hands), `off` (offHand only)
+
+### Attack Types
+| Type | Speed Mod | Damage Mod |
+|------|-----------|------------|
+| Light | +12 | +0 |
+| Heavy | +22 | +10 |
+
+### Armor
+| Armor | Defense | Mobility | Resistant | Vulnerable | Flank Def |
+|-------|---------|----------|-----------|------------|-----------|
+| None | 0 | 20 | - | - | 1.0 |
+| Leather | 6 | 20 | piercing | blunt | 1.5 |
+| Scale | 8 | 25 | slash | piercing | 0.0 |
+| Brigandine | 10 | 23 | piercing, slash | blunt | 0.5 |
+| Chain | 10 | 28 | slash | blunt, piercing | 0.25 |
+| Plate | 12 | 30 | slash, blunt | piercing | 0.75 |
+
+## Keyboard Controls
+
+### Universal Controls
+| Key | Action |
+|-----|--------|
+| **Arrow keys / WASD** | Pan camera |
+| **Shift+Space** | Toggle combat mode |
+| **Tab** (hold) | Show all character nameplates |
+
+### Exploration Mode
+| Key | Action |
+|-----|--------|
+| **1-6** | Trigger animations (idle, walk, run, attack, jump, die) |
+| **8** | Debug: log character positions to console |
+| **Click** | Move to clicked hex (pathfinding) |
+
+### Combat Input Phase
+| Key | Action |
+|-----|--------|
+| **1** | Activate Light Attack mode |
+| **2** | Activate Heavy Attack mode |
+| **Enter** | Repeat last attack (same direction + type) |
+| **Space** | Skip turn (wait) |
+| **Arrow Left** | Rotate facing counter-clockwise (60°) |
+| **Arrow Right** | Rotate facing clockwise (60°) |
+| **Ctrl+Arrow** | Rotate facing 2 steps (120°) |
+| **Click adjacent hex** | Move to hex (normal) or attack hex (attack mode) |
+
+### Edge Scrolling
+Mouse near canvas edges scrolls camera.
+
+## Combat System Flow
+
+### Game States
+1. **EXPLORATION** - Free movement, click anywhere to pathfind
+2. **COMBAT_INPUT** - Turn-based input, select actions
+3. **COMBAT_EXECUTION** - Sequential action resolution
+
+### Combat Execution Order
+
+**Move Phase:**
+1. Filter characters with MOVE actions
+2. Sort by moveSpeed (armor.mobility - str), then initiative
+3. Execute moves sequentially with animation
+4. Real-time occupancy check (move cancelled if target occupied)
+
+**Action Phase:**
+1. Filter characters with ATTACK actions
+2. Sort by actionSpeed (weapon + shield + attackType - dex), then initiative
+3. Execute attacks sequentially
+4. Apply damage through buffer → health
+5. Defeated characters play die animation
+
+### Engagement System
+- Characters track who is engaging them (`engagedBy` Set)
+- Capacity limited by `engagedMax` (Cerebral Presence / 4)
+- Flanking applies when defender at max engagement and attacker not in engagedBy
+- Cleared when characters separate (non-adjacent)
+
+### Combat Timing (const.js)
+```javascript
+COMBAT_PHASE_TRANSITION: 100   // ms between move and action phases
+COMBAT_ATTACK_WINDUP: 100      // ms before attack resolves
+COMBAT_ATTACK_RECOVERY: 500    // ms after attack before next character
+```
 
 ## Debug Features
 
-In-game debug panel shows:
+### Debug Panel
 - Mouse position (world coordinates)
-- Current hex (q, r coordinates)
+- Current hex (q, r)
 - Asset loading status
 - Camera position
 - PC facing direction
 - Current animation state
 
 ### Grid Toggle
-Checkbox in debug panel enables/disables hex grid overlay for easier debugging.
+Checkbox enables/disables hex grid overlay.
 
-## Keyboard Controls
+### Hex Marker Mode
+Debug checkbox for map editing:
+- Click hexes to mark/unmark as blocked
+- Pre-populates with existing blocked hexes
+- **Export Hexes** - outputs JSON to console
+- **Clear Hexes** - removes all marks
+- Disabled during combat
 
-| Key | Action |
-|-----|--------|
-| **1-6** | Trigger different animations |
-| **7** | Spawn random enemy near player |
-| **Shift+Space** | Toggle combat mode |
-| **Space** | Skip turn (during combat) |
-| **Arrow keys** | Camera scrolling |
-| **Click** | Move character (exploration) or select hex (combat) |
-| **Edge scrolling** | Mouse near canvas edges |
+### Dev Logging
+Set `DEV_LOG = true` in GameStateManager.js or AISystem.js for detailed combat logs with `[COMBAT DEV]` prefix.
+
+## Sprite System
+
+### Sprite Sets
+Three sprite sets available, each with 8-directional variants:
+
+| Set Key | Folder | Used By |
+|---------|--------|---------|
+| baseKnight | KnightBasic | Hero, Guards |
+| swordShieldKnight | KnightSwordShield | Companion |
+| swordKnight | KnightSword | Bandits |
+
+### Animations
+| Animation | Frames | Speed | Notes |
+|-----------|--------|-------|-------|
+| idle | 17 | 120ms | Looping |
+| walk | 11-13 | default | Looping |
+| run | 8 | default | Looping |
+| attack | 15 | default | oneShot |
+| jump | 9-11 | default | Looping |
+| die | 16-27 | 60ms | oneShot, holds final |
+| impact | 9 | default | oneShot |
+| idle2 | 25 | 142ms | oneShot |
+
+- Default speed: 17ms per frame (ANIMATION_SPEED)
+- Frame size: 256x256 pixels
+- Directions: dir1, dir2, dir3, dir5, dir6, dir7 (6 hex directions)
+
+## Coordinate Systems
+
+1. **Canvas coordinates** - Mouse position relative to canvas element
+2. **World coordinates** - Pixel position in game world (before zoom/camera)
+3. **Hex coordinates** - Axial (q, r) for grid logic
+
+Conversion: canvas → world (factor camera/zoom) → hex (hexGrid.pixelToHex)
+
+## Direction System
+
+Only 6 directions matching hex grid neighbors:
+```
+dir6 = 0°   (East)
+dir7 = 60°  (Southeast)
+dir1 = 120° (Southwest)
+dir2 = 180° (West)
+dir3 = 240° (Northwest)
+dir5 = 300° (Northeast)
+```
+
+Opposites: dir1↔dir5, dir2↔dir6, dir3↔dir7
 
 ## Area System
 
-The game uses a Baldur's Gate-style area system where the world is divided into discrete areas, each with its own pre-rendered background image and dimensions.
+Baldur's Gate-style discrete areas with pre-rendered backgrounds.
 
 ### Area Structure
-
 ```
 areas/
   bridge_crossing/
     area.json           <- Area definition
     background.jpg      <- Background image
-  forest_path/
-    area.json
-    background.jpg
 ```
 
 ### Area Definition Schema
-
 ```javascript
 {
-    "id": "bridge_crossing",           // Unique area identifier
-    "name": "Stone Bridge",            // Display name
-    "background": "background.jpg",    // Filename (relative to area folder)
-    "width": 1920,                     // Area width in pixels
-    "height": 1080,                    // Area height in pixels
-
-    // Hexes that cannot be walked on
-    "blocked": [
-        {"q": 0, "r": 0, "type": "water"},
-        {"q": 1, "r": 0, "type": "cliff"}
-    ],
-
-    // Named spawn points for character placement
-    "spawns": {
-        "default": {"q": 5, "r": -5},
-        "north": {"q": 3, "r": -8},
-        "south": {"q": 7, "r": -2}
-    },
-
-    // Transitions to other areas
-    "exits": [
-        {
-            "id": "north_exit",
-            "hexes": [{"q": 0, "r": -10}, {"q": 1, "r": -10}],
-            "target": "forest_path",   // Target area ID
-            "spawn": "south"           // Spawn point in target area
-        }
-    ],
-
-    // Area-specific NPCs (optional)
-    "npcs": [
-        {
-            "templateId": "bandit",
-            "hexQ": 3, "hexR": -7,
-            "name": "Bandit"
-        }
-    ]
+    "id": "bridge_crossing",
+    "name": "Stone Bridge",
+    "background": "background.jpg",
+    "width": 1920,
+    "height": 1080,
+    "blocked": [{"q": 0, "r": 0, "type": "water"}],
+    "spawns": {"default": {"q": 5, "r": -5}},
+    "exits": [{
+        "id": "north_exit",
+        "hexes": [{"q": 0, "r": -10}],
+        "target": "forest_path",
+        "spawn": "south"
+    }],
+    "npcs": [{"templateId": "bandit", "hexQ": 3, "hexR": -7, "name": "Bandit"}]
 }
 ```
 
-### Area Loading Flow
-
-1. Load area definition JSON
-2. Load background image (cached for revisits)
-3. Set world bounds to area dimensions
-4. Rebuild/resize hex grid to fit new dimensions
-5. Apply blocked hexes to pathfinding
-6. Place characters at spawn point
-7. Update camera bounds
-
-### Key Concepts
-
-| Concept | Description |
-|---------|-------------|
-| **Native sizing** | Each area defines its own pixel dimensions; hex grid adapts |
-| **Blocked hexes** | Terrain like water, cliffs, walls that block movement |
-| **Exits** | Hex(es) that trigger transitions to other areas |
-| **Spawns** | Named positions for placing characters when entering |
-| **Area caching** | Definitions and images cached after first load |
-
 ### AreaManager API
-
 ```javascript
-// Load and switch to an area
 await areaManager.loadArea('bridge_crossing', 'default');
-
-// Check for exit at character position
 const exit = areaManager.getExitAt(pc.hexQ, pc.hexR);
-if (exit) {
-    await areaManager.transition(exit.targetArea, exit.targetSpawn);
-}
-
-// Check if a hex is blocked
 const blocked = areaManager.isBlocked(q, r);
-
-// Get current background image
 const bg = areaManager.getBackground();
-
-// Get current area dimensions
 const { width, height } = areaManager.getDimensions();
 ```

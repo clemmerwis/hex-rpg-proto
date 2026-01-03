@@ -1,5 +1,5 @@
 import { AISystem } from './AISystem.js';
-import { GAME_CONSTANTS } from './const.js';
+import { GAME_CONSTANTS, calculateMoveSpeed, calculateActionSpeed, getSpeedTier, calculateInitiative, getFacingFromDelta } from './const.js';
 import { makeEnemies } from './utils.js';
 
 // Dev logging toggle - set to false to disable combat debug logs
@@ -53,6 +53,8 @@ export class GameStateManager {
 
         // Input phase data
         this.playerSelectedHex = null;
+        this.playerSelectedAttackType = 'light';  // Current attack type for player
+        this.playerLastAttackAction = null;       // Remember last attack for Enter repeat
 
         // Track characters that were just hit (show their health bar temporarily)
         this.recentlyHitCharacters = new Set();
@@ -62,14 +64,34 @@ export class GameStateManager {
     }
 
     /**
-     * Sort characters by speed (highest first), with random tiebreaker
+     * Sort characters by speed tier, then initiative, with random tiebreaker
+     * @param {Array} characters - Characters to sort
+     * @param {string} phase - 'move' or 'action'
      */
-    sortBySpeed(characters) {
+    sortBySpeed(characters, phase) {
         return [...characters].sort((a, b) => {
-            if (b.speed !== a.speed) {
-                return b.speed - a.speed;  // Higher speed first
+            // Calculate speed based on phase
+            const speedA = phase === 'move' ? calculateMoveSpeed(a) : calculateActionSpeed(a, 'light');
+            const speedB = phase === 'move' ? calculateMoveSpeed(b) : calculateActionSpeed(b, 'light');
+
+            // Get tiers (lower tier = faster = goes first)
+            const tierA = getSpeedTier(speedA).tier;
+            const tierB = getSpeedTier(speedB).tier;
+
+            if (tierA !== tierB) {
+                return tierA - tierB;  // Lower tier first
             }
-            return Math.random() - 0.5;  // Random tiebreaker
+
+            // Same tier: sort by initiative (higher = goes first)
+            const initA = calculateInitiative(a);
+            const initB = calculateInitiative(b);
+
+            if (initA !== initB) {
+                return initB - initA;  // Higher initiative first
+            }
+
+            // Tied initiative: random tiebreaker
+            return Math.random() - 0.5;
         });
     }
 
@@ -175,10 +197,10 @@ export class GameStateManager {
             const action = this.characterActions.get(char);
             return action && action.action === COMBAT_ACTIONS.MOVE;
         });
-        this.moveQueue = this.sortBySpeed(movers);
+        this.moveQueue = this.sortBySpeed(movers, 'move');
         this.currentMoveIndex = 0;
 
-        devLog(`Movers (sorted by speed):`, this.moveQueue.map(c => `${c.name}(spd:${c.speed})`).join(', ') || '(none)');
+        devLog(`Movers (sorted by move speed):`, this.moveQueue.map(c => `${c.name}(mv:${calculateMoveSpeed(c)})`).join(', ') || '(none)');
         this.executeNextMove();
     }
 
@@ -236,6 +258,13 @@ export class GameStateManager {
 
         this.movementSystem.onMovementComplete(character, () => {
             devLog(`[MOVE ${moveNum}/${totalMoves}] ${character.name} movement COMPLETE, now at (${character.hexQ},${character.hexR})`);
+
+            // Update engagement tracking after move
+            this.updateEngagement(character);
+
+            // Auto-face adjacent enemy after move
+            this.autoFaceAdjacentEnemy(character);
+
             this.currentMoveIndex++;
             this.executeNextMove();
         });
@@ -252,10 +281,10 @@ export class GameStateManager {
             const action = this.characterActions.get(char);
             return action && action.action === COMBAT_ACTIONS.ATTACK;
         });
-        this.actionQueue = this.sortBySpeed(attackers);
+        this.actionQueue = this.sortBySpeed(attackers, 'action');
         this.currentActionIndex = 0;
 
-        devLog(`Attackers (sorted by speed):`, this.actionQueue.map(c => `${c.name}(spd:${c.speed})`).join(', ') || '(none)');
+        devLog(`Attackers (sorted by action speed):`, this.actionQueue.map(c => `${c.name}(act:${calculateActionSpeed(c, 'light')})`).join(', ') || '(none)');
         this.executeNextAttack();
     }
 
@@ -318,8 +347,9 @@ export class GameStateManager {
                 devLog(`[ATTACK ${attackNum}/${totalAttacks}] ${character.name} attacks dead body - no effect`);
             } else {
                 // Execute attack - hits whoever is on the hex (ally or enemy!)
-                devLog(`[ATTACK ${attackNum}/${totalAttacks}] ${character.name} attacks ${targetChar.name}!`);
-                const result = this.combatSystem.executeAttack(character, targetChar);
+                const attackType = action.attackType || 'light';
+                devLog(`[ATTACK ${attackNum}/${totalAttacks}] ${character.name} ${attackType} attacks ${targetChar.name}!`);
+                const result = this.combatSystem.executeAttack(character, action.target, attackType);
                 devLog(`[ATTACK ${attackNum}/${totalAttacks}] Result: hit=${result.hit}, damage=${result.damage}, defeated=${result.defenderDefeated}`);
 
                 // Hostility trigger: target becomes hostile to attacker (even on miss!)
@@ -344,6 +374,103 @@ export class GameStateManager {
                 this.executeNextAttack();
             }, GAME_CONSTANTS.COMBAT_ATTACK_RECOVERY);
         }, GAME_CONSTANTS.COMBAT_ATTACK_WINDUP);
+    }
+
+    /**
+     * Auto-face adjacent enemy after movement
+     * Finds first adjacent enemy and faces toward them
+     */
+    autoFaceAdjacentEnemy(character) {
+        const neighbors = this.hexGrid.getNeighbors({ q: character.hexQ, r: character.hexR });
+
+        for (const neighbor of neighbors) {
+            const occupant = this.getCharacterAtHex(neighbor.q, neighbor.r);
+            if (occupant && !occupant.isDefeated && occupant.faction !== character.faction) {
+                // Found an adjacent enemy - face toward them
+                const targetPixel = this.hexGrid.hexToPixel(neighbor.q, neighbor.r);
+                const charPixel = this.hexGrid.hexToPixel(character.hexQ, character.hexR);
+                const dx = targetPixel.x - charPixel.x;
+                const dy = targetPixel.y - charPixel.y;
+                character.facing = getFacingFromDelta(dx, dy);
+                devLog(`[AUTO-FACE] ${character.name} turns to face ${occupant.name}`);
+                return;
+            }
+        }
+    }
+
+    /**
+     * Update engagement relationships after a character moves
+     * Called after movement completes in executeNextMove()
+     */
+    updateEngagement(character) {
+        const charHex = { q: character.hexQ, r: character.hexR };
+        const neighbors = this.hexGrid.getNeighbors(charHex);
+
+        // First, clear any non-adjacent engagements
+        this.clearNonAdjacentEngagements(character);
+
+        // Then, establish new engagements with adjacent enemies
+        for (const neighbor of neighbors) {
+            const occupant = this.getCharacterAtHex(neighbor.q, neighbor.r);
+            if (!occupant || occupant.isDefeated) continue;
+            if (occupant.faction === character.faction) continue;  // Same faction - no engagement
+
+            // Try to establish mutual engagement
+            this.tryEstablishEngagement(character, occupant);
+        }
+    }
+
+    /**
+     * Clear engagements for characters that are no longer adjacent
+     */
+    clearNonAdjacentEngagements(character) {
+        const charHex = { q: character.hexQ, r: character.hexR };
+
+        // Check all characters this one is engaging
+        for (const engaged of [...character.engagedBy]) {
+            const dist = this.hexGrid.hexDistance(charHex, { q: engaged.hexQ, r: engaged.hexR });
+            if (dist > 1) {
+                // No longer adjacent - clear mutual engagement
+                character.engagedBy.delete(engaged);
+                engaged.engagedBy.delete(character);
+                devLog(`[ENGAGEMENT] ${character.name} and ${engaged.name} disengaged (non-adjacent)`);
+            }
+        }
+    }
+
+    /**
+     * Try to establish engagement between two adjacent characters
+     * First-come-first-serve up to engagedMax
+     */
+    tryEstablishEngagement(charA, charB) {
+        // A tries to engage B (if A has capacity)
+        if (!charA.engagedBy.has(charB) && charA.engagedBy.size < charA.engagedMax) {
+            charA.engagedBy.add(charB);
+            devLog(`[ENGAGEMENT] ${charA.name} now engaging ${charB.name} (${charA.engagedBy.size}/${charA.engagedMax})`);
+        }
+
+        // B tries to engage A (if B has capacity)
+        if (!charB.engagedBy.has(charA) && charB.engagedBy.size < charB.engagedMax) {
+            charB.engagedBy.add(charA);
+            devLog(`[ENGAGEMENT] ${charB.name} now engaging ${charA.name} (${charB.engagedBy.size}/${charB.engagedMax})`);
+        }
+    }
+
+    /**
+     * Check if defender can engage attacker back
+     * Returns false if defender's engagedBy is at max AND doesn't include attacker
+     */
+    canEngageBack(defender, attacker) {
+        // If already engaging attacker, can engage back
+        if (defender.engagedBy.has(attacker)) {
+            return true;
+        }
+        // If has capacity, could engage back
+        if (defender.engagedBy.size < defender.engagedMax) {
+            return true;
+        }
+        // At max capacity and attacker not in list - cannot engage back
+        return false;
     }
 
     /**
@@ -382,6 +509,12 @@ export class GameStateManager {
         this.game.pc.hpBufferByAttacker.clear();
         this.game.npcs.forEach(npc => {
             npc.hpBufferByAttacker.clear();
+        });
+
+        // Clear engagement tracking
+        this.game.pc.engagedBy.clear();
+        this.game.npcs.forEach(npc => {
+            npc.engagedBy.clear();
         });
 
         // Return all living characters to idle
@@ -468,6 +601,81 @@ export class GameStateManager {
         // Player has chosen, now AI makes their decisions
         this.processAITurns();
         return true;
+    }
+
+    /**
+     * Player selects adjacent hex to attack
+     * Attack type must be set before calling (via setPlayerAttackType)
+     */
+    selectPlayerAttackTarget(hexQ, hexR) {
+        if (this.currentState !== GAME_STATES.COMBAT_INPUT) return false;
+        if (this.characterActions.has(this.game.pc)) return false; // Already chosen
+
+        // Check if hex is adjacent to player
+        const distance = this.hexGrid.hexDistance(
+            { q: this.game.pc.hexQ, r: this.game.pc.hexR },
+            { q: hexQ, r: hexR }
+        );
+
+        if (distance !== 1) {
+            return false;
+        }
+
+        // Valid attack target (can attack empty hex - it will whiff)
+        const attackAction = {
+            action: COMBAT_ACTIONS.ATTACK,
+            target: { q: hexQ, r: hexR },
+            attackType: this.playerSelectedAttackType
+        };
+
+        this.playerSelectedHex = { q: hexQ, r: hexR };
+        this.characterActions.set(this.game.pc, attackAction);
+
+        // Save for Enter repeat
+        this.playerLastAttackAction = {
+            targetOffset: {
+                q: hexQ - this.game.pc.hexQ,
+                r: hexR - this.game.pc.hexR
+            },
+            attackType: this.playerSelectedAttackType
+        };
+
+        devLog(`[PLAYER] Attack ${this.playerSelectedAttackType} at hex (${hexQ},${hexR})`);
+
+        // Player has chosen, now AI makes their decisions
+        this.processAITurns();
+        return true;
+    }
+
+    /**
+     * Set player's attack type (1 = light, 2 = heavy)
+     */
+    setPlayerAttackType(attackType) {
+        if (attackType === 'light' || attackType === 'heavy') {
+            this.playerSelectedAttackType = attackType;
+            devLog(`[PLAYER] Attack type set to ${attackType}`);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Repeat last attack action (Enter key)
+     * Uses same relative hex offset and attack type
+     */
+    repeatLastAttack() {
+        if (this.currentState !== GAME_STATES.COMBAT_INPUT) return false;
+        if (this.characterActions.has(this.game.pc)) return false;
+        if (!this.playerLastAttackAction) return false;
+
+        // Calculate target hex from player's current position + stored offset
+        const targetQ = this.game.pc.hexQ + this.playerLastAttackAction.targetOffset.q;
+        const targetR = this.game.pc.hexR + this.playerLastAttackAction.targetOffset.r;
+
+        // Set the attack type to match last attack
+        this.playerSelectedAttackType = this.playerLastAttackAction.attackType;
+
+        return this.selectPlayerAttackTarget(targetQ, targetR);
     }
 
     // For UI updates

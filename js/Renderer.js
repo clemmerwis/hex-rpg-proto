@@ -341,7 +341,7 @@ export class Renderer {
         this.ctx.lineWidth = 2;
         this.ctx.stroke();
 
-        // Draw shared borders
+        // Draw shared borders with engagement-aware gradients
         sharedEdges.forEach((edgeIndex) => {
             const [dq, dr] = adjacentDirs[edgeIndex];
             const adjCharacter = this.getCharacterAtHex(q + dq, r + dr);
@@ -350,20 +350,41 @@ export class Renderer {
             const startPoint = hexPoints[edgeIndex];
             const endPoint = hexPoints[(edgeIndex + 1) % 6];
 
-            // Create gradient
-            const gradient = this.ctx.createLinearGradient(
-                startPoint.x,
-                startPoint.y,
-                endPoint.x,
-                endPoint.y,
-            );
-            gradient.addColorStop(0, factionData.tintColor);
-            gradient.addColorStop(1, adjFactionData.tintColor);
+            // Check engagement status for visual indicator
+            const thisCanEngageAdj = this.gameStateManager?.canEngageBack(character, adjCharacter) ?? true;
+            const adjCanEngageThis = this.gameStateManager?.canEngageBack(adjCharacter, character) ?? true;
+
+            let strokeStyle;
+            if (thisCanEngageAdj && adjCanEngageThis) {
+                // Mutual engagement: 50/50 gradient
+                const gradient = this.ctx.createLinearGradient(
+                    startPoint.x, startPoint.y,
+                    endPoint.x, endPoint.y
+                );
+                gradient.addColorStop(0, factionData.tintColor);
+                gradient.addColorStop(1, adjFactionData.tintColor);
+                strokeStyle = gradient;
+            } else if (!thisCanEngageAdj && adjCanEngageThis) {
+                // This character cannot engage adjacent back: adjacent's color dominates (they have advantage)
+                strokeStyle = adjFactionData.tintColor;
+            } else if (thisCanEngageAdj && !adjCanEngageThis) {
+                // Adjacent cannot engage this character back: this character's color dominates
+                strokeStyle = factionData.tintColor;
+            } else {
+                // Neither can engage the other: neutral gradient
+                const gradient = this.ctx.createLinearGradient(
+                    startPoint.x, startPoint.y,
+                    endPoint.x, endPoint.y
+                );
+                gradient.addColorStop(0, factionData.tintColor);
+                gradient.addColorStop(1, adjFactionData.tintColor);
+                strokeStyle = gradient;
+            }
 
             this.ctx.beginPath();
             this.ctx.moveTo(startPoint.x, startPoint.y);
             this.ctx.lineTo(endPoint.x, endPoint.y);
-            this.ctx.strokeStyle = gradient;
+            this.ctx.strokeStyle = strokeStyle;
             this.ctx.lineWidth = 15;
             this.ctx.stroke();
         });

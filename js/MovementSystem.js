@@ -1,4 +1,4 @@
-import { GAME_CONSTANTS, SPRITE_SETS } from './const.js';
+import { GAME_CONSTANTS, SPRITE_SETS, getFacingFromDelta } from './const.js';
 
 
 export class MovementSystem {
@@ -125,19 +125,8 @@ export class MovementSystem {
     updateFacing(character, dx, dy) {
         if (dx === 0 && dy === 0) return;
 
-        let angle = Math.atan2(dy, dx) * 180 / Math.PI;
-        angle = (angle + 360) % 360;
-
         const oldFacing = character.facing;
-
-        if (angle >= 337.5 || angle < 22.5) character.facing = 'dir6';
-        else if (angle >= 22.5 && angle < 67.5) character.facing = 'dir7';
-        else if (angle >= 67.5 && angle < 112.5) character.facing = 'dir8';
-        else if (angle >= 112.5 && angle < 157.5) character.facing = 'dir1';
-        else if (angle >= 157.5 && angle < 202.5) character.facing = 'dir2';
-        else if (angle >= 202.5 && angle < 247.5) character.facing = 'dir3';
-        else if (angle >= 247.5 && angle < 292.5) character.facing = 'dir4';
-        else if (angle >= 292.5 && angle < 337.5) character.facing = 'dir5';
+        character.facing = getFacingFromDelta(dx, dy);
 
         if (oldFacing !== character.facing && this.onDirectionChange) {
             this.onDirectionChange(character.facing);

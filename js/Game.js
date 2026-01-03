@@ -7,7 +7,7 @@ import { AreaManager } from './AreaManager.js';
 import { Pathfinding } from './Pathfinding.js';
 import { MovementSystem } from './MovementSystem.js';
 import { CombatSystem } from './CombatSystem.js';
-import { GAME_CONSTANTS, FACTIONS, calculateMaxHP, calculateHPBuffer, createDefaultSkills } from './const.js';
+import { GAME_CONSTANTS, FACTIONS, calculateMaxHP, calculateHPBuffer, calculateEngagedMax, createDefaultSkills } from './const.js';
 import { makeEnemies } from './utils.js';
 
 export class Game {
@@ -47,11 +47,11 @@ export class Game {
                 name: 'Hero',
                 stats: {
                     str: 7, int: 5,
-                    dex: 6, per: 6,
-                    con: 8, will: 5,
-                    beauty: 5, cha: 6,
-                    instinct: 6, wis: 6
-                }, // Total: 60
+                    dex: 7, per: 6,
+                    con: 7, will: 5,
+                    beauty: 5, cha: 5,
+                    instinct: 6, wis: 7
+                }, // Total: 60 - Jack of all trades
                 health: null,    // Set after definition
                 maxHealth: null,
                 hpBufferMax: null,        // Temp HP per attacker
@@ -59,11 +59,11 @@ export class Game {
                 equipment: {
                     mainHand: 'unarmed',
                     offHand: null,
+                    armor: 'scale',
                 },
                 faction: 'pc',
                 spriteSet: 'baseKnight',
                 skills: createDefaultSkills(),
-                speed: 12,
                 isDefeated: false,
                 movementQueue: [],
                 isMoving: false,
@@ -74,7 +74,10 @@ export class Game {
                 // Disposition properties
                 mode: 'aggressive',
                 enemies: null,  // Initialized in onAssetsLoaded
-                lastAttackedBy: null
+                lastAttackedBy: null,
+                // Engagement tracking
+                engagedBy: null,    // Set<character> - who is engaging this character
+                engagedMax: null    // Calculated from Cerebral Presence
             },
             npcs: [
                 {
@@ -88,24 +91,24 @@ export class Game {
                     currentAnimation: 'idle',
                     name: 'Companion',
                     stats: {
-                        str: 5, int: 6,
-                        dex: 7, per: 7,
-                        con: 4, will: 6,
-                        beauty: 6, cha: 6,
-                        instinct: 7, wis: 6
-                    }, // Total: 60
+                        str: 4, int: 5,
+                        dex: 9, per: 6,
+                        con: 5, will: 7,
+                        beauty: 6, cha: 5,
+                        instinct: 9, wis: 4
+                    }, // Total: 60 - Defensive tank
                     health: null,
                     maxHealth: null,
                     hpBufferMax: null,
                     hpBufferByAttacker: null,
                     equipment: {
-                        mainHand: 'shortSword',
-                        offHand: 'largeShield',
+                        mainHand: 'shortBlunt',
+                        offHand: 'smallShield',
+                        armor: 'brigandine',
                     },
                     faction: 'pc',
                     spriteSet: 'swordShieldKnight',
                     skills: createDefaultSkills(),
-                    speed: 11,
                     isDefeated: false,
                     movementQueue: [],
                     isMoving: false,
@@ -115,7 +118,9 @@ export class Game {
                     targetPixelY: 0,
                     mode: 'aggressive',
                     enemies: null,
-                    lastAttackedBy: null
+                    lastAttackedBy: null,
+                    engagedBy: null,
+                    engagedMax: null
                 },
                 {
                     hexQ: 8,
@@ -129,23 +134,23 @@ export class Game {
                     name: 'Guard',
                     stats: {
                         str: 7, int: 5,
-                        dex: 6, per: 7,
+                        dex: 6, per: 6,
                         con: 7, will: 6,
                         beauty: 5, cha: 5,
-                        instinct: 6, wis: 6
-                    }, // Total: 60
+                        instinct: 6, wis: 7
+                    }, // Total: 60 - Professional soldier
                     health: null,
                     maxHealth: null,
                     hpBufferMax: null,
                     hpBufferByAttacker: null,
                     equipment: {
-                        mainHand: 'unarmed',
-                        offHand: null,
+                        mainHand: 'shortSpear',
+                        offHand: 'largeShield',
+                        armor: 'plate',
                     },
                     faction: 'guard',
-                    spriteSet: 'baseKnight',
+                    spriteSet: 'swordShieldKnight',
                     skills: createDefaultSkills(),
-                    speed: 10,
                     isDefeated: false,
                     movementQueue: [],
                     isMoving: false,
@@ -155,7 +160,9 @@ export class Game {
                     targetPixelY: 0,
                     mode: 'neutral',
                     enemies: null,
-                    lastAttackedBy: null
+                    lastAttackedBy: null,
+                    engagedBy: null,
+                    engagedMax: null
                 },
                 {
                     hexQ: 9,
@@ -168,24 +175,24 @@ export class Game {
                     currentAnimation: 'idle',
                     name: 'Guard',
                     stats: {
-                        str: 7, int: 5,
+                        str: 6, int: 6,
                         dex: 6, per: 7,
-                        con: 7, will: 6,
+                        con: 6, will: 6,
                         beauty: 5, cha: 5,
-                        instinct: 6, wis: 6
-                    }, // Total: 60
+                        instinct: 7, wis: 6
+                    }, // Total: 60 - Veteran watch
                     health: null,
                     maxHealth: null,
                     hpBufferMax: null,
                     hpBufferByAttacker: null,
                     equipment: {
-                        mainHand: 'unarmed',
-                        offHand: null,
+                        mainHand: 'shortSpear',
+                        offHand: 'largeShield',
+                        armor: 'chain',
                     },
                     faction: 'guard',
-                    spriteSet: 'baseKnight',
+                    spriteSet: 'swordShieldKnight',
                     skills: createDefaultSkills(),
-                    speed: 10,
                     isDefeated: false,
                     movementQueue: [],
                     isMoving: false,
@@ -195,7 +202,9 @@ export class Game {
                     targetPixelY: 0,
                     mode: 'neutral',
                     enemies: null,
-                    lastAttackedBy: null
+                    lastAttackedBy: null,
+                    engagedBy: null,
+                    engagedMax: null
                 },
                 {
                     hexQ: 3,
@@ -208,24 +217,24 @@ export class Game {
                     currentAnimation: 'idle',
                     name: 'Bandit',
                     stats: {
-                        str: 6, int: 5,
-                        dex: 8, per: 6,
-                        con: 5, will: 5,
-                        beauty: 4, cha: 6,
-                        instinct: 8, wis: 7
-                    }, // Total: 60
+                        str: 10, int: 3,
+                        dex: 5, per: 4,
+                        con: 8, will: 4,
+                        beauty: 3, cha: 5,
+                        instinct: 8, wis: 10
+                    }, // Total: 60 - Brute
                     health: null,
                     maxHealth: null,
                     hpBufferMax: null,
                     hpBufferByAttacker: null,
                     equipment: {
-                        mainHand: 'unarmed',
+                        mainHand: 'shortSword',
                         offHand: null,
+                        armor: 'leather',
                     },
                     faction: 'bandit',
-                    spriteSet: 'baseKnight',
+                    spriteSet: 'swordKnight',
                     skills: createDefaultSkills(),
-                    speed: 8,
                     isDefeated: false,
                     movementQueue: [],
                     isMoving: false,
@@ -235,7 +244,9 @@ export class Game {
                     targetPixelY: 0,
                     mode: 'aggressive',
                     enemies: null,
-                    lastAttackedBy: null
+                    lastAttackedBy: null,
+                    engagedBy: null,
+                    engagedMax: null
                 },
                 {
                     hexQ: 2,
@@ -248,24 +259,24 @@ export class Game {
                     currentAnimation: 'idle',
                     name: 'Bandit',
                     stats: {
-                        str: 5, int: 5,
-                        dex: 7, per: 7,
-                        con: 6, will: 5,
-                        beauty: 4, cha: 6,
-                        instinct: 8, wis: 7
-                    }, // Total: 60
+                        str: 4, int: 5,
+                        dex: 10, per: 8,
+                        con: 5, will: 4,
+                        beauty: 5, cha: 6,
+                        instinct: 7, wis: 6
+                    }, // Total: 60 - Quick thief
                     health: null,
                     maxHealth: null,
                     hpBufferMax: null,
                     hpBufferByAttacker: null,
                     equipment: {
-                        mainHand: 'unarmed',
+                        mainHand: 'shortSword',
                         offHand: null,
+                        armor: 'leather',
                     },
                     faction: 'bandit',
-                    spriteSet: 'baseKnight',
+                    spriteSet: 'swordKnight',
                     skills: createDefaultSkills(),
-                    speed: 9,
                     isDefeated: false,
                     movementQueue: [],
                     isMoving: false,
@@ -275,7 +286,9 @@ export class Game {
                     targetPixelY: 0,
                     mode: 'aggressive',
                     enemies: null,
-                    lastAttackedBy: null
+                    lastAttackedBy: null,
+                    engagedBy: null,
+                    engagedMax: null
                 }
             ]
         };
@@ -540,6 +553,14 @@ export class Game {
         this.state.pc.enemies = new Set();
         this.state.npcs.forEach(npc => {
             npc.enemies = new Set();
+        });
+
+        // Initialize engagement tracking
+        this.state.pc.engagedBy = new Set();
+        this.state.pc.engagedMax = calculateEngagedMax(this.state.pc.stats);
+        this.state.npcs.forEach(npc => {
+            npc.engagedBy = new Set();
+            npc.engagedMax = calculateEngagedMax(npc.stats);
         });
 
         // Set up initial hostilities
