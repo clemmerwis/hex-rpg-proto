@@ -4,6 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 For detailed reference (controls, data structures, debug features): see [docs/reference.md](docs/reference.md).
 
+**Note**: Local machine-specific configuration (API tokens, etc.) is stored in `.claude-config.md` (gitignored).
+
 ## Project Overview
 
 This is a hex-grid based isometric RPG prototype built with vanilla JavaScript (ES6 modules). The game features turn-based tactical combat on a hexagonal grid with smooth character movement, pathfinding, and an AI system for enemy behavior.

@@ -10,6 +10,9 @@
 !*.yml
 !Dockerfile
 
+# Local Claude config (ignore even though .md is allowed)
+.claude-config.md
+
 # Track used assets
 !*.jpg
 !*.png
