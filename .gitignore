@@ -6,6 +6,7 @@
 !*.js
 !*.css
 !*.md
+!*.json
 !.gitignore
 !*.yml
 !Dockerfile

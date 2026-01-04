@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cat:*)",
+      "Bash(find:*)",
+      "Bash(sort:*)",
+      "Bash(awk:*)",
+      "Bash(git -C \"C:\\Users\\User\\myComp\\web-work\\rpg-proto\" ls-files sprites/)",
+      "Bash(git -C \"C:\\Users\\User\\myComp\\web-work\\rpg-proto\" status --porcelain sprites/)",
+      "Bash(git -C \"C:\\Users\\User\\myComp\\web-work\\rpg-proto\" check-ignore sprites/)",
+      "Bash(git check-ignore:*)",
+      "Bash(done)",
+      "Bash(git -C \"C:\\\\Users\\\\User\\\\myComp\\\\web-work\\\\rpg-proto\" diff js/const.js js/GameStateManager.js)",
+      "Bash(git -C \"C:\\\\Users\\\\User\\\\myComp\\\\web-work\\\\rpg-proto\" ls-files areas/)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

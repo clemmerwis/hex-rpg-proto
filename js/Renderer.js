@@ -665,7 +665,7 @@ export class Renderer {
         // Buffer bar (thin pink bar above health bar, only when recently hit)
         if (healthOnly && character.lastAttackedBy && character.hpBufferByAttacker) {
             const remainingBuffer = character.hpBufferByAttacker.get(character.lastAttackedBy);
-            if (remainingBuffer !== undefined && character.hpBufferMax > 0) {
+            if (remainingBuffer > 0 && character.hpBufferMax > 0) {
                 const bufferBarHeight = 8;
                 const bufferBarY = barY - bufferBarHeight - 1;
                 const bufferPercent = remainingBuffer / character.hpBufferMax;
