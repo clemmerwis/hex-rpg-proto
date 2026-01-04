@@ -592,7 +592,8 @@ export class Renderer {
         const nameplateY = character.pixelY - actualSpriteSize / 2 - 63;
 
         const barWidth = GAME_CONSTANTS.NAMEPLATE_WIDTH;
-        const barHeight = 22;
+        const barHeight = GAME_CONSTANTS.HEALTH_BAR_HEIGHT;
+        const bufferBarHeight = GAME_CONSTANTS.BUFFER_BAR_HEIGHT;
 
         this.ctx.save();
 
@@ -666,7 +667,6 @@ export class Renderer {
         if (healthOnly && character.lastAttackedBy && character.hpBufferByAttacker) {
             const remainingBuffer = character.hpBufferByAttacker.get(character.lastAttackedBy);
             if (remainingBuffer > 0 && character.hpBufferMax > 0) {
-                const bufferBarHeight = 8;
                 const bufferBarY = barY - bufferBarHeight - 1;
                 const bufferPercent = remainingBuffer / character.hpBufferMax;
                 const bufferWidth = barWidth * bufferPercent;
