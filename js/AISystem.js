@@ -1,3 +1,5 @@
+import { ARMOR_TYPES } from './const.js';
+
 // Dev logging toggle - matches GameStateManager
 const DEV_LOG = true;
 
@@ -39,8 +41,14 @@ export class AISystem {
             // AGGRESSIVE: attack adjacent enemy or pursue closest
             const adjacentEnemy = this.findAdjacentEnemy(character, enemies);
             if (adjacentEnemy) {
-                devLog(`[AI] ${character.name} (aggressive) enemies=[${enemyNames}] - adjacent to ${adjacentEnemy.name}, attacking!`);
-                return { action: 'attack', target: { q: adjacentEnemy.hexQ, r: adjacentEnemy.hexR } };
+                // Choose attack type based on target's armor
+                const attackType = this.selectAttackType(adjacentEnemy);
+                devLog(`[AI] ${character.name} (aggressive) enemies=[${enemyNames}] - adjacent to ${adjacentEnemy.name}, using ${attackType} attack!`);
+                return {
+                    action: 'attack',
+                    target: { q: adjacentEnemy.hexQ, r: adjacentEnemy.hexR },
+                    attackType: attackType
+                };
             }
 
             const target = this.findClosestEnemy(character, enemies);
@@ -92,6 +100,23 @@ export class AISystem {
 
         // Filter to living enemies only
         return livingChars.filter(c => allEnemies.has(c));
+    }
+
+    /**
+     * Select attack type based on target's armor
+     * Heavy attacks (+10 damage) against heavy armor (chain/plate with 10+ DEF)
+     * Light attacks (faster) against lighter armor
+     */
+    selectAttackType(target) {
+        const armor = ARMOR_TYPES[target.equipment.armor || 'none'];
+
+        // Use heavy attack against heavy armor (10+ defense)
+        if (armor.weight === 'heavy') {
+            return 'heavy';
+        }
+
+        // Default to light attack (faster, sufficient for light armor)
+        return 'light';
     }
 
     /**

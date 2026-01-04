@@ -1,4 +1,4 @@
-import { calculateDamage, calculateAttackRating, calculateDefenseRating, calculateCSC, getEquipmentBonus, WEAPONS, ARMOR_TYPES, ATTACK_TYPES, isFlanking, getFacingFromDelta } from './const.js';
+import { calculateDamage, calculateAttackRating, calculateDefenseRating, calculateCSC, getEquipmentBonus, WEAPONS, ARMOR_TYPES, ATTACK_TYPES, STAT_BONUSES, isFlanking, getFacingFromDelta } from './const.js';
 
 export class CombatSystem {
     constructor(hexGrid, getCharacterAtHex, gameStateManager) {
@@ -131,7 +131,15 @@ export class CombatSystem {
         if (flanking) logParts.push('[FLANKING]');
         if (crit) logParts.push('[CRITICAL]');
 
-        let damageBreakdown = `Base: ${baseDamage}`;
+        // Build detailed damage breakdown showing formula components
+        const strMult = STAT_BONUSES.MULTIPLIER[attacker.stats.str] ?? 1;
+        const strBonus = Math.ceil(weapon.force * strMult);
+        const attackMod = ATTACK_TYPES[attackType]?.damageMod || 0;
+
+        let damageBreakdown = `Weapon: ${weapon.base} + Str(${attacker.stats.str})×Force(${weapon.force}): +${strBonus}`;
+        if (attackMod !== 0) damageBreakdown += ` + ${attackType}: ${attackMod > 0 ? '+' : ''}${attackMod}`;
+        damageBreakdown += ` = ${baseDamage}`;
+
         if (crit) damageBreakdown += ` → Crit: ${damageAfterCrit}`;
         if (drAbsorbed > 0) damageBreakdown += ` → DR: -${drAbsorbed}${flanking ? ` (flanked ${Math.round(armor.flankingDefense * 100)}%)` : ''}`;
         if (resistMod === 'resistant') damageBreakdown += ` → Resist: ×0.5`;

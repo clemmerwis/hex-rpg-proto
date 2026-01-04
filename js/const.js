@@ -1,41 +1,41 @@
 export const GAME_CONSTANTS = {
-  // Movement
-  MOVEMENT_SPEED: 300, // ms per hex
-  MOVEMENT_TIMEOUT: 5000, // Failsafe timeout for movement completion (ms)
+	// Movement
+	MOVEMENT_SPEED: 300, // ms per hex
+	MOVEMENT_TIMEOUT: 5000, // Failsafe timeout for movement completion (ms)
 
-  // Combat timing
-  COMBAT_PHASE_TRANSITION: 100, // ms delay between move and action phases
-  COMBAT_ATTACK_WINDUP: 100, // ms delay before attack resolves (for animation)
-  COMBAT_ATTACK_RECOVERY: 500, // ms delay after attack before next character
-  COMBAT_MOVE_BLOCKED_DELAY: 50, // ms delay when move is blocked before next
+	// Combat timing
+	COMBAT_PHASE_TRANSITION: 100, // ms delay between move and action phases
+	COMBAT_ATTACK_WINDUP: 100, // ms delay before attack resolves (for animation)
+	COMBAT_ATTACK_RECOVERY: 500, // ms delay after attack before next character
+	COMBAT_MOVE_BLOCKED_DELAY: 50, // ms delay when move is blocked before next
 
-  // Animation
-  ANIMATION_SPEED: 17, // ms between animation frames
+	// Animation
+	ANIMATION_SPEED: 17, // ms between animation frames
 
-  // World and rendering
-  HEX_SIZE: 70,
-  WORLD_WIDTH: 3220,
-  WORLD_HEIGHT: 2240,
-  ZOOM_LEVEL: 0.5,
+	// World and rendering
+	HEX_SIZE: 70,
+	WORLD_WIDTH: 3220,
+	WORLD_HEIGHT: 2240,
+	ZOOM_LEVEL: 0.5,
 
-  // Camera and scrolling
-  EDGE_SCROLL_THRESHOLD: 100,
-  MAX_EDGE_SCROLL_SPEED: 12,
-  KEYBOARD_SCROLL_SPEED: 8,
+	// Camera and scrolling
+	EDGE_SCROLL_THRESHOLD: 100,
+	MAX_EDGE_SCROLL_SPEED: 12,
+	KEYBOARD_SCROLL_SPEED: 8,
 
-  // Pathfinding
-  PATHFINDING_MAX_DISTANCE: 30,
-  PATHFINDING_MAX_ITERATIONS: 100,
-  PATHFINDING_MAX_OPEN_SET: 200,
+	// Pathfinding
+	PATHFINDING_MAX_DISTANCE: 30,
+	PATHFINDING_MAX_ITERATIONS: 100,
+	PATHFINDING_MAX_OPEN_SET: 200,
 
-  // UI
-  NAMEPLATE_WIDTH: 150,
-  NAMEPLATE_HEIGHT: 65,
-  HEALTH_BAR_HEIGHT: 22,
-  BUFFER_BAR_HEIGHT: 8,
+	// UI
+	NAMEPLATE_WIDTH: 150,
+	NAMEPLATE_HEIGHT: 65,
+	HEALTH_BAR_HEIGHT: 22,
+	BUFFER_BAR_HEIGHT: 8,
 
-  // Sprite
-  SPRITE_FRAME_SIZE: 256,
+	// Sprite
+	SPRITE_FRAME_SIZE: 256,
 };
 
 // Sprite set registry - each set is self-contained with folder info and animation configs
@@ -50,14 +50,14 @@ export const SPRITE_SETS = {
 			idle2: 'KnightExMovement',
 		},
 		animations: {
-			idle:   { animationName: 'Idle', cols: 5, rows: 4, frameCount: 17, speed: 120 },
-			walk:   { animationName: 'Walk', cols: 4, rows: 3, frameCount: 11 },
-			run:    { animationName: 'Run', cols: 3, rows: 3, frameCount: 8 },
-			jump:   { animationName: 'Jump', cols: 4, rows: 3, frameCount: 11 },
+			idle: { animationName: 'Idle', cols: 5, rows: 4, frameCount: 17, speed: 120 },
+			walk: { animationName: 'Walk', cols: 4, rows: 3, frameCount: 11 },
+			run: { animationName: 'Run', cols: 3, rows: 3, frameCount: 8 },
+			jump: { animationName: 'Jump', cols: 4, rows: 3, frameCount: 11 },
 			attack: { animationName: 'Attack', cols: 4, rows: 4, frameCount: 15, oneShot: true },
-			die:    { animationName: 'Die', cols: 6, rows: 5, frameCount: 27, speed: 60 },
+			die: { animationName: 'Die', cols: 6, rows: 5, frameCount: 27, speed: 60 },
 			impact: { animationName: 'Impact', cols: 3, rows: 3, frameCount: 9, oneShot: true },
-			idle2:  { animationName: 'Idle2', cols: 5, rows: 5, frameCount: 25, oneShot: true, speed: 142 },
+			idle2: { animationName: 'Idle2', cols: 5, rows: 5, frameCount: 25, oneShot: true, speed: 142 },
 		}
 	},
 	swordShieldKnight: {
@@ -65,14 +65,14 @@ export const SPRITE_SETS = {
 		prefix: 'KnightSwordShield',
 		folderOverrides: {},
 		animations: {
-			idle:   { animationName: 'Idle', cols: 5, rows: 4, frameCount: 17, speed: 120 },
-			walk:   { animationName: 'Walk', cols: 4, rows: 4, frameCount: 13 },
-			run:    { animationName: 'Run', cols: 3, rows: 3, frameCount: 8 },
-			jump:   { animationName: 'Jump', cols: 3, rows: 3, frameCount: 9 },
+			idle: { animationName: 'Idle', cols: 5, rows: 4, frameCount: 17, speed: 120 },
+			walk: { animationName: 'Walk', cols: 4, rows: 4, frameCount: 13 },
+			run: { animationName: 'Run', cols: 3, rows: 3, frameCount: 8 },
+			jump: { animationName: 'Jump', cols: 3, rows: 3, frameCount: 9 },
 			attack: { animationName: 'Attack', cols: 4, rows: 4, frameCount: 15, oneShot: true },
-			die:    { animationName: 'Die2', cols: 4, rows: 4, frameCount: 16, speed: 60 },
+			die: { animationName: 'Die2', cols: 4, rows: 4, frameCount: 16, speed: 60 },
 			impact: { animationName: 'Impact', cols: 3, rows: 3, frameCount: 9, oneShot: true },
-			idle2:  { animationName: 'Idle2', cols: 5, rows: 5, frameCount: 25, oneShot: true, speed: 142 },
+			idle2: { animationName: 'Idle2', cols: 5, rows: 5, frameCount: 25, oneShot: true, speed: 142 },
 		}
 	},
 	swordKnight: {
@@ -80,14 +80,14 @@ export const SPRITE_SETS = {
 		prefix: 'KnightSword',
 		folderOverrides: {},
 		animations: {
-			idle:   { animationName: 'Idle', cols: 5, rows: 4, frameCount: 17, speed: 120 },
-			walk:   { animationName: 'Walk', cols: 4, rows: 3, frameCount: 11 },
-			run:    { animationName: 'Run', cols: 3, rows: 3, frameCount: 8 },
-			jump:   { animationName: 'Jump', cols: 3, rows: 3, frameCount: 9 },
+			idle: { animationName: 'Idle', cols: 5, rows: 4, frameCount: 17, speed: 120 },
+			walk: { animationName: 'Walk', cols: 4, rows: 3, frameCount: 11 },
+			run: { animationName: 'Run', cols: 3, rows: 3, frameCount: 8 },
+			jump: { animationName: 'Jump', cols: 3, rows: 3, frameCount: 9 },
 			attack: { animationName: 'Attack', cols: 4, rows: 4, frameCount: 15, oneShot: true },
-			die:    { animationName: 'Die', cols: 6, rows: 5, frameCount: 27, speed: 60 },
+			die: { animationName: 'Die', cols: 6, rows: 5, frameCount: 27, speed: 60 },
 			impact: { animationName: 'Impact', cols: 3, rows: 3, frameCount: 9, oneShot: true },
-			idle2:  { animationName: 'Idle2', cols: 5, rows: 5, frameCount: 25, oneShot: true, speed: 142 },
+			idle2: { animationName: 'Idle2', cols: 5, rows: 5, frameCount: 25, oneShot: true, speed: 142 },
 		}
 	}
 };
@@ -97,11 +97,11 @@ export const SPRITE_SETS = {
 // Each character: min 3 per stat (30 base) + 30 distributable = 60 total
 export const STATS = {
 	categories: {
-		power:      { physical: 'str', cerebral: 'int' },
-		prowess:    { physical: 'dex', cerebral: 'per' },
+		power: { physical: 'str', cerebral: 'int' },
+		prowess: { physical: 'dex', cerebral: 'per' },
 		resistance: { physical: 'con', cerebral: 'will' },
 		appearance: { physical: 'beauty', cerebral: 'cha' },
-		spirit:     { physical: 'instinct', cerebral: 'wis' }
+		spirit: { physical: 'instinct', cerebral: 'wis' }
 	},
 	all: ['str', 'int', 'dex', 'per', 'con', 'will', 'beauty', 'cha', 'instinct', 'wis'],
 	MIN: 3,
@@ -194,14 +194,14 @@ export const PASSIVE_BONUSES = {
 // These activate under specific conditions during combat
 export const WEAPON_EFFECTS = {
 	// Conditions - applied to target on hit
-	rockedOnHit:        { type: 'condition', effect: 'rocked', trigger: 'onHit', always: true },
-	bleedingLight:      { type: 'condition', effect: 'bleeding', trigger: 'onHit', intensity: 'light' },
-	bleedingHeavy:      { type: 'condition', effect: 'bleeding', trigger: 'onHit', intensity: 'heavy' },
+	rocked: { type: 'condition', effect: 'rocked', trigger: 'onHit', always: true },
+	bleedingLight: { type: 'condition', effect: 'bleeding', trigger: 'onHit', intensity: 'light' },
+	bleedingHeavy: { type: 'condition', effect: 'bleeding', trigger: 'onHit', intensity: 'heavy' },
 	// Enhancements - modify attack properties
-	vulnerableLight:    { type: 'enhancement', effect: 'vulnerable', intensity: 'light' },
-	vulnerableHeavy:    { type: 'enhancement', effect: 'vulnerable', intensity: 'heavy' },
-	armorDamageLight:   { type: 'enhancement', effect: 'armorDamage', intensity: 'light' },
-	armorDamageHeavy:   { type: 'enhancement', effect: 'armorDamage', intensity: 'heavy' },
+	vulnerableEnhancementLight: { type: 'enhancement', effect: 'vulnerable', intensity: 'light' },
+	vulnerableEnhancementHeavy: { type: 'enhancement', effect: 'vulnerable', intensity: 'heavy' },
+	armorDamageEnhancementLight: { type: 'enhancement', effect: 'armorDamage', intensity: 'light' },
+	armorDamageEnhancementHeavy: { type: 'enhancement', effect: 'armorDamage', intensity: 'heavy' },
 };
 
 // Equipment definitions
@@ -209,15 +209,15 @@ export const WEAPON_EFFECTS = {
 // passives: { defenseR, attackR, critMultiplier, evasionBonus, ... } - gathered via getEquipmentBonus()
 // effects: triggered effects referencing WEAPON_EFFECTS keys
 export const WEAPONS = {
-	unarmed:     { name: 'Unarmed',      base: 2,  type: 'blunt',    force: 1, speed: 16, grip: 'one', passives: { critMultiplier: 2, evasionBonus: 5 }, effects: ['rockedOnHit'] },
-	shortSpear:  { name: 'Short Spear',  base: 3,  type: 'piercing', force: 1, speed: 19, grip: 'one', passives: {}, effects: ['vulnerableLight'] },
-	shortSword:  { name: 'Short Sword',  base: 4,  type: 'slash',    force: 2, speed: 18, grip: 'one', passives: {}, effects: ['bleedingLight'] },
-	shortBlunt:  { name: 'Short Blunt',  base: 6,  type: 'blunt',    force: 3, speed: 20, grip: 'one', passives: {}, effects: ['armorDamageLight'] },
-	longSword:   { name: 'Long Sword',   base: 8,  type: 'slash',    force: 4, speed: 20, grip: 'two', passives: {}, effects: ['bleedingHeavy'] },
-	longSpear:   { name: 'Long Spear',   base: 6,  type: 'piercing', force: 4, speed: 20, grip: 'two', passives: {}, effects: ['vulnerableHeavy'] },
-	longBlunt:   { name: 'Long Blunt',   base: 10, type: 'blunt',    force: 6, speed: 21, grip: 'two', passives: {}, effects: ['armorDamageHeavy'] },
-	smallShield: { name: 'Small Shield', base: 1,  type: 'blunt',    force: 2, speed: 17, grip: 'off', passives: { defenseR: 4 }, effects: [] },
-	largeShield: { name: 'Large Shield', base: 1,  type: 'blunt',    force: 3, speed: 20, grip: 'off', passives: { defenseR: 8 }, effects: [] },
+	unarmed: { name: 'Unarmed', base: 2, type: 'blunt', force: 1, speed: 16, grip: 'two', passives: { critMultiplier: 2, evasionBonus: 5 }, effects: ['rockedOnHit'] },
+	shortSpear: { name: 'Short Spear', base: 3, type: 'piercing', force: 1, speed: 19, grip: 'one', passives: {}, effects: ['vulnerableEnhancementLight'] },
+	shortSword: { name: 'Short Sword', base: 4, type: 'slash', force: 2, speed: 18, grip: 'one', passives: {}, effects: ['bleedingLight'] },
+	shortBlunt: { name: 'Short Blunt', base: 6, type: 'blunt', force: 3, speed: 20, grip: 'one', passives: {}, effects: ['armorDamageEnhancementLight'] },
+	longSword: { name: 'Long Sword', base: 8, type: 'slash', force: 4, speed: 20, grip: 'two', passives: {}, effects: ['bleedingHeavy'] },
+	longSpear: { name: 'Long Spear', base: 6, type: 'piercing', force: 4, speed: 20, grip: 'two', passives: {}, effects: ['vulnerableEnhancementHeavy'] },
+	longBlunt: { name: 'Long Blunt', base: 10, type: 'blunt', force: 6, speed: 21, grip: 'two', passives: {}, effects: ['armorDamageEnhancementHeavy'] },
+	smallShield: { name: 'Small Shield', base: 1, type: 'blunt', force: 2, speed: 17, grip: 'off', passives: { defenseR: 4 }, effects: [] },
+	largeShield: { name: 'Large Shield', base: 1, type: 'blunt', force: 3, speed: 20, grip: 'off', passives: { defenseR: 8 }, effects: [] },
 };
 
 // Attack types - affect action speed and damage
@@ -230,18 +230,18 @@ export const ATTACK_TYPES = {
 // mobility affects move speed (reduced by Str), flankingDefense affects DR when flanked
 // passives: { ... } - gathered via getEquipmentBonus() along with weapon/shield passives
 export const ARMOR_TYPES = {
-	none:       { name: 'Unarmored',       defense: 0,  mobility: 20, weight: 'none',   noise: 'none',   resistantAgainst: [],                  vulnerableAgainst: [],           flankingDefense: 1.0, passives: {} },
-	leather:    { name: 'Leather',         defense: 6,  mobility: 20, weight: 'light',  noise: 'none',   resistantAgainst: ['piercing'],        vulnerableAgainst: ['blunt'],    flankingDefense: 1.5, passives: {} },
-	scale:      { name: 'Scale',           defense: 8,  mobility: 25, weight: 'medium', noise: 'medium', resistantAgainst: ['slash'],           vulnerableAgainst: ['piercing'], flankingDefense: 0.0, passives: {} },
-	brigandine: { name: 'Brigandine',      defense: 10, mobility: 23, weight: 'medium', noise: 'low',    resistantAgainst: ['piercing','slash'],vulnerableAgainst: ['blunt'],    flankingDefense: 0.5, passives: {} },
-	chain:      { name: 'Chain (Heavy)',   defense: 10, mobility: 28, weight: 'heavy',  noise: 'medium', resistantAgainst: ['slash'],           vulnerableAgainst: ['blunt','piercing'], flankingDefense: 0.25, passives: {} },
-	plate:      { name: 'Plate',           defense: 12, mobility: 30, weight: 'heavy',  noise: 'high',   resistantAgainst: ['slash','blunt'],   vulnerableAgainst: ['piercing'], flankingDefense: 0.75, passives: {} },
+	none: { name: 'Unarmored', defense: 0, mobility: 20, weight: 'none', noise: 'none', resistantAgainst: [], vulnerableAgainst: [], flankingDefense: 1.0, passives: {} },
+	leather: { name: 'Leather', defense: 6, mobility: 20, weight: 'light', noise: 'none', resistantAgainst: ['piercing'], vulnerableAgainst: ['blunt'], flankingDefense: 1.5, passives: {} },
+	scale: { name: 'Scale', defense: 8, mobility: 25, weight: 'medium', noise: 'medium', resistantAgainst: ['slash'], vulnerableAgainst: ['piercing'], flankingDefense: 0.0, passives: {} },
+	brigandine: { name: 'Brigandine', defense: 10, mobility: 23, weight: 'medium', noise: 'low', resistantAgainst: ['piercing', 'slash'], vulnerableAgainst: ['blunt'], flankingDefense: 0.5, passives: {} },
+	chain: { name: 'Chain (Heavy)', defense: 10, mobility: 28, weight: 'heavy', noise: 'medium', resistantAgainst: ['slash'], vulnerableAgainst: ['blunt', 'piercing'], flankingDefense: 0.25, passives: {} },
+	plate: { name: 'Plate', defense: 12, mobility: 30, weight: 'heavy', noise: 'high', resistantAgainst: ['slash', 'blunt'], vulnerableAgainst: ['piercing'], flankingDefense: 0.75, passives: {} },
 };
 
 // Turn speed tiers - lower total speed = faster tier
 // Move phase uses armor.mobility, Action phase uses weapon+shield speed + attackType - Dex
 export const TURN_SPEED_TIERS = [
-	{ tier: 1, min: 0,  max: 20, name: '1/4' },
+	{ tier: 1, min: 0, max: 20, name: '1/4' },
 	{ tier: 2, min: 21, max: 40, name: '2/4' },
 	{ tier: 3, min: 41, max: 55, name: '3/4' },
 	{ tier: 4, min: 56, max: Infinity, name: '4/4' },
@@ -380,8 +380,8 @@ export function getEquipmentBonus(character, bonusName) {
 	const armor = ARMOR_TYPES[character.equipment.armor];
 
 	return (weapon?.passives?.[bonusName] || 0)
-		 + (offHand?.passives?.[bonusName] || 0)
-		 + (armor?.passives?.[bonusName] || 0);
+		+ (offHand?.passives?.[bonusName] || 0)
+		+ (armor?.passives?.[bonusName] || 0);
 }
 
 /**
@@ -411,26 +411,26 @@ export function calculateDamage(stats, weaponKey, attackType = 'light') {
 
 // Faction configurations
 export const FACTIONS = {
-  pc: {
-    name: "PC",
-    tintColor: "#4CAF50",
-    nameplateColor: "#00ff00",
-  },
-  pc_ally: {
-    name: "Companion",
-    tintColor: "#4169E1",
-    nameplateColor: "#6495ED",
-  },
-  bandit: {
-    name: "Bandit",
-    tintColor: "#B22222",
-    nameplateColor: "#cc3333",
-  },
-  guard: {
-    name: "Guard",
-    tintColor: "#FF9800",
-    nameplateColor: "#ffaa44",
-  },
+	pc: {
+		name: "PC",
+		tintColor: "#4CAF50",
+		nameplateColor: "#00ff00",
+	},
+	pc_ally: {
+		name: "Companion",
+		tintColor: "#4169E1",
+		nameplateColor: "#6495ED",
+	},
+	bandit: {
+		name: "Bandit",
+		tintColor: "#B22222",
+		nameplateColor: "#cc3333",
+	},
+	guard: {
+		name: "Guard",
+		tintColor: "#FF9800",
+		nameplateColor: "#ffaa44",
+	},
 };
 
 // Direction helpers for facing and flanking

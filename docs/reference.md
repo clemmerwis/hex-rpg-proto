@@ -178,12 +178,12 @@ Each attacker must deplete a character's buffer individually before dealing real
 | Weapon | Base | Type | Force | Speed | Grip | Special |
 |--------|------|------|-------|-------|------|---------|
 | Unarmed | 2 | blunt | 1 | 16 | one | critMultiplier: 2 |
-| Short Spear | 3 | piercing | 1 | 19 | one | vulnerableLight |
+| Short Spear | 3 | piercing | 1 | 19 | one | vulnerableEnhancementLight |
 | Short Sword | 4 | slash | 2 | 18 | one | bleedingLight |
-| Short Blunt | 6 | blunt | 3 | 20 | one | armorDamageLight |
+| Short Blunt | 6 | blunt | 3 | 20 | one | armorDamageEnhancementLight |
 | Long Sword | 8 | slash | 4 | 20 | two | bleedingHeavy |
-| Long Spear | 6 | piercing | 4 | 20 | two | vulnerableHeavy |
-| Long Blunt | 10 | blunt | 6 | 21 | two | armorDamageHeavy |
+| Long Spear | 6 | piercing | 4 | 20 | two | vulnerableEnhancementHeavy |
+| Long Blunt | 10 | blunt | 6 | 21 | two | armorDamageEnhancementHeavy |
 | Small Shield | 1 | blunt | 2 | 17 | off | defenseR: 4 |
 | Large Shield | 1 | blunt | 3 | 20 | off | defenseR: 8 |
 
