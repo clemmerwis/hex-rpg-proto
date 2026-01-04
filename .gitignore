@@ -13,6 +13,7 @@
 
 # Local Claude config (ignore even though .md is allowed)
 .claude-config.md
+.claude/settings.local.json
 
 # Track used assets
 !*.jpg
