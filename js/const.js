@@ -167,10 +167,10 @@ export function calculateCerebralPresence(stats) {
 
 /**
  * Calculate maximum number of enemies a character can engage simultaneously
- * Formula: floor(Cerebral Presence / 4)
+ * Formula: floor(Cerebral Presence / 6)
  */
 export function calculateEngagedMax(stats) {
-	return Math.floor(calculateCerebralPresence(stats) / 4);
+	return Math.floor(calculateCerebralPresence(stats) / 6);
 }
 
 /**
