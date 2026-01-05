@@ -2,15 +2,6 @@ import { AISystem } from './AISystem.js';
 import { GAME_CONSTANTS, calculateMoveSpeed, calculateActionSpeed, getSpeedTier, calculateInitiative, getFacingFromDelta } from './const.js';
 import { makeEnemies } from './utils.js';
 
-// Dev logging toggle - set to false to disable combat debug logs
-const DEV_LOG = true;
-
-function devLog(...args) {
-    if (DEV_LOG) {
-        console.log('[COMBAT DEV]', ...args);
-    }
-}
-
 export const GAME_STATES = {
     EXPLORATION: 'exploration',
     COMBAT_INPUT: 'combat_input',
@@ -25,14 +16,15 @@ export const COMBAT_ACTIONS = {
 };
 
 export class GameStateManager {
-    constructor(game, hexGrid, getCharacterAtHex, movementSystem, combatSystem, pathfinding) {
+    constructor(game, hexGrid, getCharacterAtHex, movementSystem, combatSystem, pathfinding, logger) {
         this.game = game;
         this.hexGrid = hexGrid;
         this.getCharacterAtHex = getCharacterAtHex;
         this.movementSystem = movementSystem;
         this.combatSystem = combatSystem;
         this.pathfinding = pathfinding;
-        this.aiSystem = new AISystem(hexGrid, getCharacterAtHex, pathfinding);
+        this.logger = logger;
+        this.aiSystem = new AISystem(hexGrid, getCharacterAtHex, pathfinding, logger);
 
         // State
         this.currentState = GAME_STATES.EXPLORATION;
@@ -141,8 +133,8 @@ export class GameStateManager {
         const livingNPCs = this.game.npcs.filter(npc => !npc.isDefeated);
         this.combatCharacters.push(...livingNPCs);
 
-        devLog('=== COMBAT INPUT PHASE ===');
-        devLog(`Turn ${this.turnNumber}, Participants:`, this.combatCharacters.map(c =>
+        this.logger.debug('=== COMBAT INPUT PHASE ===');
+        this.logger.debug(`Turn ${this.turnNumber}, Participants:`, this.combatCharacters.map(c =>
             `${c.name}(${c.mode}, enemies=${c.enemies?.size || 0})`
         ).join(', '));
 
@@ -179,8 +171,8 @@ export class GameStateManager {
         this.executionQueue = [...this.combatCharacters];
         this.currentPhase = 'move';
 
-        devLog('=== ENTERING COMBAT EXECUTION ===');
-        devLog(`Turn ${this.turnNumber}, Characters:`, this.executionQueue.map(c => `${c.name}(${c.hexQ},${c.hexR})`).join(', '));
+        this.logger.debug('=== ENTERING COMBAT EXECUTION ===');
+        this.logger.debug(`Turn ${this.turnNumber}, Characters:`, this.executionQueue.map(c => `${c.name}(${c.hexQ},${c.hexR})`).join(', '));
 
         // Start with move phase
         this.executeMovePhase();
@@ -190,7 +182,7 @@ export class GameStateManager {
      * Execute all MOVE actions first, sorted by speed
      */
     executeMovePhase() {
-        devLog('=== MOVE PHASE START ===');
+        this.logger.debug('=== MOVE PHASE START ===');
 
         // Filter characters with MOVE actions, sort by speed
         const movers = this.executionQueue.filter(char => {
@@ -200,19 +192,19 @@ export class GameStateManager {
         this.moveQueue = this.sortBySpeed(movers, 'move');
         this.currentMoveIndex = 0;
 
-        devLog(`Movers (sorted by move speed):`, this.moveQueue.map(c => `${c.name}(mv:${calculateMoveSpeed(c)})`).join(', ') || '(none)');
+        this.logger.debug(`Movers (sorted by move speed):`, this.moveQueue.map(c => `${c.name}(mv:${calculateMoveSpeed(c)})`).join(', ') || '(none)');
         this.executeNextMove();
     }
 
     executeNextMove() {
         if (this.currentMoveIndex >= this.moveQueue.length) {
             // Move phase complete - add delay before action phase to ensure animations settle
-            devLog('Move phase complete, waiting for animations to settle...');
+            this.logger.debug('Move phase complete, waiting for animations to settle...');
             this.currentPhase = 'action';
 
             // Small delay to ensure all movement visuals are complete
             setTimeout(() => {
-                devLog('Animation settle complete, starting action phase');
+                this.logger.debug('Animation settle complete, starting action phase');
                 this.executeActionPhase();
             }, GAME_CONSTANTS.COMBAT_PHASE_TRANSITION);
             return;
@@ -222,7 +214,7 @@ export class GameStateManager {
 
         // Skip if character was defeated during this phase
         if (character.isDefeated) {
-            devLog(`[MOVE] Skipping ${character.name} - already defeated`);
+            this.logger.debug(`[MOVE] Skipping ${character.name} - already defeated`);
             this.currentMoveIndex++;
             this.executeNextMove();
             return;
@@ -235,12 +227,12 @@ export class GameStateManager {
         const moveNum = this.currentMoveIndex + 1;
         const totalMoves = this.moveQueue.length;
 
-        devLog(`[MOVE ${moveNum}/${totalMoves}] ${character.name} attempting move from (${character.hexQ},${character.hexR}) to (${action.target.q},${action.target.r})`);
+        this.logger.debug(`[MOVE ${moveNum}/${totalMoves}] ${character.name} attempting move from (${character.hexQ},${character.hexR}) to (${action.target.q},${action.target.r})`);
 
         // Check if target hex is occupied (collision detection)
         const characterAtTarget = this.getCharacterAtHex(action.target.q, action.target.r);
         if (characterAtTarget) {
-            devLog(`[MOVE ${moveNum}/${totalMoves}] ${character.name} BLOCKED - hex occupied by ${characterAtTarget.name}`);
+            this.logger.debug(`[MOVE ${moveNum}/${totalMoves}] ${character.name} BLOCKED - hex occupied by ${characterAtTarget.name}`);
             this.currentMoveIndex++;
             this.executeNextMove();
             return;
@@ -257,7 +249,7 @@ export class GameStateManager {
         character.currentMoveTimer = 0;
 
         this.movementSystem.onMovementComplete(character, () => {
-            devLog(`[MOVE ${moveNum}/${totalMoves}] ${character.name} movement COMPLETE, now at (${character.hexQ},${character.hexR})`);
+            this.logger.debug(`[MOVE ${moveNum}/${totalMoves}] ${character.name} movement COMPLETE, now at (${character.hexQ},${character.hexR})`);
 
             // Update engagement tracking after move
             this.updateEngagement(character);
@@ -274,7 +266,7 @@ export class GameStateManager {
      * Execute all ATTACK actions after moves, sorted by speed
      */
     executeActionPhase() {
-        devLog('=== ACTION PHASE START ===');
+        this.logger.debug('=== ACTION PHASE START ===');
 
         // Filter characters with ATTACK actions, sort by speed
         const attackers = this.executionQueue.filter(char => {
@@ -284,15 +276,15 @@ export class GameStateManager {
         this.actionQueue = this.sortBySpeed(attackers, 'action');
         this.currentActionIndex = 0;
 
-        devLog(`Attackers (sorted by action speed):`, this.actionQueue.map(c => `${c.name}(act:${calculateActionSpeed(c, 'light')})`).join(', ') || '(none)');
+        this.logger.debug(`Attackers (sorted by action speed):`, this.actionQueue.map(c => `${c.name}(act:${calculateActionSpeed(c, 'light')})`).join(', ') || '(none)');
         this.executeNextAttack();
     }
 
     executeNextAttack() {
         if (this.currentActionIndex >= this.actionQueue.length) {
             // All attacks done, next turn
-            devLog('=== ACTION PHASE COMPLETE ===');
-            devLog(`Advancing to turn ${this.turnNumber + 1}`);
+            this.logger.debug('=== ACTION PHASE COMPLETE ===');
+            this.logger.debug(`Advancing to turn ${this.turnNumber + 1}`);
             this.turnNumber++;
             this.setState(GAME_STATES.COMBAT_INPUT);
             return;
@@ -302,7 +294,7 @@ export class GameStateManager {
 
         // Skip if character was defeated during this phase
         if (character.isDefeated) {
-            devLog(`[ATTACK] Skipping ${character.name} - already defeated`);
+            this.logger.debug(`[ATTACK] Skipping ${character.name} - already defeated`);
             this.currentActionIndex++;
             this.executeNextAttack();
             return;
@@ -315,13 +307,13 @@ export class GameStateManager {
         const attackNum = this.currentActionIndex + 1;
         const totalAttacks = this.actionQueue.length;
 
-        devLog(`[ATTACK ${attackNum}/${totalAttacks}] ${character.name} at (${character.hexQ},${character.hexR}) attacking hex (${action.target.q},${action.target.r})`);
+        this.logger.debug(`[ATTACK ${attackNum}/${totalAttacks}] ${character.name} at (${character.hexQ},${character.hexR}) attacking hex (${action.target.q},${action.target.r})`);
 
         // Get whoever is NOW at the target hex (may be different from original target!)
         // Attacks hit whoever is on the hex, even allies (accidents happen)
         const targetChar = this.getCharacterAtHex(action.target.q, action.target.r);
 
-        devLog(`[ATTACK ${attackNum}/${totalAttacks}] Target at hex:`, targetChar ? `${targetChar.name} (defeated:${targetChar.isDefeated})` : 'EMPTY');
+        this.logger.debug(`[ATTACK ${attackNum}/${totalAttacks}] Target at hex:`, targetChar ? `${targetChar.name} (defeated:${targetChar.isDefeated})` : 'EMPTY');
 
         // Face the target hex regardless of whether target is there
         const targetPixel = this.hexGrid.hexToPixel(action.target.q, action.target.r);
@@ -333,24 +325,24 @@ export class GameStateManager {
         character.animationFrame = 0;
         character.animationTimer = 0;
         character.currentAnimation = 'attack';
-        devLog(`[ANIM] ${character.name} animation reset to frame 0, starting attack`);
+        this.logger.debug(`[ANIM] ${character.name} animation reset to frame 0, starting attack`);
 
         setTimeout(() => {
             if (!targetChar) {
                 // Auto-miss: no one at hex
-                devLog(`[ATTACK ${attackNum}/${totalAttacks}] ${character.name} attacks empty hex - MISS!`);
+                this.logger.debug(`[ATTACK ${attackNum}/${totalAttacks}] ${character.name} attacks empty hex - MISS!`);
             } else if (targetChar === character) {
                 // Can't hit yourself
-                devLog(`[ATTACK ${attackNum}/${totalAttacks}] ${character.name} swings at own hex - MISS!`);
+                this.logger.debug(`[ATTACK ${attackNum}/${totalAttacks}] ${character.name} swings at own hex - MISS!`);
             } else if (targetChar.isDefeated) {
                 // Target already dead
-                devLog(`[ATTACK ${attackNum}/${totalAttacks}] ${character.name} attacks dead body - no effect`);
+                this.logger.debug(`[ATTACK ${attackNum}/${totalAttacks}] ${character.name} attacks dead body - no effect`);
             } else {
                 // Execute attack - hits whoever is on the hex (ally or enemy!)
                 const attackType = action.attackType || 'light';
-                devLog(`[ATTACK ${attackNum}/${totalAttacks}] ${character.name} ${attackType} attacks ${targetChar.name}!`);
+                this.logger.debug(`[ATTACK ${attackNum}/${totalAttacks}] ${character.name} ${attackType} attacks ${targetChar.name}!`);
                 const result = this.combatSystem.executeAttack(character, action.target, attackType);
-                devLog(`[ATTACK ${attackNum}/${totalAttacks}] Result: hit=${result.hit}, damage=${result.damage}, defeated=${result.defenderDefeated}`);
+                this.logger.debug(`[ATTACK ${attackNum}/${totalAttacks}] Result: hit=${result.hit}, damage=${result.damage}, defeated=${result.defenderDefeated}`);
 
                 // Hostility trigger: target becomes hostile to attacker (even on miss!)
                 if (!targetChar.isDefeated) {
@@ -358,7 +350,7 @@ export class GameStateManager {
 
                     // Establish mutual hostility - attacking makes you enemies
                     makeEnemies(character, targetChar);
-                    devLog(`[HOSTILITY] ${character.name} and ${targetChar.name} are now mutual enemies!`);
+                    this.logger.debug(`[HOSTILITY] ${character.name} and ${targetChar.name} are now mutual enemies!`);
                 }
 
                 if (result.defenderDefeated) {
@@ -392,7 +384,7 @@ export class GameStateManager {
                 const dx = targetPixel.x - charPixel.x;
                 const dy = targetPixel.y - charPixel.y;
                 character.facing = getFacingFromDelta(dx, dy);
-                devLog(`[AUTO-FACE] ${character.name} turns to face ${occupant.name}`);
+                this.logger.debug(`[AUTO-FACE] ${character.name} turns to face ${occupant.name}`);
                 return;
             }
         }
@@ -433,7 +425,7 @@ export class GameStateManager {
                 // No longer adjacent - clear mutual engagement
                 character.engagedBy.delete(engaged);
                 engaged.engagedBy.delete(character);
-                devLog(`[ENGAGEMENT] ${character.name} and ${engaged.name} disengaged (non-adjacent)`);
+                this.logger.debug(`[ENGAGEMENT] ${character.name} and ${engaged.name} disengaged (non-adjacent)`);
             }
         }
     }
@@ -446,13 +438,13 @@ export class GameStateManager {
         // A tries to engage B (if A has capacity)
         if (!charA.engagedBy.has(charB) && charA.engagedBy.size < charA.engagedMax) {
             charA.engagedBy.add(charB);
-            devLog(`[ENGAGEMENT] ${charA.name} now engaging ${charB.name} (${charA.engagedBy.size}/${charA.engagedMax})`);
+            this.logger.debug(`[ENGAGEMENT] ${charA.name} now engaging ${charB.name} (${charA.engagedBy.size}/${charA.engagedMax})`);
         }
 
         // B tries to engage A (if B has capacity)
         if (!charB.engagedBy.has(charA) && charB.engagedBy.size < charB.engagedMax) {
             charB.engagedBy.add(charA);
-            devLog(`[ENGAGEMENT] ${charB.name} now engaging ${charA.name} (${charB.engagedBy.size}/${charB.engagedMax})`);
+            this.logger.debug(`[ENGAGEMENT] ${charB.name} now engaging ${charA.name} (${charB.engagedBy.size}/${charB.engagedMax})`);
         }
     }
 
@@ -477,7 +469,7 @@ export class GameStateManager {
      * Handle character defeat - mark as defeated but keep on hex
      */
     handleCharacterDefeat(character) {
-        devLog(`[DEFEAT] ${character.name} defeated at (${character.hexQ},${character.hexR}) - body remains as obstacle`);
+        this.logger.debug(`[DEFEAT] ${character.name} defeated at (${character.hexQ},${character.hexR}) - body remains as obstacle`);
 
         character.isDefeated = true;
         character.currentAnimation = 'die';
@@ -640,7 +632,7 @@ export class GameStateManager {
             attackType: this.playerSelectedAttackType
         };
 
-        devLog(`[PLAYER] Attack ${this.playerSelectedAttackType} at hex (${hexQ},${hexR})`);
+        this.logger.debug(`[PLAYER] Attack ${this.playerSelectedAttackType} at hex (${hexQ},${hexR})`);
 
         // Player has chosen, now AI makes their decisions
         this.processAITurns();
@@ -653,7 +645,7 @@ export class GameStateManager {
     setPlayerAttackType(attackType) {
         if (attackType === 'light' || attackType === 'heavy') {
             this.playerSelectedAttackType = attackType;
-            devLog(`[PLAYER] Attack type set to ${attackType}`);
+            this.logger.debug(`[PLAYER] Attack type set to ${attackType}`);
             return true;
         }
         return false;

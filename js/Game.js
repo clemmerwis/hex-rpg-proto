@@ -7,6 +7,7 @@ import { AreaManager } from './AreaManager.js';
 import { Pathfinding } from './Pathfinding.js';
 import { MovementSystem } from './MovementSystem.js';
 import { CombatSystem } from './CombatSystem.js';
+import { Logger } from './Logger.js';
 import { GAME_CONSTANTS, FACTIONS, calculateMaxHP, calculateHPBuffer, calculateEngagedMax, createDefaultSkills } from './const.js';
 import { makeEnemies } from './utils.js';
 
@@ -346,6 +347,9 @@ export class Game {
     }
 
     initializeModules() {
+        // Create logger first - it's a foundational dependency for all systems
+        this.logger = new Logger();
+
         // Core modules
         this.hexGrid = new HexGrid(
             GAME_CONSTANTS.HEX_SIZE,
@@ -370,21 +374,23 @@ export class Game {
             gameStateManager: null // Will be set after GameStateManager is created
         });
 
-        // Initialize CombatSystem
+        // Initialize CombatSystem with logger
         this.combatSystem = new CombatSystem(
             this.hexGrid,
             this.getCharacterAtHex.bind(this),
-            null // Will be set after GameStateManager is created
+            null, // Will be set after GameStateManager is created
+            this.logger
         );
 
-        // Now create GameStateManager with MovementSystem and CombatSystem
+        // Now create GameStateManager with MovementSystem, CombatSystem, and logger
         this.gameStateManager = new GameStateManager(
             this.state,
             this.hexGrid,
             this.getCharacterAtHex.bind(this),
             this.movementSystem,
             this.combatSystem,
-            this.pathfinding
+            this.pathfinding,
+            this.logger
         );
 
         // Set the gameStateManager reference in dependent systems (circular dependency)

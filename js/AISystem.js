@@ -1,19 +1,11 @@
 import { ARMOR_TYPES } from './const.js';
 
-// Dev logging toggle - matches GameStateManager
-const DEV_LOG = true;
-
-function devLog(...args) {
-    if (DEV_LOG) {
-        console.log('[COMBAT DEV]', ...args);
-    }
-}
-
 export class AISystem {
-    constructor(hexGrid, getCharacterAtHex, pathfinding) {
+    constructor(hexGrid, getCharacterAtHex, pathfinding, logger) {
         this.hexGrid = hexGrid;
         this.getCharacterAtHex = getCharacterAtHex;
         this.pathfinding = pathfinding;
+        this.logger = logger;
     }
 
     /**
@@ -31,7 +23,7 @@ export class AISystem {
         // Debug: show raw enemies set vs effective enemies
         if (character.enemies && character.enemies.size > 0) {
             const rawEnemyNames = [...character.enemies].map(e => e.name).join(',');
-            devLog(`[AI] ${character.name} raw enemies=[${rawEnemyNames}], effective enemies=[${enemyNames}]`);
+            this.logger.debug(`[AI] ${character.name} raw enemies=[${rawEnemyNames}], effective enemies=[${enemyNames}]`);
         }
 
         // Set mode based on enemy presence
@@ -43,7 +35,7 @@ export class AISystem {
             if (adjacentEnemy) {
                 // Choose attack type based on target's armor
                 const attackType = this.selectAttackType(adjacentEnemy);
-                devLog(`[AI] ${character.name} (aggressive) enemies=[${enemyNames}] - adjacent to ${adjacentEnemy.name}, using ${attackType} attack!`);
+                this.logger.debug(`[AI] ${character.name} (aggressive) enemies=[${enemyNames}] - adjacent to ${adjacentEnemy.name}, using ${attackType} attack!`);
                 return {
                     action: 'attack',
                     target: { q: adjacentEnemy.hexQ, r: adjacentEnemy.hexR },
@@ -53,7 +45,7 @@ export class AISystem {
 
             const target = this.findClosestEnemy(character, enemies);
             if (target) {
-                devLog(`[AI] ${character.name} (aggressive) enemies=[${enemyNames}] - moving toward ${target.name}`);
+                this.logger.debug(`[AI] ${character.name} (aggressive) enemies=[${enemyNames}] - moving toward ${target.name}`);
                 return this.getMoveTowardAction(character, target, allCharacters);
             }
         }
@@ -66,14 +58,14 @@ export class AISystem {
                 { q: clusterTarget.hexQ, r: clusterTarget.hexR }
             );
             if (dist > 1) {
-                devLog(`[AI] ${character.name} (neutral) - clustering toward ${clusterTarget.name}`);
+                this.logger.debug(`[AI] ${character.name} (neutral) - clustering toward ${clusterTarget.name}`);
                 return this.getMoveTowardAction(character, clusterTarget, allCharacters);
             } else {
-                devLog(`[AI] ${character.name} (neutral) - adjacent to ally ${clusterTarget.name}, waiting`);
+                this.logger.debug(`[AI] ${character.name} (neutral) - adjacent to ally ${clusterTarget.name}, waiting`);
             }
         }
 
-        devLog(`[AI] ${character.name} (${character.mode}) - waiting`);
+        this.logger.debug(`[AI] ${character.name} (${character.mode}) - waiting`);
         return { action: 'wait', target: null };
     }
 
