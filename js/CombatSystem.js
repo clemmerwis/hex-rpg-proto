@@ -116,15 +116,7 @@ export class CombatSystem {
 
         const finalDamage = damage;
 
-        // Apply damage through buffer first (per-attacker temp HP)
-        const { bufferDamage, healthDamage } = this.applyDamage(attacker, defender, damage);
-
-        const defeated = defender.health <= 0;
-
-        // Mark defender as recently hit for health bar display
-        this.gameStateManager.markCharacterHit(defender);
-
-        // Build detailed combat log
+        // Build detailed combat log FIRST (before applying damage)
         let logParts = [];
         logParts.push(`${attacker.name} ${attackTypeName.toLowerCase()}s ${defender.name}`);
         if (friendlyFire) logParts.push('[FRIENDLY FIRE]');
@@ -148,17 +140,13 @@ export class CombatSystem {
 
         console.log(`${logParts.join(' ')} | ${damageBreakdown}`);
 
-        if (finalDamage > 0) {
-            if (bufferDamage > 0 && healthDamage > 0) {
-                console.log(`  → ${bufferDamage} to buffer, ${healthDamage} to HP`);
-            } else if (bufferDamage > 0) {
-                console.log(`  → ${bufferDamage} to buffer`);
-            } else {
-                console.log(`  → ${healthDamage} to HP`);
-            }
-        } else {
-            console.log(`  → No damage (fully absorbed by armor)`);
-        }
+        // NOW apply damage through buffer (per-attacker temp HP) - logs appear after damage calc
+        const { bufferDamage, healthDamage } = this.applyDamage(attacker, defender, damage);
+
+        const defeated = defender.health <= 0;
+
+        // Mark defender as recently hit for health bar display
+        this.gameStateManager.markCharacterHit(defender);
 
         if (defeated) {
             console.log(`${defender.name} has been defeated!`);
@@ -183,8 +171,12 @@ export class CombatSystem {
      */
     applyDamage(attacker, defender, damage) {
         // Initialize buffer for this attacker if not set
-        if (!defender.hpBufferByAttacker.has(attacker)) {
+        const isNewBuffer = !defender.hpBufferByAttacker.has(attacker);
+        const defenderPos = `${defender.name}@(${defender.hexQ},${defender.hexR})`;
+
+        if (isNewBuffer) {
             defender.hpBufferByAttacker.set(attacker, defender.hpBufferMax);
+            console.log(`[BUFFER INIT] ${defenderPos} buffer vs ${attacker.name}: ${defender.hpBufferMax} HP (instinct=${defender.stats.instinct}, will=${defender.stats.will})`);
         }
 
         let remainingBuffer = defender.hpBufferByAttacker.get(attacker);
@@ -202,6 +194,17 @@ export class CombatSystem {
         } else {
             // Buffer depleted, all damage to health
             healthDamage = damage;
+        }
+
+        // Log buffer application details
+        console.log(`[BUFFER] ${attacker.name} → ${defenderPos}: ${damage} final damage (post-DR/resist)`);
+        if (bufferDamage > 0 && healthDamage > 0) {
+            console.log(`  ├─ Buffer: ${remainingBuffer + bufferDamage}/${defender.hpBufferMax} → absorbs ${bufferDamage}, overflow ${healthDamage} to HP`);
+            console.log(`  └─ New buffer: ${remainingBuffer}/${defender.hpBufferMax} (${bufferDamage > 0 ? 'depleted' : 'remaining'})`);
+        } else if (bufferDamage > 0) {
+            console.log(`  └─ Buffer: ${remainingBuffer + bufferDamage}/${defender.hpBufferMax} → absorbs all ${bufferDamage} → ${remainingBuffer}/${defender.hpBufferMax}`);
+        } else {
+            console.log(`  └─ Buffer depleted (${remainingBuffer}/${defender.hpBufferMax}), all ${healthDamage} to HP`);
         }
 
         if (healthDamage > 0) {
