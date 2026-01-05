@@ -1,8 +1,15 @@
+import { NPC_TEMPLATES } from './const.js';
+import { CharacterFactory } from './CharacterFactory.js';
+
 /**
  * AreaManager - Handles loading and transitioning between game areas
  *
  * Areas are discrete maps with their own backgrounds, dimensions, and blocked hexes.
  * Inspired by Baldur's Gate style area-based world design.
+ *
+ * Architecture: AreaManager acts as the "repository" for NPCs - abstracts where template data comes from.
+ * Current: NPC templates loaded from const.js (local data)
+ * Future: NPC templates fetched from backend API (only this file changes)
  */
 export class AreaManager {
     constructor() {
@@ -88,6 +95,10 @@ export class AreaManager {
         // Store reference to loaded background
         areaDef._backgroundImage = background;
 
+        // Instantiate NPCs from area definition (repository pattern)
+        const npcs = this.instantiateNPCs(areaDef);
+        areaDef._instantiatedNPCs = npcs; // Store for Game.js to retrieve via getNPCs()
+
         // Update current area
         this.currentArea = areaDef;
 
@@ -148,6 +159,53 @@ export class AreaManager {
 
         // Fallback: center of map
         return { q: 5, r: -5 };
+    }
+
+    /**
+     * Instantiate NPCs from area definition
+     * This is the "repository" layer - abstracts where template data comes from
+     *
+     * Current: Templates from const.js (synchronous, local)
+     * Future: Templates from API (async, make this method async and await fetch)
+     *
+     * @param {Object} areaDef - The area definition with npcs array
+     * @returns {Array<Object>} Array of instantiated character objects
+     */
+    instantiateNPCs(areaDef) {
+        if (!areaDef.npcs || areaDef.npcs.length === 0) {
+            return [];
+        }
+
+        return areaDef.npcs.map(npcSpec => {
+            const templateId = npcSpec.templateId;
+
+            // Repository Pattern: Lookup template (NOW: const.js, FUTURE: API fetch)
+            const template = NPC_TEMPLATES[templateId];
+
+            if (!template) {
+                console.warn(`[AreaManager] Unknown NPC template: ${templateId}`);
+                return null;
+            }
+
+            // Merge template with area-specific overrides (position, facing, name, etc.)
+            const npcConfig = {
+                ...template,
+                ...npcSpec,
+            };
+
+            // Remove templateId from final config (not needed by CharacterFactory)
+            delete npcConfig.templateId;
+
+            return CharacterFactory.createCharacter(npcConfig);
+        }).filter(npc => npc !== null); // Remove any failed lookups
+    }
+
+    /**
+     * Get instantiated NPCs for the current area
+     * @returns {Array<Object>} Array of character objects
+     */
+    getNPCs() {
+        return this.currentArea?._instantiatedNPCs || [];
     }
 
     /**

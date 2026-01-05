@@ -1,4 +1,4 @@
-import { GAME_CONSTANTS, SPRITE_SETS, getFacingFromDelta } from './const.js';
+import { GAME_CONSTANTS, getAnimationConfig, getFacingFromDelta } from './const.js';
 
 
 export class MovementSystem {
@@ -15,9 +15,9 @@ export class MovementSystem {
         this.movementCompleteCallbacks = new Map(); // character -> callback
     }
 
-    // Get the animation config for a character from SPRITE_SETS registry
+    // Get the animation config for a character (uses centralized helper)
     getAnimConfigForCharacter(character, animName) {
-        return SPRITE_SETS[character.spriteSet]?.animations[animName];
+        return getAnimationConfig(character.spriteSet, animName);
     }
 
     // Update all movement for all characters

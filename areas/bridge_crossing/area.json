@@ -183,16 +183,42 @@
 
     "npcs": [
         {
-            "templateId": "bandit",
-            "hexQ": 3,
-            "hexR": -7,
-            "name": "Bandit"
+            "templateId": "companion",
+            "hexQ": 6,
+            "hexR": -4,
+            "facing": "dir4"
         },
         {
-            "templateId": "bandit",
+            "templateId": "guard_captain",
+            "hexQ": 8,
+            "hexR": -3,
+            "facing": "dir5",
+            "animationFrame": 3,
+            "animationTimer": 75
+        },
+        {
+            "templateId": "guard_veteran",
+            "hexQ": 9,
+            "hexR": -5,
+            "facing": "dir3",
+            "animationFrame": 5,
+            "animationTimer": 50
+        },
+        {
+            "templateId": "bandit_brute",
+            "hexQ": 3,
+            "hexR": -7,
+            "facing": "dir6",
+            "animationFrame": 8,
+            "animationTimer": 25
+        },
+        {
+            "templateId": "bandit_thief",
             "hexQ": 2,
-            "hexR": -4,
-            "name": "Bandit"
+            "hexR": -2,
+            "facing": "dir2",
+            "animationFrame": 2,
+            "animationTimer": 100
         }
     ],
 

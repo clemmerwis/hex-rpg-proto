@@ -23,28 +23,36 @@
             <strong>Shift+Space:</strong> Toggle Combat<br>
             <strong>Space:</strong> Skip turn (in combat)
         </div>
+
+        <!-- Debug Controls -->
+        <div style="margin-top: 15px; padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, 0.2);">
+            <div><label><input type="checkbox" id="showGrid" checked> Show Grid</label></div>
+            <div style="margin-top: 8px;">
+                <label><input type="checkbox" id="hexMarkerMode"> Hex Marker Mode</label>
+            </div>
+            <div id="hexMarkerControls" style="margin-top: 5px; display: none;">
+                <button id="exportHexes" style="font-size: 11px; padding: 3px 8px;">Export to Console</button>
+                <button id="clearHexes" style="font-size: 11px; padding: 3px 8px;">Clear All</button>
+                <div id="markedCount" style="font-size: 11px; margin-top: 3px;">Marked: 0</div>
+            </div>
+            <div style="margin-top: 10px; font-size: 11px;">
+                <strong>Edge Scroll:</strong> Move mouse to edges<br>
+                <strong>Camera:</strong> <span id="cameraPos">0, 0</span><br>
+                <strong>PC Direction:</strong> <span id="directionInfo">dir8</span><br>
+                <strong>Animation:</strong> <span id="animationInfo">idle</span><br>
+                <strong>Keys:</strong> 1-6 for animations, 7 to spawn enemy, Click to move
+            </div>
+        </div>
     </div>
 
-    <div id="debugInfo">
-        <div>Mouse: <span id="mousePos">0, 0</span></div>
-        <div>Hex: <span id="hexPos">-, -</span></div>
-        <div>Assets: <span id="loadStatus">Loading...</span></div>
-        <div><label><input type="checkbox" id="showGrid" checked> Show Grid</label></div>
-        <div style="margin-top: 8px;">
-            <label><input type="checkbox" id="hexMarkerMode"> Hex Marker Mode</label>
+    <!-- Combat Log UI -->
+    <div id="combatLog" class="combat-log">
+        <div id="combatLogHeader" class="combat-log-header">
+            Combat Log
+            <button id="combatLogClear" class="combat-log-btn">Clear</button>
         </div>
-        <div id="hexMarkerControls" style="margin-top: 5px; display: none;">
-            <button id="exportHexes" style="font-size: 11px; padding: 3px 8px;">Export to Console</button>
-            <button id="clearHexes" style="font-size: 11px; padding: 3px 8px;">Clear All</button>
-            <div id="markedCount" style="font-size: 11px; margin-top: 3px;">Marked: 0</div>
-        </div>
-        <div style="margin-top: 10px; font-size: 12px;">
-            <strong>Edge Scroll:</strong> Move mouse to edges<br>
-            <strong>Camera:</strong> <span id="cameraPos">0, 0</span><br>
-            <strong>PC Direction:</strong> <span id="directionInfo">dir8</span><br>
-            <strong>Animation:</strong> <span id="animationInfo">idle</span><br>
-            <strong>Keys:</strong> 1-6 for animations, 7 to spawn enemy, Click to move
-        </div>
+        <div id="combatLogContent" class="combat-log-content"></div>
+        <div id="combatLogResize" class="combat-log-resize-handle"></div>
     </div>
 
     <script type="module">

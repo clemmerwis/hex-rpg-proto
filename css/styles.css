@@ -18,33 +18,6 @@ body {
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
 }
 
-#debugInfo {
-    position: fixed;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    color: #ffffff;
-    background-color: rgba(0, 0, 0, 0.8);
-    padding: 15px 25px;
-    border-radius: 5px;
-    font-size: 14px;
-    font-family: monospace;
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    z-index: 1000;
-    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.9);
-    text-align: center;
-}
-
-#debugInfo label {
-    color: #ffffff;
-    cursor: pointer;
-}
-
-#debugInfo input[type="checkbox"] {
-    margin-right: 5px;
-    cursor: pointer;
-}
-
 #gameStateUI {
     position: fixed;
     top: 20px;
@@ -74,7 +47,12 @@ body {
 }
 
 .state-combat {
-    background-color: #d32f2f;
+    background-color: #C62828; /* Softer red */
+    color: white;
+}
+
+.state-combat-execution {
+    background-color: #C62828; /* Softer red */
     color: white;
     animation: pulse 1.5s infinite;
 }
@@ -104,4 +82,177 @@ body {
 .turn-indicator {
     font-weight: bold;
     color: #ffeb3b;
+}
+
+/* Debug controls now in gameStateUI */
+#gameStateUI label {
+    color: #ffffff;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+#gameStateUI input[type="checkbox"] {
+    margin-right: 5px;
+    cursor: pointer;
+}
+
+#gameStateUI button {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+    cursor: pointer;
+    margin-right: 5px;
+}
+
+#gameStateUI button:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Combat Log UI */
+#combatLog {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 600px;
+    height: 375px;
+    background-color: #EDD5AB; /* Slightly darker cream */
+    border: 2px solid #8B4513; /* Saddle brown */
+    border-radius: 5px;
+    z-index: 1001;
+    display: none; /* Hidden by default */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    box-sizing: border-box;
+}
+
+.combat-log-header {
+    background-color: #8B4513; /* Saddle brown */
+    color: #F5DEB3; /* Cream */
+    padding: 8px 12px;
+    font-weight: bold;
+    cursor: move;
+    user-select: none;
+    border-radius: 3px 3px 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 14px;
+}
+
+.combat-log-btn {
+    background-color: #A0522D; /* Sienna */
+    color: #F5DEB3; /* Cream */
+    border: 1px solid #654321; /* Dark brown */
+    padding: 3px 8px;
+    cursor: pointer;
+    border-radius: 3px;
+    font-size: 11px;
+}
+
+.combat-log-btn:hover {
+    background-color: #8B4513;
+}
+
+.combat-log-content {
+    padding: 10px 10px 10px 10px;
+    height: calc(100% - 40px); /* Account for header */
+    overflow-y: auto;
+    overflow-x: hidden;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    color: #3B2414; /* Chocolate brown */
+    line-height: 1.4;
+    box-sizing: border-box;
+    scrollbar-gutter: stable; /* Reserve space for scrollbar */
+}
+
+.combat-log-resize-handle {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 16px;
+    height: 16px;
+    cursor: nwse-resize;
+    background: linear-gradient(135deg, transparent 50%, #8B4513 50%);
+}
+
+/* Scrollbar styling for combat log */
+.combat-log-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.combat-log-content::-webkit-scrollbar-track {
+    background: #DEB887; /* Burlywood */
+}
+
+.combat-log-content::-webkit-scrollbar-thumb {
+    background: #8B4513;
+    border-radius: 4px;
+}
+
+.combat-log-content::-webkit-scrollbar-thumb:hover {
+    background: #654321;
+}
+
+/* Combat log text formatting classes */
+.log-entry {
+    margin-bottom: 2px;
+}
+
+.log-damage {
+    color: #ff0000; /* Red for damage */
+    font-weight: bold;
+}
+
+.log-heal {
+    color: #4CAF50; /* Softer green for healing */
+    font-weight: bold;
+}
+
+.log-hit {
+    color: #4CAF50; /* Softer green for HIT */
+    font-weight: bold;
+}
+
+.log-miss {
+    color: #E57373; /* Softer red for MISS/WHIFF */
+    font-weight: 900; /* Extra bold */
+}
+
+.log-thc {
+    color: #CC6600; /* Even darker orange for THC/Roll percentages */
+}
+
+.log-hp {
+    color: #CC6600; /* Same orange as THC for HP changes */
+}
+
+.log-dr {
+    color: #9E9E9E; /* Darker gray for DR */
+}
+
+.log-heavy {
+    text-decoration: underline;
+    text-decoration-color: #ff0000;
+}
+
+.log-condition {
+    color: #FF8C00; /* Orange for conditions like [critical] */
+}
+
+.log-condition-bracket {
+    color: #3B2414; /* Chocolate brown for brackets */
+}
+
+.log-character {
+    font-weight: bold;
+    /* Faction colors applied via inline style */
+}
+
+.log-turn-separator {
+    border-top: 2px solid #8B4513;
+    margin: 8px 0;
+    padding-top: 4px;
+    font-weight: bold;
 }

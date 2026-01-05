@@ -38,6 +38,15 @@ export const GAME_CONSTANTS = {
 	SPRITE_FRAME_SIZE: 256,
 };
 
+// Default animation config for fallback when animation not found
+const DEFAULT_ANIM_CONFIG = {
+	cols: 4,
+	rows: 2,
+	frameCount: 6,
+	speed: GAME_CONSTANTS.ANIMATION_SPEED,
+	oneShot: false
+};
+
 // Sprite set registry - each set is self-contained with folder info and animation configs
 // Every character must have an explicit spriteSet property referencing a key here
 export const SPRITE_SETS = {
@@ -91,6 +100,17 @@ export const SPRITE_SETS = {
 		}
 	}
 };
+
+/**
+ * Get animation config for a sprite set and animation name
+ * Returns default config if not found (prevents undefined errors)
+ * @param {string} spriteSet - Sprite set key (e.g., 'baseKnight')
+ * @param {string} animName - Animation name (e.g., 'idle', 'walk')
+ * @returns {Object} Animation config object
+ */
+export function getAnimationConfig(spriteSet, animName) {
+	return SPRITE_SETS[spriteSet]?.animations[animName] || DEFAULT_ANIM_CONFIG;
+}
 
 // Character stat system
 // 10 stats across 5 categories, Physical/Cerebral columns
@@ -222,8 +242,8 @@ export const WEAPONS = {
 
 // Attack types - affect action speed and damage
 export const ATTACK_TYPES = {
-	light: { name: 'Light Attack', speedMod: 12, damageMod: 0 },
-	heavy: { name: 'Heavy Attack', speedMod: 22, damageMod: 10 },
+	light: { name: 'light Attack', speedMod: 12, damageMod: 0 },
+	heavy: { name: 'heavy Attack', speedMod: 22, damageMod: 10 },
 };
 
 // Armor definitions
@@ -430,6 +450,116 @@ export const FACTIONS = {
 		name: "Guard",
 		tintColor: "#FF9800",
 		nameplateColor: "#ffaa44",
+	},
+};
+
+/**
+ * NPC Templates - Character archetypes for spawning
+ *
+ * Architecture: Templates define the "what" (stats, equipment, faction) separate from "where" (area.json placement)
+ * Current: Templates stored in const.js (local data)
+ * Future: Templates fetched from backend API GET /api/npcs/:templateId
+ *
+ * Migration Path: Only AreaManager.instantiateNPCs() needs to change - swap const.js lookup for API fetch.
+ * Everything else (Game.js, CharacterFactory, area.json format) stays the same.
+ */
+export const NPC_TEMPLATES = {
+	// PC Faction Templates
+	companion: {
+		name: 'Companion',
+		stats: {
+			str: 4, int: 5,
+			dex: 9, per: 6,
+			con: 5, will: 7,
+			beauty: 6, cha: 5,
+			instinct: 9, wis: 4
+		},
+		equipment: {
+			mainHand: 'shortBlunt',
+			offHand: 'smallShield',
+			armor: 'brigandine',
+		},
+		faction: 'pc',
+		spriteSet: 'swordShieldKnight',
+		mode: 'aggressive',
+	},
+
+	// Guard Templates
+	guard_captain: {
+		name: 'Guard Captain',
+		stats: {
+			str: 7, int: 5,
+			dex: 6, per: 6,
+			con: 7, will: 6,
+			beauty: 5, cha: 5,
+			instinct: 6, wis: 7
+		},
+		equipment: {
+			mainHand: 'shortSpear',
+			offHand: 'largeShield',
+			armor: 'plate',
+		},
+		faction: 'guard',
+		spriteSet: 'swordShieldKnight',
+		mode: 'neutral',
+	},
+
+	guard_veteran: {
+		name: 'Guard Veteran',
+		stats: {
+			str: 6, int: 6,
+			dex: 6, per: 7,
+			con: 6, will: 6,
+			beauty: 5, cha: 5,
+			instinct: 7, wis: 6
+		},
+		equipment: {
+			mainHand: 'shortSpear',
+			offHand: 'largeShield',
+			armor: 'chain',
+		},
+		faction: 'guard',
+		spriteSet: 'swordShieldKnight',
+		mode: 'neutral',
+	},
+
+	// Bandit Templates
+	bandit_brute: {
+		name: 'Bandit Brute',
+		stats: {
+			str: 10, int: 3,
+			dex: 5, per: 4,
+			con: 8, will: 4,
+			beauty: 3, cha: 5,
+			instinct: 8, wis: 10
+		},
+		equipment: {
+			mainHand: 'shortSword',
+			offHand: null,
+			armor: 'leather',
+		},
+		faction: 'bandit',
+		spriteSet: 'swordKnight',
+		mode: 'aggressive',
+	},
+
+	bandit_thief: {
+		name: 'Bandit Thief',
+		stats: {
+			str: 4, int: 5,
+			dex: 10, per: 8,
+			con: 5, will: 4,
+			beauty: 5, cha: 6,
+			instinct: 7, wis: 6
+		},
+		equipment: {
+			mainHand: 'shortSword',
+			offHand: null,
+			armor: 'leather',
+		},
+		faction: 'bandit',
+		spriteSet: 'swordKnight',
+		mode: 'aggressive',
 	},
 };
 

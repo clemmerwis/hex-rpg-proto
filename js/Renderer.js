@@ -1,4 +1,4 @@
-import { GAME_CONSTANTS, FACTIONS, SPRITE_SETS } from "./const.js";
+import { GAME_CONSTANTS, FACTIONS, getAnimationConfig } from "./const.js";
 import { GAME_STATES, COMBAT_ACTIONS } from "./GameStateManager.js";
 
 export class Renderer {
@@ -526,11 +526,9 @@ export class Renderer {
 
         if (sprite && sprite.complete) {
             const frameSize = GAME_CONSTANTS.SPRITE_FRAME_SIZE;
-            // Get animation config from SPRITE_SETS registry
-            const animConfig = SPRITE_SETS[character.spriteSet]?.animations[character.currentAnimation];
-            const framesPerRow = animConfig
-                ? animConfig.cols
-                : Math.floor(sprite.width / frameSize);
+            // Get animation config (uses centralized helper with fallback)
+            const animConfig = getAnimationConfig(character.spriteSet, character.currentAnimation);
+            const framesPerRow = animConfig.cols;
 
             const col = character.animationFrame % framesPerRow;
             const row = Math.floor(character.animationFrame / framesPerRow);

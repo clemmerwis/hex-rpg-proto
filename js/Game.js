@@ -8,7 +8,9 @@ import { Pathfinding } from './Pathfinding.js';
 import { MovementSystem } from './MovementSystem.js';
 import { CombatSystem } from './CombatSystem.js';
 import { Logger } from './Logger.js';
-import { GAME_CONSTANTS, FACTIONS, calculateMaxHP, calculateHPBuffer, calculateEngagedMax, createDefaultSkills } from './const.js';
+import { CombatUILog } from './CombatUILog.js';
+import { CharacterFactory } from './CharacterFactory.js';
+import { GAME_CONSTANTS, FACTIONS, calculateMaxHP, calculateHPBuffer, calculateEngagedMax } from './const.js';
 import { makeEnemies } from './utils.js';
 
 export class Game {
@@ -36,15 +38,10 @@ export class Game {
                 background: null,
                 sprites: {}
             },
-            pc: {
+            pc: CharacterFactory.createCharacter({
                 hexQ: 5,
                 hexR: -6,
-                pixelX: 0,
-                pixelY: 0,
                 facing: 'dir8',
-                animationFrame: 0,
-                animationTimer: 0,
-                currentAnimation: 'idle',
                 name: 'Hero',
                 stats: {
                     str: 7, int: 5,
@@ -53,10 +50,6 @@ export class Game {
                     beauty: 5, cha: 5,
                     instinct: 6, wis: 7
                 }, // Total: 60 - Jack of all trades
-                health: null,    // Set after definition
-                maxHealth: null,
-                hpBufferMax: null,        // Temp HP per attacker
-                hpBufferByAttacker: null, // Map<attacker, remaining buffer>
                 equipment: {
                     mainHand: 'unarmed',
                     offHand: null,
@@ -64,234 +57,12 @@ export class Game {
                 },
                 faction: 'pc',
                 spriteSet: 'baseKnight',
-                skills: createDefaultSkills(),
-                isDefeated: false,
-                movementQueue: [],
-                isMoving: false,
-                moveSpeed: 300,
-                currentMoveTimer: 0,
-                targetPixelX: 0,
-                targetPixelY: 0,
-                // Disposition properties
                 mode: 'aggressive',
-                enemies: null,  // Initialized in onAssetsLoaded
-                lastAttackedBy: null,
-                // Engagement tracking
-                engagedBy: null,    // Set<character> - who is engaging this character
-                engagedMax: null    // Calculated from Cerebral Presence
-            },
-            npcs: [
-                {
-                    hexQ: 6,
-                    hexR: -4,
-                    pixelX: 0,
-                    pixelY: 0,
-                    facing: 'dir4',
-                    animationFrame: 0,
-                    animationTimer: 0,
-                    currentAnimation: 'idle',
-                    name: 'Companion',
-                    stats: {
-                        str: 4, int: 5,
-                        dex: 9, per: 6,
-                        con: 5, will: 7,
-                        beauty: 6, cha: 5,
-                        instinct: 9, wis: 4
-                    }, // Total: 60 - Defensive tank
-                    health: null,
-                    maxHealth: null,
-                    hpBufferMax: null,
-                    hpBufferByAttacker: null,
-                    equipment: {
-                        mainHand: 'shortBlunt',
-                        offHand: 'smallShield',
-                        armor: 'brigandine',
-                    },
-                    faction: 'pc',
-                    spriteSet: 'swordShieldKnight',
-                    skills: createDefaultSkills(),
-                    isDefeated: false,
-                    movementQueue: [],
-                    isMoving: false,
-                    moveSpeed: 300,
-                    currentMoveTimer: 0,
-                    targetPixelX: 0,
-                    targetPixelY: 0,
-                    mode: 'aggressive',
-                    enemies: null,
-                    lastAttackedBy: null,
-                    engagedBy: null,
-                    engagedMax: null
-                },
-                {
-                    hexQ: 8,
-                    hexR: -3,
-                    pixelX: 0,
-                    pixelY: 0,
-                    facing: 'dir5',
-                    animationFrame: 3,
-                    animationTimer: 75,
-                    currentAnimation: 'idle',
-                    name: 'Guard',
-                    stats: {
-                        str: 7, int: 5,
-                        dex: 6, per: 6,
-                        con: 7, will: 6,
-                        beauty: 5, cha: 5,
-                        instinct: 6, wis: 7
-                    }, // Total: 60 - Professional soldier
-                    health: null,
-                    maxHealth: null,
-                    hpBufferMax: null,
-                    hpBufferByAttacker: null,
-                    equipment: {
-                        mainHand: 'shortSpear',
-                        offHand: 'largeShield',
-                        armor: 'plate',
-                    },
-                    faction: 'guard',
-                    spriteSet: 'swordShieldKnight',
-                    skills: createDefaultSkills(),
-                    isDefeated: false,
-                    movementQueue: [],
-                    isMoving: false,
-                    moveSpeed: 300,
-                    currentMoveTimer: 0,
-                    targetPixelX: 0,
-                    targetPixelY: 0,
-                    mode: 'neutral',
-                    enemies: null,
-                    lastAttackedBy: null,
-                    engagedBy: null,
-                    engagedMax: null
-                },
-                {
-                    hexQ: 9,
-                    hexR: -5,
-                    pixelX: 0,
-                    pixelY: 0,
-                    facing: 'dir3',
-                    animationFrame: 5,
-                    animationTimer: 50,
-                    currentAnimation: 'idle',
-                    name: 'Guard',
-                    stats: {
-                        str: 6, int: 6,
-                        dex: 6, per: 7,
-                        con: 6, will: 6,
-                        beauty: 5, cha: 5,
-                        instinct: 7, wis: 6
-                    }, // Total: 60 - Veteran watch
-                    health: null,
-                    maxHealth: null,
-                    hpBufferMax: null,
-                    hpBufferByAttacker: null,
-                    equipment: {
-                        mainHand: 'shortSpear',
-                        offHand: 'largeShield',
-                        armor: 'chain',
-                    },
-                    faction: 'guard',
-                    spriteSet: 'swordShieldKnight',
-                    skills: createDefaultSkills(),
-                    isDefeated: false,
-                    movementQueue: [],
-                    isMoving: false,
-                    moveSpeed: 300,
-                    currentMoveTimer: 0,
-                    targetPixelX: 0,
-                    targetPixelY: 0,
-                    mode: 'neutral',
-                    enemies: null,
-                    lastAttackedBy: null,
-                    engagedBy: null,
-                    engagedMax: null
-                },
-                {
-                    hexQ: 3,
-                    hexR: -7,
-                    pixelX: 0,
-                    pixelY: 0,
-                    facing: 'dir6',
-                    animationFrame: 8,
-                    animationTimer: 25,
-                    currentAnimation: 'idle',
-                    name: 'Bandit',
-                    stats: {
-                        str: 10, int: 3,
-                        dex: 5, per: 4,
-                        con: 8, will: 4,
-                        beauty: 3, cha: 5,
-                        instinct: 8, wis: 10
-                    }, // Total: 60 - Brute
-                    health: null,
-                    maxHealth: null,
-                    hpBufferMax: null,
-                    hpBufferByAttacker: null,
-                    equipment: {
-                        mainHand: 'shortSword',
-                        offHand: null,
-                        armor: 'leather',
-                    },
-                    faction: 'bandit',
-                    spriteSet: 'swordKnight',
-                    skills: createDefaultSkills(),
-                    isDefeated: false,
-                    movementQueue: [],
-                    isMoving: false,
-                    moveSpeed: 300,
-                    currentMoveTimer: 0,
-                    targetPixelX: 0,
-                    targetPixelY: 0,
-                    mode: 'aggressive',
-                    enemies: null,
-                    lastAttackedBy: null,
-                    engagedBy: null,
-                    engagedMax: null
-                },
-                {
-                    hexQ: 2,
-                    hexR: -2,
-                    pixelX: 0,
-                    pixelY: 0,
-                    facing: 'dir2',
-                    animationFrame: 2,
-                    animationTimer: 100,
-                    currentAnimation: 'idle',
-                    name: 'Bandit',
-                    stats: {
-                        str: 4, int: 5,
-                        dex: 10, per: 8,
-                        con: 5, will: 4,
-                        beauty: 5, cha: 6,
-                        instinct: 7, wis: 6
-                    }, // Total: 60 - Quick thief
-                    health: null,
-                    maxHealth: null,
-                    hpBufferMax: null,
-                    hpBufferByAttacker: null,
-                    equipment: {
-                        mainHand: 'shortSword',
-                        offHand: null,
-                        armor: 'leather',
-                    },
-                    faction: 'bandit',
-                    spriteSet: 'swordKnight',
-                    skills: createDefaultSkills(),
-                    isDefeated: false,
-                    movementQueue: [],
-                    isMoving: false,
-                    moveSpeed: 300,
-                    currentMoveTimer: 0,
-                    targetPixelX: 0,
-                    targetPixelY: 0,
-                    mode: 'aggressive',
-                    enemies: null,
-                    lastAttackedBy: null,
-                    engagedBy: null,
-                    engagedMax: null
-                }
-            ]
+            }),
+            // NPCs loaded from area.json via AreaManager (see init() method)
+            // Architecture: NPCs come from templates (const.js) + placement data (area.json)
+            // Future: Templates will be fetched from backend API instead of const.js
+            npcs: []
         };
 
         // Delta time tracking for consistent timing across refresh rates
@@ -317,9 +88,6 @@ export class Game {
 
         // Debug elements
         this.elements = {
-            mousePos: document.getElementById('mousePos'),
-            hexPos: document.getElementById('hexPos'),
-            loadStatus: document.getElementById('loadStatus'),
             showGrid: document.getElementById('showGrid'),
             cameraPos: document.getElementById('cameraPos'),
             direction: document.getElementById('directionInfo'),
@@ -349,6 +117,9 @@ export class Game {
     initializeModules() {
         // Create logger first - it's a foundational dependency for all systems
         this.logger = new Logger();
+
+        // Create combat UI log with logger and game references
+        this.combatUILog = new CombatUILog(this.logger, this);
 
         // Core modules
         this.hexGrid = new HexGrid(
@@ -382,7 +153,7 @@ export class Game {
             this.logger
         );
 
-        // Now create GameStateManager with MovementSystem, CombatSystem, and logger
+        // Now create GameStateManager with MovementSystem, CombatSystem, logger, and Game instance
         this.gameStateManager = new GameStateManager(
             this.state,
             this.hexGrid,
@@ -390,7 +161,8 @@ export class Game {
             this.movementSystem,
             this.combatSystem,
             this.pathfinding,
-            this.logger
+            this.logger,
+            this  // Pass the Game instance for accessing UI systems
         );
 
         // Set the gameStateManager reference in dependent systems (circular dependency)
@@ -450,14 +222,6 @@ export class Game {
             return { x: this.camera.x, y: this.camera.y, zoom: this.config.zoom };
         };
 
-        this.inputHandler.onMouseMove = (canvasX, canvasY) => {
-            const worldX = (canvasX + this.camera.x) / this.config.zoom;
-            const worldY = (canvasY + this.camera.y) / this.config.zoom;
-            this.elements.mousePos.textContent = `${Math.round(worldX)}, ${Math.round(worldY)}`;
-            const hex = this.hexGrid.pixelToHex(worldX, worldY);
-            this.elements.hexPos.textContent = `${hex.q}, ${hex.r}`;
-        };
-
         this.inputHandler.onAnimationChange = (animation) => {
             this.elements.animation.textContent = animation;
         };
@@ -466,16 +230,8 @@ export class Game {
             this.updateMarkedHexCount();
         };
 
-        // AssetManager callbacks
-        this.assetManager.onProgress = (percent) => {
-            this.elements.loadStatus.textContent = `Loading: ${percent}%`;
-        };
-
-        this.assetManager.onComplete = () => {
-            this.elements.loadStatus.textContent = 'Ready - Shift+Space for combat';
-            this.elements.loadStatus.style.color = '#0f0';
-            this.onAssetsLoaded();
-        };
+        // AssetManager callbacks (removed - now called at end of init())
+        // this.assetManager.onComplete is not used anymore
 
         // MovementSystem callbacks
         this.movementSystem.onAnimationChange = (animation) => {
@@ -516,8 +272,11 @@ export class Game {
         const assets = await this.assetManager.loadAssets();
         this.state.assets = assets;
 
-        // Load initial area
+        // Load initial area (NPCs are instantiated inside loadArea via repository pattern)
         await this.areaManager.loadArea('bridge_crossing');
+
+        // Retrieve instantiated NPCs from AreaManager (loaded from area.json + templates)
+        this.state.npcs = this.areaManager.getNPCs();
 
         // Store area background for renderer fallback
         this.state.assets.background = this.areaManager.getBackground();
@@ -528,48 +287,29 @@ export class Game {
         this.config.world.height = dims.height;
         this.renderer.worldWidth = dims.width;
         this.renderer.worldHeight = dims.height;
+
+        // NOW initialize all characters (assets and NPCs are both loaded)
+        this.onAssetsLoaded();
     }
 
     onAssetsLoaded() {
-        // Set PC starting position
+        // Set PC starting position (hex to pixel conversion)
         const startPos = this.hexGrid.hexToPixel(this.state.pc.hexQ, this.state.pc.hexR);
         this.state.pc.pixelX = startPos.x;
         this.state.pc.pixelY = startPos.y;
 
-        // Set NPC starting positions
+        // Set NPC starting positions (hex to pixel conversion)
         this.state.npcs.forEach(npc => {
             const npcStartPos = this.hexGrid.hexToPixel(npc.hexQ, npc.hexR);
             npc.pixelX = npcStartPos.x;
             npc.pixelY = npcStartPos.y;
         });
 
-        // Initialize HP and buffer from stats
-        this.state.pc.maxHealth = calculateMaxHP(this.state.pc.stats);
-        this.state.pc.health = this.state.pc.maxHealth;
-        this.state.pc.hpBufferMax = calculateHPBuffer(this.state.pc.stats);
-        this.state.pc.hpBufferByAttacker = new Map();
-        this.state.npcs.forEach(npc => {
-            npc.maxHealth = calculateMaxHP(npc.stats);
-            npc.health = npc.maxHealth;
-            npc.hpBufferMax = calculateHPBuffer(npc.stats);
-            npc.hpBufferByAttacker = new Map();
-        });
+        // NOTE: Health, Sets, Maps already initialized by CharacterFactory
+        // No need to initialize maxHealth, health, hpBufferByAttacker, enemies, engagedBy, engagedMax
+        // Characters are fully ready immediately after creation
 
-        // Initialize enemy Sets (can't reference objects in object literals)
-        this.state.pc.enemies = new Set();
-        this.state.npcs.forEach(npc => {
-            npc.enemies = new Set();
-        });
-
-        // Initialize engagement tracking
-        this.state.pc.engagedBy = new Set();
-        this.state.pc.engagedMax = calculateEngagedMax(this.state.pc.stats);
-        this.state.npcs.forEach(npc => {
-            npc.engagedBy = new Set();
-            npc.engagedMax = calculateEngagedMax(npc.stats);
-        });
-
-        // Set up initial hostilities
+        // Set up initial hostilities (relationships between existing characters)
         const bandits = this.state.npcs.filter(n => n.faction === 'bandit');
         const pcFaction = [this.state.pc, ...this.state.npcs.filter(n => n.faction === 'pc')];
         const guards = this.state.npcs.filter(n => n.faction === 'guard');
@@ -584,6 +324,10 @@ export class Game {
 
         this.centerCameraOn(this.state.pc.pixelX, this.state.pc.pixelY);
         this.updateGameStateUI();
+
+        // Initialize combat UI log after DOM is ready
+        this.combatUILog.init();
+
         this.startGameLoop();
     }
 
@@ -605,6 +349,12 @@ export class Game {
             this.movementSystem.updateMovement(deltaTime);
             this.movementSystem.updateAnimations(deltaTime);
             this.inputHandler.updateKeyboardScrolling();
+
+            // Update combat log if in combat
+            if (this.gameStateManager.isInCombat()) {
+                this.combatUILog.update();
+            }
+
             this.render();
 
             requestAnimationFrame(gameLoop);
@@ -655,6 +405,14 @@ export class Game {
         return null;
     }
 
+    getAllCharacters() {
+        return [this.state.pc, ...this.state.npcs];
+    }
+
+    getLivingCharacters() {
+        return this.getAllCharacters().filter(c => !c.isDefeated);
+    }
+
     updateGameStateUI() {
         const elements = this.elements;
         const currentState = this.gameStateManager.currentState;
@@ -673,7 +431,7 @@ export class Game {
 
         } else if (currentState === GAME_STATES.COMBAT_EXECUTION) {
             elements.stateIndicator.textContent = 'COMBAT - EXECUTION';
-            elements.stateIndicator.className = 'state-indicator state-combat';
+            elements.stateIndicator.className = 'state-indicator state-combat-execution';
             elements.combatInfo.style.display = 'block';
 
             elements.currentTurn.textContent = this.gameStateManager.turnNumber;

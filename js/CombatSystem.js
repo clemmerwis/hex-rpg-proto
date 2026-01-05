@@ -26,13 +26,17 @@ export class CombatSystem {
         // Check if there's a character at the target hex
         const defender = this.getCharacterAtHex(targetHex.q, targetHex.r);
 
-        const attackTypeName = ATTACK_TYPES[attackType]?.name || 'Attack';
+        // Format attack type name with styling tags
+        let attackTypeName = ATTACK_TYPES[attackType]?.name || 'Attack';
+        if (attackType === 'heavy') {
+            attackTypeName = '{{heavy}}heavy{{/heavy}} Attack';
+        }
 
         if (!defender) {
             // Empty hex - attack whiffs
-            this.logger.combat(`${attacker.name} ${attackTypeName.toLowerCase()}s at empty hex (${targetHex.q}, ${targetHex.r}) - WHIFF!`);
-            attacker.currentAnimation = 'attack';
-            attacker.animationFrame = 0;
+            const whiffAttackName = attackType === 'heavy' ? '{{heavy}}heavy{{/heavy}} attacks' : `${attackType} attacks`;
+            this.logger.combat(`{{char:${attacker.name}}} ${whiffAttackName} at empty hex (${targetHex.q}, ${targetHex.r}) - {{whiff}}`);
+            // Animation already set by GameStateManager - don't reset here
             return { hit: false, damage: 0, crit: false, defenderDefeated: false, whiff: true };
         }
 
@@ -49,12 +53,16 @@ export class CombatSystem {
         // Calculate to-hit chance (evasionBonus reduces base 50%)
         const evasionBonus = getEquipmentBonus(defender, 'evasionBonus');
         const thc = (attackRating - defenseRating + (50 - evasionBonus)) / 100;
-        const hit = Math.random() < thc;
+
+        // Capture roll for display (both inverted: roll > THC = hit)
+        const thcRoll = Math.random();
+        const thcPercent = 100 - Math.round(thc * 100); // Inverted: difficulty to beat
+        const rollPercent = 100 - Math.round(thcRoll * 100); // Inverted: roll high is good
+        const hit = thcRoll < thc;
 
         if (!hit) {
-            this.logger.combat(`${attacker.name} ${attackTypeName.toLowerCase()}s ${defender.name} but MISSES!`);
-            attacker.currentAnimation = 'attack';
-            attacker.animationFrame = 0;
+            this.logger.combat(`{{char:${attacker.name}}} ${attackTypeName} {{char:${defender.name}}} (THC= {{thc}}${thcPercent}%{{/thc}}, Roll= {{roll}}${rollPercent}{{/roll}}, {{miss}})`);
+            // Animation already set by GameStateManager - don't reset here
             return { hit: false, damage: 0, crit: false, defenderDefeated: false };
         }
 
@@ -119,30 +127,44 @@ export class CombatSystem {
 
         // Build detailed combat log FIRST (before applying damage)
         let logParts = [];
-        logParts.push(`${attacker.name} ${attackTypeName.toLowerCase()}s ${defender.name}`);
-        if (friendlyFire) logParts.push('[FRIENDLY FIRE]');
-        if (flanking) logParts.push('[FLANKING]');
-        if (crit) logParts.push('[CRITICAL]');
+        logParts.push(`{{char:${attacker.name}}} ${attackTypeName} {{char:${defender.name}}} (THC= {{thc}}${thcPercent}%{{/thc}}, Roll= {{roll}}${rollPercent}{{/roll}}, {{hit}})`);
+        if (crit) logParts.push('{{critical}}');
+        if (flanking) logParts.push('{{flanking}}');
+        if (friendlyFire) logParts.push('{{friendlyFire}}');
 
         // Build detailed damage breakdown showing formula components
         const strMult = STAT_BONUSES.MULTIPLIER[attacker.stats.str] ?? 1;
         const strBonus = Math.ceil(weapon.force * strMult);
         const attackMod = ATTACK_TYPES[attackType]?.damageMod || 0;
 
-        let damageBreakdown = `Weapon: ${weapon.base} + Str(${attacker.stats.str})×Force(${weapon.force}): +${strBonus}`;
+        let damageBreakdown = `weapon: ${weapon.base} + str(${attacker.stats.str})×force(${weapon.force}): +${strBonus}`;
         if (attackMod !== 0) damageBreakdown += ` + ${attackType}: ${attackMod > 0 ? '+' : ''}${attackMod}`;
-        damageBreakdown += ` = ${baseDamage}`;
+        damageBreakdown += ` = {{dmg}}${baseDamage}{{/dmg}}`;
 
-        if (crit) damageBreakdown += ` → Crit: ${damageAfterCrit}`;
-        if (drAbsorbed > 0) damageBreakdown += ` → DR: -${drAbsorbed}${flanking ? ` (flanked ${Math.round(armor.flankingDefense * 100)}%)` : ''}`;
-        if (resistMod === 'resistant') damageBreakdown += ` → Resist: ×0.5`;
-        if (resistMod === 'vulnerable') damageBreakdown += ` → Vuln: ×1.5`;
-        damageBreakdown += ` = ${finalDamage}`;
+        if (crit) damageBreakdown += ` → Crit: {{dmg}}${damageAfterCrit}{{/dmg}}`;
+        if (drAbsorbed > 0) damageBreakdown += ` → DR: {{dr}}-${drAbsorbed}{{/dr}}${flanking ? ` (flanked ${Math.round(armor.flankingDefense * 100)}%)` : ''}`;
+        if (resistMod === 'resistant') damageBreakdown += ` → Resist: {{resist}}×0.5{{/resist}}`;
+        if (resistMod === 'vulnerable') damageBreakdown += ` → Vuln: {{vuln}}×1.5{{/vuln}}`;
+        damageBreakdown += ` = {{dmg}}${finalDamage}{{/dmg}}`;
 
-        this.logger.combat(`${logParts.join(' ')} | ${damageBreakdown}`);
+        // Log attack result and damage breakdown on separate lines
+        this.logger.combat(logParts.join(' '));
+        this.logger.combat(`  {{hitPrefix}} ${damageBreakdown}`);
 
         // NOW apply damage through buffer (per-attacker temp HP) - logs appear after damage calc
-        const { bufferDamage, healthDamage } = this.applyDamage(attacker, defender, damage);
+        const { bufferDamage, healthDamage, bufferBefore, bufferAfter, healthBefore, healthAfter } = this.applyDamage(attacker, defender, damage);
+
+        // Log where the damage actually went (context-sensitive)
+        if (bufferDamage > 0 && healthDamage > 0) {
+            // Damage overflowed buffer into HP
+            this.logger.combat(`    → {{char:${defender.name}}}: {{dmg}}-${bufferDamage}{{/dmg}} {{buf_depleted}}buffer (depleted){{/buf_depleted}}, {{dmg}}-${healthDamage}{{/dmg}} HP {{hp}}(${healthBefore} → ${healthAfter}){{/hp}}`);
+        } else if (bufferDamage > 0) {
+            // All damage went to buffer
+            this.logger.combat(`    → {{char:${defender.name}}}: {{dmg}}-${bufferDamage}{{/dmg}} {{buf}}buffer (${bufferBefore} → ${bufferAfter}){{/buf}}`);
+        } else if (healthDamage > 0) {
+            // Buffer already depleted, all damage to HP
+            this.logger.combat(`    → {{char:${defender.name}}}: {{dmg}}-${healthDamage}{{/dmg}} HP {{hp}}(${healthBefore} → ${healthAfter}){{/hp}}`);
+        }
 
         const defeated = defender.health <= 0;
 
@@ -150,19 +172,15 @@ export class CombatSystem {
         this.gameStateManager.markCharacterHit(defender);
 
         if (defeated) {
-            this.logger.combat(`${defender.name} has been defeated!`);
-            defender.currentAnimation = 'die';
-            defender.animationFrame = 0;
+            this.logger.combat(`{{char:${defender.name}}} has been defeated!`);
+            // Die animation will be set by GameStateManager.handleCharacterDefeat()
         } else if (finalDamage > 0) {
             // Play impact animation when hit but not defeated
             defender.currentAnimation = 'impact';
             defender.animationFrame = 0;
         }
 
-        // Play attacker's attack animation
-        attacker.currentAnimation = 'attack';
-        attacker.animationFrame = 0;
-
+        // Attacker animation already set by GameStateManager - don't reset here
         return { hit: true, damage: finalDamage, crit: crit, defenderDefeated: defeated, flanking: flanking };
     }
 
@@ -181,6 +199,7 @@ export class CombatSystem {
         }
 
         let remainingBuffer = defender.hpBufferByAttacker.get(attacker);
+        const bufferBefore = remainingBuffer;
         let bufferDamage = 0;
         let healthDamage = 0;
 
@@ -197,23 +216,17 @@ export class CombatSystem {
             healthDamage = damage;
         }
 
-        // Log buffer application details
-        this.logger.debug(`[BUFFER] ${attacker.name} → ${defenderPos}: ${damage} final damage (post-DR/resist)`);
-        if (bufferDamage > 0 && healthDamage > 0) {
-            this.logger.debug(`  ├─ Buffer: ${remainingBuffer + bufferDamage}/${defender.hpBufferMax} → absorbs ${bufferDamage}, overflow ${healthDamage} to HP`);
-            this.logger.debug(`  └─ New buffer: ${remainingBuffer}/${defender.hpBufferMax} (${bufferDamage > 0 ? 'depleted' : 'remaining'})`);
-        } else if (bufferDamage > 0) {
-            this.logger.debug(`  └─ Buffer: ${remainingBuffer + bufferDamage}/${defender.hpBufferMax} → absorbs all ${bufferDamage} → ${remainingBuffer}/${defender.hpBufferMax}`);
-        } else {
-            this.logger.debug(`  └─ Buffer depleted (${remainingBuffer}/${defender.hpBufferMax}), all ${healthDamage} to HP`);
-        }
+        const healthBefore = defender.health;
 
         if (healthDamage > 0) {
             defender.health -= healthDamage;
             defender.health = Math.max(0, defender.health);
         }
 
-        return { bufferDamage, healthDamage };
+        const bufferAfter = remainingBuffer;
+        const healthAfter = defender.health;
+
+        return { bufferDamage, healthDamage, bufferBefore, bufferAfter, healthBefore, healthAfter };
     }
 
     /**

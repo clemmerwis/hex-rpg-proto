@@ -16,7 +16,7 @@ export const COMBAT_ACTIONS = {
 };
 
 export class GameStateManager {
-    constructor(game, hexGrid, getCharacterAtHex, movementSystem, combatSystem, pathfinding, logger) {
+    constructor(game, hexGrid, getCharacterAtHex, movementSystem, combatSystem, pathfinding, logger, gameInstance) {
         this.game = game;
         this.hexGrid = hexGrid;
         this.getCharacterAtHex = getCharacterAtHex;
@@ -24,6 +24,7 @@ export class GameStateManager {
         this.combatSystem = combatSystem;
         this.pathfinding = pathfinding;
         this.logger = logger;
+        this.gameInstance = gameInstance; // Full Game instance for accessing UI systems
         this.aiSystem = new AISystem(hexGrid, getCharacterAtHex, pathfinding, logger);
 
         // State
@@ -94,7 +95,6 @@ export class GameStateManager {
         if (oldState === GAME_STATES.COMBAT_EXECUTION
             && newState !== GAME_STATES.COMBAT_EXECUTION) {
             this.movementSystem.clearAllCallbacks();
-            console.log('Cleared movement callbacks on state exit');
         }
 
         this.currentState = newState;
@@ -118,6 +118,15 @@ export class GameStateManager {
         // Clear recently hit characters from previous turn
         this.clearRecentlyHitCharacters();
 
+        // Show combat log UI
+        this.gameInstance?.combatUILog?.show();
+
+        // Log combat start or new turn
+        if (this.turnNumber === 1) {
+            this.logger.combat('=== COMBAT START ===');
+            this.logger.combat('-------------\n');
+        }
+
         // Stop any current movement
         this.game.pc.isMoving = false;
         this.game.pc.movementQueue = [];
@@ -132,11 +141,6 @@ export class GameStateManager {
         }
         const livingNPCs = this.game.npcs.filter(npc => !npc.isDefeated);
         this.combatCharacters.push(...livingNPCs);
-
-        this.logger.debug('=== COMBAT INPUT PHASE ===');
-        this.logger.debug(`Turn ${this.turnNumber}, Participants:`, this.combatCharacters.map(c =>
-            `${c.name}(${c.mode}, enemies=${c.enemies?.size || 0})`
-        ).join(', '));
 
         // Reset input data
         this.characterActions.clear();
@@ -171,9 +175,6 @@ export class GameStateManager {
         this.executionQueue = [...this.combatCharacters];
         this.currentPhase = 'move';
 
-        this.logger.debug('=== ENTERING COMBAT EXECUTION ===');
-        this.logger.debug(`Turn ${this.turnNumber}, Characters:`, this.executionQueue.map(c => `${c.name}(${c.hexQ},${c.hexR})`).join(', '));
-
         // Start with move phase
         this.executeMovePhase();
     }
@@ -182,8 +183,6 @@ export class GameStateManager {
      * Execute all MOVE actions first, sorted by speed
      */
     executeMovePhase() {
-        this.logger.debug('=== MOVE PHASE START ===');
-
         // Filter characters with MOVE actions, sort by speed
         const movers = this.executionQueue.filter(char => {
             const action = this.characterActions.get(char);
@@ -192,19 +191,16 @@ export class GameStateManager {
         this.moveQueue = this.sortBySpeed(movers, 'move');
         this.currentMoveIndex = 0;
 
-        this.logger.debug(`Movers (sorted by move speed):`, this.moveQueue.map(c => `${c.name}(mv:${calculateMoveSpeed(c)})`).join(', ') || '(none)');
         this.executeNextMove();
     }
 
     executeNextMove() {
         if (this.currentMoveIndex >= this.moveQueue.length) {
             // Move phase complete - add delay before action phase to ensure animations settle
-            this.logger.debug('Move phase complete, waiting for animations to settle...');
             this.currentPhase = 'action';
 
             // Small delay to ensure all movement visuals are complete
             setTimeout(() => {
-                this.logger.debug('Animation settle complete, starting action phase');
                 this.executeActionPhase();
             }, GAME_CONSTANTS.COMBAT_PHASE_TRANSITION);
             return;
@@ -214,7 +210,6 @@ export class GameStateManager {
 
         // Skip if character was defeated during this phase
         if (character.isDefeated) {
-            this.logger.debug(`[MOVE] Skipping ${character.name} - already defeated`);
             this.currentMoveIndex++;
             this.executeNextMove();
             return;
@@ -224,15 +219,12 @@ export class GameStateManager {
         this.clearRecentlyHitCharacters();
 
         const action = this.characterActions.get(character);
-        const moveNum = this.currentMoveIndex + 1;
-        const totalMoves = this.moveQueue.length;
-
-        this.logger.debug(`[MOVE ${moveNum}/${totalMoves}] ${character.name} attempting move from (${character.hexQ},${character.hexR}) to (${action.target.q},${action.target.r})`);
 
         // Check if target hex is occupied (collision detection)
         const characterAtTarget = this.getCharacterAtHex(action.target.q, action.target.r);
         if (characterAtTarget) {
-            this.logger.debug(`[MOVE ${moveNum}/${totalMoves}] ${character.name} BLOCKED - hex occupied by ${characterAtTarget.name}`);
+            // Log blocked move
+            this.logger.combat(`{{char:${character.name}}}: Move {{blocked}}`);
             this.currentMoveIndex++;
             this.executeNextMove();
             return;
@@ -243,14 +235,15 @@ export class GameStateManager {
             this.playerSelectedHex = null;
         }
 
+        // Log move action
+        this.logger.combat(`{{char:${character.name}}}: Move`);
+
         // Execute move with callback
         character.movementQueue = [action.target];
         character.isMoving = true;
         character.currentMoveTimer = 0;
 
         this.movementSystem.onMovementComplete(character, () => {
-            this.logger.debug(`[MOVE ${moveNum}/${totalMoves}] ${character.name} movement COMPLETE, now at (${character.hexQ},${character.hexR})`);
-
             // Update engagement tracking after move
             this.updateEngagement(character);
 
@@ -266,8 +259,6 @@ export class GameStateManager {
      * Execute all ATTACK actions after moves, sorted by speed
      */
     executeActionPhase() {
-        this.logger.debug('=== ACTION PHASE START ===');
-
         // Filter characters with ATTACK actions, sort by speed
         const attackers = this.executionQueue.filter(char => {
             const action = this.characterActions.get(char);
@@ -276,15 +267,12 @@ export class GameStateManager {
         this.actionQueue = this.sortBySpeed(attackers, 'action');
         this.currentActionIndex = 0;
 
-        this.logger.debug(`Attackers (sorted by action speed):`, this.actionQueue.map(c => `${c.name}(act:${calculateActionSpeed(c, 'light')})`).join(', ') || '(none)');
         this.executeNextAttack();
     }
 
     executeNextAttack() {
         if (this.currentActionIndex >= this.actionQueue.length) {
             // All attacks done, next turn
-            this.logger.debug('=== ACTION PHASE COMPLETE ===');
-            this.logger.debug(`Advancing to turn ${this.turnNumber + 1}`);
             this.turnNumber++;
             this.setState(GAME_STATES.COMBAT_INPUT);
             return;
@@ -294,7 +282,6 @@ export class GameStateManager {
 
         // Skip if character was defeated during this phase
         if (character.isDefeated) {
-            this.logger.debug(`[ATTACK] Skipping ${character.name} - already defeated`);
             this.currentActionIndex++;
             this.executeNextAttack();
             return;
@@ -304,16 +291,10 @@ export class GameStateManager {
         this.clearRecentlyHitCharacters();
 
         const action = this.characterActions.get(character);
-        const attackNum = this.currentActionIndex + 1;
-        const totalAttacks = this.actionQueue.length;
-
-        this.logger.debug(`[ATTACK ${attackNum}/${totalAttacks}] ${character.name} at (${character.hexQ},${character.hexR}) attacking hex (${action.target.q},${action.target.r})`);
 
         // Get whoever is NOW at the target hex (may be different from original target!)
         // Attacks hit whoever is on the hex, even allies (accidents happen)
         const targetChar = this.getCharacterAtHex(action.target.q, action.target.r);
-
-        this.logger.debug(`[ATTACK ${attackNum}/${totalAttacks}] Target at hex:`, targetChar ? `${targetChar.name} (defeated:${targetChar.isDefeated})` : 'EMPTY');
 
         // Face the target hex regardless of whether target is there
         const targetPixel = this.hexGrid.hexToPixel(action.target.q, action.target.r);
@@ -325,24 +306,18 @@ export class GameStateManager {
         character.animationFrame = 0;
         character.animationTimer = 0;
         character.currentAnimation = 'attack';
-        this.logger.debug(`[ANIM] ${character.name} animation reset to frame 0, starting attack`);
 
         setTimeout(() => {
             if (!targetChar) {
                 // Auto-miss: no one at hex
-                this.logger.debug(`[ATTACK ${attackNum}/${totalAttacks}] ${character.name} attacks empty hex - MISS!`);
             } else if (targetChar === character) {
                 // Can't hit yourself
-                this.logger.debug(`[ATTACK ${attackNum}/${totalAttacks}] ${character.name} swings at own hex - MISS!`);
             } else if (targetChar.isDefeated) {
                 // Target already dead
-                this.logger.debug(`[ATTACK ${attackNum}/${totalAttacks}] ${character.name} attacks dead body - no effect`);
             } else {
                 // Execute attack - hits whoever is on the hex (ally or enemy!)
                 const attackType = action.attackType || 'light';
-                this.logger.debug(`[ATTACK ${attackNum}/${totalAttacks}] ${character.name} ${attackType} attacks ${targetChar.name}!`);
                 const result = this.combatSystem.executeAttack(character, action.target, attackType);
-                this.logger.debug(`[ATTACK ${attackNum}/${totalAttacks}] Result: hit=${result.hit}, damage=${result.damage}, defeated=${result.defenderDefeated}`);
 
                 // Hostility trigger: target becomes hostile to attacker (even on miss!)
                 if (!targetChar.isDefeated) {
@@ -350,7 +325,6 @@ export class GameStateManager {
 
                     // Establish mutual hostility - attacking makes you enemies
                     makeEnemies(character, targetChar);
-                    this.logger.debug(`[HOSTILITY] ${character.name} and ${targetChar.name} are now mutual enemies!`);
                 }
 
                 if (result.defenderDefeated) {
@@ -384,7 +358,6 @@ export class GameStateManager {
                 const dx = targetPixel.x - charPixel.x;
                 const dy = targetPixel.y - charPixel.y;
                 character.facing = getFacingFromDelta(dx, dy);
-                this.logger.debug(`[AUTO-FACE] ${character.name} turns to face ${occupant.name}`);
                 return;
             }
         }
@@ -416,6 +389,11 @@ export class GameStateManager {
      * Clear engagements for characters that are no longer adjacent
      */
     clearNonAdjacentEngagements(character) {
+        // Guard: skip if not initialized yet
+        if (!character.engagedBy) {
+            return;
+        }
+
         const charHex = { q: character.hexQ, r: character.hexR };
 
         // Check all characters this one is engaging
@@ -435,6 +413,11 @@ export class GameStateManager {
      * First-come-first-serve up to engagedMax
      */
     tryEstablishEngagement(charA, charB) {
+        // Guard: skip if not initialized yet
+        if (!charA.engagedBy || !charB.engagedBy) {
+            return;
+        }
+
         // A tries to engage B (if A has capacity)
         if (!charA.engagedBy.has(charB) && charA.engagedBy.size < charA.engagedMax) {
             charA.engagedBy.add(charB);
@@ -453,6 +436,10 @@ export class GameStateManager {
      * Returns false if defender's engagedBy is at max AND doesn't include attacker
      */
     canEngageBack(defender, attacker) {
+        // Guard: if engagedBy not initialized, assume can engage
+        if (!defender.engagedBy) {
+            return true;
+        }
         // If already engaging attacker, can engage back
         if (defender.engagedBy.has(attacker)) {
             return true;
@@ -498,15 +485,23 @@ export class GameStateManager {
         this.turnNumber = 1;
 
         // Reset HP buffers (temp HP resets after combat)
-        this.game.pc.hpBufferByAttacker.clear();
+        if (this.game.pc.hpBufferByAttacker) {
+            this.game.pc.hpBufferByAttacker.clear();
+        }
         this.game.npcs.forEach(npc => {
-            npc.hpBufferByAttacker.clear();
+            if (npc.hpBufferByAttacker) {
+                npc.hpBufferByAttacker.clear();
+            }
         });
 
         // Clear engagement tracking
-        this.game.pc.engagedBy.clear();
+        if (this.game.pc.engagedBy) {
+            this.game.pc.engagedBy.clear();
+        }
         this.game.npcs.forEach(npc => {
-            npc.engagedBy.clear();
+            if (npc.engagedBy) {
+                npc.engagedBy.clear();
+            }
         });
 
         // Return all living characters to idle
@@ -516,6 +511,9 @@ export class GameStateManager {
                 npc.currentAnimation = 'idle';
             }
         });
+
+        // Hide combat log UI
+        this.gameInstance?.combatUILog?.hide();
     }
 
     canPlayerMove() {
@@ -632,8 +630,6 @@ export class GameStateManager {
             attackType: this.playerSelectedAttackType
         };
 
-        this.logger.debug(`[PLAYER] Attack ${this.playerSelectedAttackType} at hex (${hexQ},${hexR})`);
-
         // Player has chosen, now AI makes their decisions
         this.processAITurns();
         return true;
@@ -645,7 +641,6 @@ export class GameStateManager {
     setPlayerAttackType(attackType) {
         if (attackType === 'light' || attackType === 'heavy') {
             this.playerSelectedAttackType = attackType;
-            this.logger.debug(`[PLAYER] Attack type set to ${attackType}`);
             return true;
         }
         return false;
