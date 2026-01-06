@@ -142,7 +142,7 @@ export class CombatSystem {
         damageBreakdown += ` = {{dmg}}${baseDamage}{{/dmg}}`;
 
         if (crit) damageBreakdown += ` → Crit: {{dmg}}${damageAfterCrit}{{/dmg}}`;
-        if (drAbsorbed > 0) damageBreakdown += ` → DR: {{dr}}-${drAbsorbed}{{/dr}}${flanking ? ` (flanked ${Math.round(armor.flankingDefense * 100)}%)` : ''}`;
+        if (effectiveDR > 0) damageBreakdown += ` → DR: {{dr}}-${effectiveDR}{{/dr}}${flanking ? ` (flanked ${Math.round(armor.flankingDefense * 100)}%)` : ''}`;
         if (resistMod === 'resistant') damageBreakdown += ` → Resist: {{resist}}×0.5{{/resist}}`;
         if (resistMod === 'vulnerable') damageBreakdown += ` → Vuln: {{vuln}}×1.5{{/vuln}}`;
         damageBreakdown += ` = {{dmg}}${finalDamage}{{/dmg}}`;

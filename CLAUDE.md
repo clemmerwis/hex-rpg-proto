@@ -12,9 +12,13 @@ This is a hex-grid based isometric RPG prototype built with vanilla JavaScript (
 
 ## Development Commands
 
+### **⚠️ IMPORTANT: NEVER RUN DOCKER COMMANDS ⚠️**
+
+**CLAUDE: DO NOT run any `docker` or `docker compose` commands. The user will handle all Docker operations manually.**
+
 ### Running the Application
 ```bash
-# Using Docker (recommended)
+# Using Docker (recommended) - USER RUNS THIS, NOT CLAUDE
 docker compose -p $project_name up
 
 # Access at http://localhost:8080

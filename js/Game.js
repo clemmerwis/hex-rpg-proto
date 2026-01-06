@@ -10,6 +10,7 @@ import { CombatSystem } from './CombatSystem.js';
 import { Logger } from './Logger.js';
 import { CombatUILog } from './CombatUILog.js';
 import { CharacterFactory } from './CharacterFactory.js';
+import { UIManager } from './UIManager.js';
 import { GAME_CONSTANTS, FACTIONS, calculateMaxHP, calculateHPBuffer, calculateEngagedMax } from './const.js';
 import { makeEnemies } from './utils.js';
 
@@ -68,8 +69,14 @@ export class Game {
         // Delta time tracking for consistent timing across refresh rates
         this.lastFrameTime = null;
 
-        // Get DOM elements
-        this.initializeDOMElements();
+        // Create UI Manager
+        this.uiManager = new UIManager();
+        this.uiManager.initializeDOMElements();
+
+        // Get DOM elements and canvas from UIManager
+        this.elements = this.uiManager.elements;
+        this.canvas = this.uiManager.canvas;
+        this.ctx = this.uiManager.ctx;
 
         // Setup canvas
         this.setupCanvas();
@@ -81,33 +88,6 @@ export class Game {
         this.setupCallbacks();
     }
 
-    initializeDOMElements() {
-        // Canvas
-        this.canvas = document.getElementById('gameCanvas');
-        this.ctx = this.canvas.getContext('2d');
-
-        // Debug elements
-        this.elements = {
-            showGrid: document.getElementById('showGrid'),
-            cameraPos: document.getElementById('cameraPos'),
-            direction: document.getElementById('directionInfo'),
-            animation: document.getElementById('animationInfo'),
-
-            // UI elements
-            stateIndicator: document.getElementById('stateIndicator'),
-            combatInfo: document.getElementById('combatInfo'),
-            currentTurn: document.getElementById('currentTurn'),
-            activeCharacter: document.getElementById('activeCharacter'),
-            enemyCount: document.getElementById('enemyCount'),
-
-            // Hex marker elements
-            hexMarkerMode: document.getElementById('hexMarkerMode'),
-            hexMarkerControls: document.getElementById('hexMarkerControls'),
-            exportHexes: document.getElementById('exportHexes'),
-            clearHexes: document.getElementById('clearHexes'),
-            markedCount: document.getElementById('markedCount')
-        };
-    }
 
     setupCanvas() {
         this.canvas.width = this.config.viewport.width;
@@ -223,7 +203,7 @@ export class Game {
         };
 
         this.inputHandler.onAnimationChange = (animation) => {
-            this.elements.animation.textContent = animation;
+            this.uiManager.updateAnimationInfo(animation);
         };
 
         this.inputHandler.onMarkedHexesChange = () => {
@@ -235,35 +215,33 @@ export class Game {
 
         // MovementSystem callbacks
         this.movementSystem.onAnimationChange = (animation) => {
-            this.elements.animation.textContent = animation;
+            this.uiManager.updateAnimationInfo(animation);
         };
 
         this.movementSystem.onDirectionChange = (direction) => {
-            this.elements.direction.textContent = direction;
+            this.uiManager.updateDirectionInfo(direction);
         };
 
-        // Checkbox event
-        this.elements.showGrid.addEventListener('change', () => {
-            requestAnimationFrame(() => this.render());
-        });
-
-        // Hex marker mode controls
-        this.elements.hexMarkerMode.addEventListener('change', (e) => {
-            const enabled = e.target.checked;
-            // Pass existing blocked hexes when enabling marker mode
-            const blockedHexes = enabled ? (this.areaManager.currentArea?.blocked || []) : [];
-            this.inputHandler.setHexMarkerMode(enabled, blockedHexes);
-            this.elements.hexMarkerControls.style.display = enabled ? 'block' : 'none';
-            this.updateMarkedHexCount();
-        });
-
-        this.elements.exportHexes.addEventListener('click', () => {
-            this.inputHandler.exportMarkedHexes();
-        });
-
-        this.elements.clearHexes.addEventListener('click', () => {
-            this.inputHandler.clearMarkedHexes();
-            this.updateMarkedHexCount();
+        // Setup UI event handlers through UIManager
+        this.uiManager.setupEventHandlers({
+            onShowGridChange: () => {
+                requestAnimationFrame(() => this.render());
+            },
+            onHexMarkerModeChange: (e) => {
+                const enabled = e.target.checked;
+                // Pass existing blocked hexes when enabling marker mode
+                const blockedHexes = enabled ? (this.areaManager.currentArea?.blocked || []) : [];
+                this.inputHandler.setHexMarkerMode(enabled, blockedHexes);
+                this.elements.hexMarkerControls.style.display = enabled ? 'block' : 'none';
+                this.updateMarkedHexCount();
+            },
+            onExportHexes: () => {
+                this.inputHandler.exportMarkedHexes();
+            },
+            onClearHexes: () => {
+                this.inputHandler.clearMarkedHexes();
+                this.updateMarkedHexCount();
+            }
         });
     }
 
@@ -381,12 +359,12 @@ export class Game {
         this.camera.x = Math.max(0, Math.min(this.camera.x, maxCameraX));
         this.camera.y = Math.max(0, Math.min(this.camera.y, maxCameraY));
 
-        this.elements.cameraPos.textContent = `${Math.round(this.camera.x)}, ${Math.round(this.camera.y)}`;
+        this.uiManager.updateCameraPosition(this.camera.x, this.camera.y);
     }
 
     updateMarkedHexCount() {
         const count = this.inputHandler.markedHexes.size;
-        this.elements.markedCount.textContent = `Marked: ${count}`;
+        this.uiManager.updateMarkedHexCount(count);
     }
 
     getCharacterAtHex(q, r) {
@@ -414,61 +392,6 @@ export class Game {
     }
 
     updateGameStateUI() {
-        const elements = this.elements;
-        const currentState = this.gameStateManager.currentState;
-
-        if (currentState === GAME_STATES.COMBAT_INPUT) {
-            elements.stateIndicator.textContent = 'COMBAT - INPUT PHASE';
-            elements.stateIndicator.className = 'state-indicator state-combat';
-            elements.combatInfo.style.display = 'block';
-
-            elements.currentTurn.textContent = this.gameStateManager.turnNumber;
-            elements.activeCharacter.textContent = this.gameStateManager.characterActions.has(this.state.pc)
-                ? 'Action Chosen' : 'Choose Action';
-
-            const enemyCount = this.state.npcs.filter(npc => npc.faction === 'bandit' && !npc.isDefeated).length;
-            elements.enemyCount.textContent = enemyCount;
-
-        } else if (currentState === GAME_STATES.COMBAT_EXECUTION) {
-            elements.stateIndicator.textContent = 'COMBAT - EXECUTION';
-            elements.stateIndicator.className = 'state-indicator state-combat-execution';
-            elements.combatInfo.style.display = 'block';
-
-            elements.currentTurn.textContent = this.gameStateManager.turnNumber;
-
-            // Show current phase and character
-            const phase = this.gameStateManager.currentPhase;
-            let activeChar = null;
-
-            if (phase === 'move') {
-                const idx = this.gameStateManager.currentMoveIndex;
-                const queue = this.gameStateManager.moveQueue;
-                if (idx < queue.length) {
-                    activeChar = queue[idx];
-                }
-                elements.activeCharacter.textContent = activeChar
-                    ? `${activeChar.name} Moving`
-                    : 'Moves Complete';
-            } else if (phase === 'action') {
-                const idx = this.gameStateManager.currentActionIndex;
-                const queue = this.gameStateManager.actionQueue;
-                if (idx < queue.length) {
-                    activeChar = queue[idx];
-                }
-                elements.activeCharacter.textContent = activeChar
-                    ? `${activeChar.name} Attacking`
-                    : 'Attacks Complete';
-            } else {
-                elements.activeCharacter.textContent = 'Preparing...';
-            }
-
-            const enemyCount = this.state.npcs.filter(npc => npc.faction === 'bandit' && !npc.isDefeated).length;
-            elements.enemyCount.textContent = enemyCount;
-
-        } else {
-            elements.stateIndicator.textContent = 'EXPLORATION';
-            elements.stateIndicator.className = 'state-indicator state-exploration';
-            elements.combatInfo.style.display = 'none';
-        }
+        this.uiManager.updateGameState(this.gameStateManager, this.state);
     }
 }

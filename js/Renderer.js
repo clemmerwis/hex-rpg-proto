@@ -158,6 +158,37 @@ export class Renderer {
         }
     }
 
+    /**
+     * Helper method to draw a hex path with optional fill and stroke
+     * Eliminates duplication of the hex path drawing pattern (8 instances)
+     * @param {Array} hexPoints - Array of {x, y} points for hex corners
+     * @param {string|null} fillStyle - Fill color (null to skip fill)
+     * @param {string|null} strokeStyle - Stroke color (null to skip stroke)
+     * @param {number} lineWidth - Line width for stroke (default: 1)
+     */
+    _drawHexPath(hexPoints, fillStyle = null, strokeStyle = null, lineWidth = 1) {
+        this.ctx.beginPath();
+        hexPoints.forEach((point, i) => {
+            if (i === 0) {
+                this.ctx.moveTo(point.x, point.y);
+            } else {
+                this.ctx.lineTo(point.x, point.y);
+            }
+        });
+        this.ctx.closePath();
+
+        if (fillStyle) {
+            this.ctx.fillStyle = fillStyle;
+            this.ctx.fill();
+        }
+
+        if (strokeStyle) {
+            this.ctx.strokeStyle = strokeStyle;
+            this.ctx.lineWidth = lineWidth;
+            this.ctx.stroke();
+        }
+    }
+
     drawHex(q, r) {
         const center = this.hexGrid.hexToPixel(q, r);
         const characterHere = this.getCharacterAtHex(q, r);
@@ -172,18 +203,7 @@ export class Renderer {
         }
 
         // Draw default grid
-        this.ctx.beginPath();
-        hexPoints.forEach((point, i) => {
-            if (i === 0) {
-                this.ctx.moveTo(point.x, point.y);
-            } else {
-                this.ctx.lineTo(point.x, point.y);
-            }
-        });
-        this.ctx.closePath();
-        this.ctx.strokeStyle = "rgba(255, 255, 255, 1)";
-        this.ctx.lineWidth = 1;
-        this.ctx.stroke();
+        this._drawHexPath(hexPoints, null, "rgba(255, 255, 255, 1)", 1);
 
         // Draw dark overlay for blocked hexes (only during combat when hovering blocked terrain)
         const isBlocked = this.pathfinding?.blockedHexes?.has(`${q},${r}`);
@@ -208,17 +228,7 @@ export class Renderer {
                     }
 
                     if (this._cachedConnectedBlockedHexes?.has(`${q},${r}`)) {
-                        this.ctx.beginPath();
-                        hexPoints.forEach((point, i) => {
-                            if (i === 0) {
-                                this.ctx.moveTo(point.x, point.y);
-                            } else {
-                                this.ctx.lineTo(point.x, point.y);
-                            }
-                        });
-                        this.ctx.closePath();
-                        this.ctx.fillStyle = "rgba(0, 0, 0, 0.20)";
-                        this.ctx.fill();
+                        this._drawHexPath(hexPoints, "rgba(0, 0, 0, 0.20)");
                     }
                 }
             }
@@ -296,17 +306,7 @@ export class Renderer {
         const factionData = this.getFactionData(character);
 
         // Fill hex with very transparent faction color
-        this.ctx.beginPath();
-        hexPoints.forEach((point, i) => {
-            if (i === 0) {
-                this.ctx.moveTo(point.x, point.y);
-            } else {
-                this.ctx.lineTo(point.x, point.y);
-            }
-        });
-        this.ctx.closePath();
-        this.ctx.fillStyle = factionData.tintColor + "25"; // Very transparent (15% opacity)
-        this.ctx.fill();
+        this._drawHexPath(hexPoints, factionData.tintColor + "25");
 
         // Check for adjacent different factions
         const adjacentDirs = [
@@ -328,18 +328,7 @@ export class Renderer {
         });
 
         // Draw main faction border
-        this.ctx.beginPath();
-        hexPoints.forEach((point, i) => {
-            if (i === 0) {
-                this.ctx.moveTo(point.x, point.y);
-            } else {
-                this.ctx.lineTo(point.x, point.y);
-            }
-        });
-        this.ctx.closePath();
-        this.ctx.strokeStyle = factionData.tintColor + "99";
-        this.ctx.lineWidth = 2;
-        this.ctx.stroke();
+        this._drawHexPath(hexPoints, null, factionData.tintColor + "99", 2);
 
         // Draw shared borders with engagement-aware gradients
         sharedEdges.forEach((edgeIndex) => {
@@ -391,54 +380,15 @@ export class Renderer {
     }
 
     drawHoverHex(hexPoints) {
-        this.ctx.beginPath();
-        hexPoints.forEach((point, i) => {
-            if (i === 0) {
-                this.ctx.moveTo(point.x, point.y);
-            } else {
-                this.ctx.lineTo(point.x, point.y);
-            }
-        });
-        this.ctx.closePath();
-        this.ctx.fillStyle = "rgba(33, 150, 243, 0.25)"; // Blue fill
-        this.ctx.fill();
-        this.ctx.strokeStyle = "rgba(33, 150, 243, 0.7)"; // Blue stroke
-        this.ctx.lineWidth = 2;
-        this.ctx.stroke();
+        this._drawHexPath(hexPoints, "rgba(33, 150, 243, 0.25)", "rgba(33, 150, 243, 0.7)", 2);
     }
 
     drawSelectedHex(hexPoints) {
-        this.ctx.beginPath();
-        hexPoints.forEach((point, i) => {
-            if (i === 0) {
-                this.ctx.moveTo(point.x, point.y);
-            } else {
-                this.ctx.lineTo(point.x, point.y);
-            }
-        });
-        this.ctx.closePath();
-        this.ctx.fillStyle = "rgba(173, 216, 230, 0.4)";
-        this.ctx.fill();
-        this.ctx.strokeStyle = "#87CEEB";
-        this.ctx.lineWidth = 3;
-        this.ctx.stroke();
+        this._drawHexPath(hexPoints, "rgba(173, 216, 230, 0.4)", "#87CEEB", 3);
     }
 
     drawMarkedHex(hexPoints) {
-        this.ctx.beginPath();
-        hexPoints.forEach((point, i) => {
-            if (i === 0) {
-                this.ctx.moveTo(point.x, point.y);
-            } else {
-                this.ctx.lineTo(point.x, point.y);
-            }
-        });
-        this.ctx.closePath();
-        this.ctx.fillStyle = "rgba(255, 165, 0, 0.5)"; // Orange with 50% opacity
-        this.ctx.fill();
-        this.ctx.strokeStyle = "#FF8C00"; // Dark orange border
-        this.ctx.lineWidth = 3;
-        this.ctx.stroke();
+        this._drawHexPath(hexPoints, "rgba(255, 165, 0, 0.5)", "#FF8C00", 3);
     }
 
     drawActiveHexGlow(hexPoints, center, character) {
@@ -454,20 +404,9 @@ export class Renderer {
         this.ctx.save();
 
         // Outer soft glow using faction color
-        this.ctx.beginPath();
-        hexPoints.forEach((point, i) => {
-            if (i === 0) {
-                this.ctx.moveTo(point.x, point.y);
-            } else {
-                this.ctx.lineTo(point.x, point.y);
-            }
-        });
-        this.ctx.closePath();
         this.ctx.shadowColor = `rgba(${r}, ${g}, ${b}, 0.8)`;
         this.ctx.shadowBlur = 20;
-        this.ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, 0.6)`;
-        this.ctx.lineWidth = 4;
-        this.ctx.stroke();
+        this._drawHexPath(hexPoints, null, `rgba(${r}, ${g}, ${b}, 0.6)`, 4);
 
         this.ctx.restore();
     }
