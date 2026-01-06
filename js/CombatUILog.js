@@ -8,7 +8,7 @@ const COMBAT_TAGS = {
 	'{{critical}}': '<span style="color: #001F3F;">[critical]</span>',
 	'{{flanking}}': '<span style="color: #001F3F;">[flanking]</span>',
 	'{{friendlyFire}}': '<span class="log-condition-bracket">[</span><span class="log-condition">friendly fire</span><span class="log-condition-bracket">]</span>',
-	'{{blocked}}': '<span class="log-condition-bracket">(</span><span class="log-condition">Blocked</span><span class="log-condition-bracket">)</span>',
+	'{{blocked}}': '<span class="log-condition-bracket">(</span><span style="color: #001F3F;">Blocked</span><span class="log-condition-bracket">)</span>',
 	'{{hit}}': '<span class="log-hit">HIT</span>',
 	'{{miss}}': '<span class="log-miss">MISS</span>',
 	'{{whiff}}': '<span class="log-miss">WHIFF</span>',

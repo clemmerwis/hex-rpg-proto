@@ -137,7 +137,9 @@ export class CombatSystem {
         const strBonus = Math.ceil(weapon.force * strMult);
         const attackMod = ATTACK_TYPES[attackType]?.damageMod || 0;
 
-        let damageBreakdown = `weapon: ${weapon.base} + str(${attacker.stats.str})×force(${weapon.force}): +${strBonus}`;
+        // Format weapon name (camelCase to hyphen-separated)
+        const weaponName = attacker.equipment.mainHand.replace(/([A-Z])/g, '-$1').toLowerCase();
+        let damageBreakdown = `${weaponName}: ${weapon.base} + str(${attacker.stats.str})×force(${weapon.force}): +${strBonus}`;
         if (attackMod !== 0) damageBreakdown += ` + ${attackType}: ${attackMod > 0 ? '+' : ''}${attackMod}`;
         damageBreakdown += ` = {{dmg}}${baseDamage}{{/dmg}}`;
 

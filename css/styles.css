@@ -221,11 +221,13 @@ body {
 }
 
 .log-thc {
-    color: #CC6600; /* Even darker orange for THC/Roll percentages */
+    color: #D2691E; /* Chocolate brown for THC/Roll percentages */
+    font-weight: 900; /* Extra bold */
 }
 
 .log-hp {
-    color: #CC6600; /* Same orange as THC for HP changes */
+    color: #D2691E; /* Chocolate brown for HP changes */
+    font-weight: 900; /* Extra bold */
 }
 
 .log-dr {
