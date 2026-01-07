@@ -1,4 +1,4 @@
-import { calculateDamage, calculateAttackRating, calculateDefenseRating, calculateCSC, getEquipmentBonus, WEAPONS, ARMOR_TYPES, ATTACK_TYPES, STAT_BONUSES, isFlanking, getFacingFromDelta } from './const.js';
+import { calculateDamage, calculateAttackRating, calculateDefenseRating, calculateCSC, getEquipmentBonus, WEAPONS, ARMOR_TYPES, ATTACK_TYPES, STAT_BONUSES, DAMAGE_TYPE_PROPERTIES, isFlanking, getFacingFromDelta } from './const.js';
 
 export class CombatSystem {
     constructor(hexGrid, getCharacterAtHex, gameStateManager, logger) {
@@ -154,10 +154,13 @@ export class CombatSystem {
         this.logger.combat(`  {{hitPrefix}} ${damageBreakdown}`);
 
         // NOW apply damage through buffer (per-attacker temp HP) - logs appear after damage calc
-        const { bufferDamage, healthDamage, bufferBefore, bufferAfter, healthBefore, healthAfter } = this.applyDamage(attacker, defender, damage);
+        const { bufferDamage, healthDamage, bufferBefore, bufferAfter, healthBefore, healthAfter, bypassed } = this.applyDamage(attacker, defender, damage);
 
         // Log where the damage actually went (context-sensitive)
-        if (bufferDamage > 0 && healthDamage > 0) {
+        if (bypassed && healthDamage > 0) {
+            // Buffer bypassed - damage went directly to HP
+            this.logger.combat(`    → {{char:${defender.name}}}: {{dmg}}-${healthDamage}{{/dmg}} HP {{hp}}(${healthBefore} → ${healthAfter}){{/hp}} {{buf_bypassed}}(buffer bypassed){{/buf_bypassed}}`);
+        } else if (bufferDamage > 0 && healthDamage > 0) {
             // Damage overflowed buffer into HP
             this.logger.combat(`    → {{char:${defender.name}}}: {{dmg}}-${bufferDamage}{{/dmg}} {{buf_depleted}}buffer (depleted){{/buf_depleted}}, {{dmg}}-${healthDamage}{{/dmg}} HP {{hp}}(${healthBefore} → ${healthAfter}){{/hp}}`);
         } else if (bufferDamage > 0) {
@@ -189,33 +192,51 @@ export class CombatSystem {
     /**
      * Apply damage through buffer first, then to health
      * Buffer is per-attacker: each attacker must deplete it individually
+     * Some damage types (e.g., concussive) bypass buffer entirely
      */
     applyDamage(attacker, defender, damage) {
-        // Initialize buffer for this attacker if not set
-        const isNewBuffer = !defender.hpBufferByAttacker.has(attacker);
+        // Check if damage type bypasses buffer
+        const weapon = WEAPONS[attacker.equipment.mainHand];
+        const typeProps = DAMAGE_TYPE_PROPERTIES[weapon.type] || {};
+        const bypassBuffer = typeProps.bypassBuffer || false;
+
         const defenderPos = `${defender.name}@(${defender.hexQ},${defender.hexR})`;
-
-        if (isNewBuffer) {
-            defender.hpBufferByAttacker.set(attacker, defender.hpBufferMax);
-            this.logger.debug(`[BUFFER INIT] ${defenderPos} buffer vs ${attacker.name}: ${defender.hpBufferMax} HP (instinct=${defender.stats.instinct}, will=${defender.stats.will})`);
-        }
-
-        let remainingBuffer = defender.hpBufferByAttacker.get(attacker);
-        const bufferBefore = remainingBuffer;
         let bufferDamage = 0;
         let healthDamage = 0;
+        let bufferBefore = 0;
+        let bufferAfter = 0;
 
-        if (remainingBuffer > 0) {
-            // Apply to buffer first
-            bufferDamage = Math.min(damage, remainingBuffer);
-            remainingBuffer -= bufferDamage;
-            defender.hpBufferByAttacker.set(attacker, remainingBuffer);
-
-            // Overflow goes to health
-            healthDamage = damage - bufferDamage;
-        } else {
-            // Buffer depleted, all damage to health
+        if (bypassBuffer) {
+            // Bypass buffer entirely - all damage goes to health
             healthDamage = damage;
+            this.logger.debug(`[BUFFER BYPASS] ${defenderPos} vs ${attacker.name}: ${weapon.type} damage bypasses buffer`);
+        } else {
+            // Normal buffer logic
+            // Initialize buffer for this attacker if not set
+            const isNewBuffer = !defender.hpBufferByAttacker.has(attacker);
+
+            if (isNewBuffer) {
+                defender.hpBufferByAttacker.set(attacker, defender.hpBufferMax);
+                this.logger.debug(`[BUFFER INIT] ${defenderPos} buffer vs ${attacker.name}: ${defender.hpBufferMax} HP (instinct=${defender.stats.instinct}, will=${defender.stats.will})`);
+            }
+
+            let remainingBuffer = defender.hpBufferByAttacker.get(attacker);
+            bufferBefore = remainingBuffer;
+
+            if (remainingBuffer > 0) {
+                // Apply to buffer first
+                bufferDamage = Math.min(damage, remainingBuffer);
+                remainingBuffer -= bufferDamage;
+                defender.hpBufferByAttacker.set(attacker, remainingBuffer);
+
+                // Overflow goes to health
+                healthDamage = damage - bufferDamage;
+            } else {
+                // Buffer depleted, all damage to health
+                healthDamage = damage;
+            }
+
+            bufferAfter = remainingBuffer;
         }
 
         const healthBefore = defender.health;
@@ -225,10 +246,9 @@ export class CombatSystem {
             defender.health = Math.max(0, defender.health);
         }
 
-        const bufferAfter = remainingBuffer;
         const healthAfter = defender.health;
 
-        return { bufferDamage, healthDamage, bufferBefore, bufferAfter, healthBefore, healthAfter };
+        return { bufferDamage, healthDamage, bufferBefore, bufferAfter, healthBefore, healthAfter, bypassed: bypassBuffer };
     }
 
     /**

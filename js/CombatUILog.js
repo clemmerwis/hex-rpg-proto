@@ -22,6 +22,7 @@ const COMBAT_TAGS = {
 const WRAPPER_TAGS = {
 	'buf': (content) => `<span style="color: #9932CC;">${content}</span>`,
 	'buf_depleted': (content) => `<span style="color: #9932CC;">${content}</span>`,
+	'buf_bypassed': (content) => `<span style="color: #FF8C00;">${content}</span>`,
 	'hp': (content) => `<span class="log-hp">${content}</span>`,
 	'dmg': (content) => `<span class="log-damage">${content}</span>`,
 	'thc': (content) => `<span class="log-thc">${content}</span>`,

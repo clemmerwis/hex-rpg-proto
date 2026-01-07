@@ -224,12 +224,23 @@ export const WEAPON_EFFECTS = {
 	armorDamageEnhancementHeavy: { type: 'enhancement', effect: 'armorDamage', intensity: 'heavy' },
 };
 
+// Damage type properties - define special behaviors for each damage type
+export const DAMAGE_TYPE_PROPERTIES = {
+	concussive: {
+		bypassBuffer: true,
+		description: 'Impact damage that bypasses HP buffer, going directly to health'
+	},
+	blunt: {},
+	slash: {},
+	piercing: {}
+};
+
 // Equipment definitions
 // grip: 'one' (short/unarmed - mainHand only), 'two' (long weapons), 'off' (shields - offHand only)
 // passives: { defenseR, attackR, critMultiplier, evasionBonus, ... } - gathered via getEquipmentBonus()
 // effects: triggered effects referencing WEAPON_EFFECTS keys
 export const WEAPONS = {
-	unarmed: { name: 'Unarmed', base: 2, type: 'concussive', force: 1, speed: 16, grip: 'two', passives: { critMultiplier: 1.5, evasionBonus: 5 }, effects: ['rockedOnHit'] },
+	unarmed: { name: 'Unarmed', base: 2, type: 'concussive', force: 1, speed: 16, grip: 'two', passives: { evasionBonus: 5 }, effects: ['rockedOnHit'] },
 	shortSpear: { name: 'Short Spear', base: 3, type: 'piercing', force: 1, speed: 19, grip: 'one', passives: {}, effects: ['vulnerableEnhancementLight'] },
 	shortSword: { name: 'Short Sword', base: 4, type: 'slash', force: 2, speed: 18, grip: 'one', passives: {}, effects: ['bleedingLight'] },
 	shortBlunt: { name: 'Short Blunt', base: 6, type: 'blunt', force: 3, speed: 20, grip: 'one', passives: {}, effects: ['armorDamageEnhancementLight'] },
