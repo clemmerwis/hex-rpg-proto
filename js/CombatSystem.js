@@ -82,7 +82,7 @@ export class CombatSystem {
             // Critical hit: double damage
             damage *= 2;
 
-            // Apply crit multiplier from equipment passives (e.g., unarmed = 2x, so 4x total)
+            // Apply crit multiplier from equipment passives (if any)
             const critMult = getEquipmentBonus(attacker, 'critMultiplier');
             if (critMult > 0) {
                 damage *= critMult;

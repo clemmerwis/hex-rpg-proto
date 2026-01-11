@@ -177,7 +177,7 @@ Each attacker must deplete a character's buffer individually before dealing real
 ### Weapons
 | Weapon | Base | Type | Force | Speed | Grip | Special |
 |--------|------|------|-------|-------|------|---------|
-| Unarmed | 2 | blunt | 1 | 16 | one | critMultiplier: 2 |
+| Unarmed | 2 | concussive | 1 | 16 | two | evasionBonus: 5, bypasses buffer |
 | Short Spear | 3 | piercing | 1 | 19 | one | vulnerableEnhancementLight |
 | Short Sword | 4 | slash | 2 | 18 | one | bleedingLight |
 | Short Blunt | 6 | blunt | 3 | 20 | one | armorDamageEnhancementLight |
