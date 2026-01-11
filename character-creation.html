@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Character Creation - Hex RPG</title>
+	<style>
+		* {
+			box-sizing: border-box;
+			margin: 0;
+			padding: 0;
+		}
+
+		:root {
+			--bg-dark: #0a0f14;
+			--bg-panel: #0d1117;
+			--bg-section: #161b22;
+			--border-color: #21505c;
+			--border-highlight: #2d8a9c;
+			--text-primary: #c9d1d9;
+			--text-secondary: #8b949e;
+			--text-header: #58a6b1;
+			--text-value: #7ee8fa;
+			--accent: #2d8a9c;
+		}
+
+		html, body {
+			min-height: 100%;
+			font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+			font-size: 13px;
+			background: var(--bg-dark);
+			color: var(--text-primary);
+		}
+
+		body {
+			display: flex;
+			flex-direction: column;
+			padding: 12px;
+			gap: 12px;
+			min-height: 100vh;
+		}
+
+		/* Header */
+		header {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			padding: 10px 16px;
+			background: var(--bg-panel);
+			border: 1px solid var(--border-color);
+		}
+
+		header h1 {
+			font-size: 16px;
+			font-weight: 600;
+			color: var(--text-header);
+			text-transform: uppercase;
+			letter-spacing: 1px;
+		}
+
+		header input[type="text"] {
+			background: var(--bg-section);
+			border: 1px solid var(--border-color);
+			color: var(--text-primary);
+			padding: 6px 10px;
+			font-size: 13px;
+			width: 200px;
+		}
+
+		/* Main Grid */
+		main {
+			flex: 1;
+			display: grid;
+			grid-template-columns: 1fr 1fr 1fr;
+			gap: 12px;
+			min-height: 0;
+		}
+
+		/* Panels */
+		article {
+			background: var(--bg-panel);
+			border: 1px solid var(--border-color);
+			display: flex;
+			flex-direction: column;
+		}
+
+		article > header {
+			border: none;
+			border-bottom: 1px solid var(--border-color);
+			padding: 10px 14px;
+			background: var(--bg-section);
+		}
+
+		article > header h2 {
+			font-size: 14px;
+			font-weight: 600;
+			color: var(--text-header);
+			text-transform: uppercase;
+			letter-spacing: 1px;
+		}
+
+		article > header p {
+			font-size: 11px;
+			color: var(--text-secondary);
+			margin-top: 2px;
+		}
+
+		article > header strong {
+			color: var(--text-value);
+		}
+
+		/* Sub-panel (like Total Values) */
+		.sub-panel {
+			border-top: 1px solid var(--border-color);
+			flex: 1;
+			display: flex;
+			flex-direction: column;
+		}
+
+		.sub-panel-header {
+			border-bottom: 1px solid var(--border-color);
+			padding: 10px 14px;
+			background: var(--bg-section);
+		}
+
+		.sub-panel-header h2 {
+			font-size: 14px;
+			font-weight: 600;
+			color: var(--text-header);
+			text-transform: uppercase;
+			letter-spacing: 1px;
+		}
+
+		.sub-panel-content {
+			padding: 14px;
+		}
+
+		.sub-panel-content section {
+			margin-bottom: 0;
+		}
+
+		/* Panel content */
+		.panel-content {
+			overflow-y: visible;
+			padding: 14px;
+		}
+
+		/* Sections */
+		section {
+			margin-bottom: 20px;
+		}
+
+		section h3 {
+			font-size: 11px;
+			font-weight: 600;
+			color: var(--text-header);
+			text-transform: uppercase;
+			letter-spacing: 0.5px;
+			padding-bottom: 6px;
+			margin-bottom: 10px;
+			border-bottom: 1px solid var(--border-color);
+		}
+
+		/* Stat rows */
+		.stat-row {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			padding: 5px 0;
+		}
+
+		.stat-row label {
+			color: var(--text-primary);
+			font-size: 13px;
+		}
+
+		.stat-row .controls {
+			display: flex;
+			align-items: center;
+			gap: 5px;
+		}
+
+		.stat-row button {
+			width: 22px;
+			height: 22px;
+			background: var(--bg-section);
+			border: 1px solid var(--border-color);
+			color: var(--text-header);
+			cursor: pointer;
+			font-size: 13px;
+			line-height: 1;
+			padding: 0;
+		}
+
+		.stat-row button:hover {
+			border-color: var(--border-highlight);
+			color: var(--text-value);
+		}
+
+		.stat-row .value {
+			width: 26px;
+			text-align: center;
+			color: var(--text-value);
+			font-weight: 600;
+			font-size: 14px;
+		}
+
+		/* Radio lists (equipment) */
+		.radio-list {
+			display: flex;
+			flex-direction: column;
+			gap: 3px;
+		}
+
+		.radio-list label {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			padding: 5px 8px;
+			cursor: pointer;
+			font-size: 13px;
+		}
+
+		.radio-list label:hover {
+			background: var(--bg-section);
+		}
+
+		.radio-list input[type="radio"] {
+			accent-color: var(--accent);
+			width: 14px;
+			height: 14px;
+		}
+
+		/* Derived stats */
+		.derived-section {
+			background: var(--bg-section);
+			border: 1px solid var(--border-color);
+			padding: 12px 14px;
+			margin-top: 14px;
+		}
+
+		.derived-section h3 {
+			margin-bottom: 10px;
+			font-size: 12px;
+		}
+
+		.derived-group {
+			margin-bottom: 12px;
+		}
+
+		.derived-group:last-child {
+			margin-bottom: 0;
+		}
+
+		.derived-group dt {
+			font-size: 10px;
+			color: var(--text-header);
+			text-transform: uppercase;
+			letter-spacing: 0.5px;
+			margin-bottom: 4px;
+			padding-bottom: 3px;
+			border-bottom: 1px solid var(--border-color);
+		}
+
+		.derived-group dd {
+			margin-left: 0;
+		}
+
+		.derived-row {
+			display: grid;
+			grid-template-columns: 1fr auto;
+			gap: 10px;
+			font-size: 12px;
+			padding: 4px 6px;
+		}
+
+		.derived-row:nth-child(odd) {
+			background: rgba(0, 0, 0, 0.15);
+		}
+
+		.derived-row span {
+			color: var(--text-primary);
+		}
+
+		.derived-row data {
+			color: var(--text-value);
+			font-weight: 600;
+			text-align: right;
+			min-width: 60px;
+		}
+
+		/* Footer */
+		footer {
+			display: flex;
+			justify-content: space-between;
+			padding: 10px 16px;
+			background: var(--bg-panel);
+			border: 1px solid var(--border-color);
+		}
+
+		footer button {
+			background: var(--bg-section);
+			border: 1px solid var(--border-color);
+			color: var(--text-primary);
+			padding: 8px 16px;
+			font-size: 12px;
+			cursor: pointer;
+			text-transform: uppercase;
+			letter-spacing: 0.5px;
+		}
+
+		footer button:hover {
+			border-color: var(--border-highlight);
+			color: var(--text-value);
+		}
+
+		footer button.primary {
+			background: var(--accent);
+			border-color: var(--border-highlight);
+			color: #fff;
+		}
+
+		footer button.primary:hover {
+			background: var(--border-highlight);
+		}
+
+		.button-group {
+			display: flex;
+			gap: 10px;
+		}
+	</style>
+</head>
+
+<body>
+	<header>
+		<h1>Character Creation</h1>
+		<input type="text" name="name" placeholder="Character Name" value="Hero">
+	</header>
+
+	<main>
+		<!-- STATS Column -->
+		<article>
+			<header>
+				<h2>Stats</h2>
+				<p>Available Points: <strong>30</strong></p>
+			</header>
+			<div class="panel-content">
+				<!-- Power -->
+				<section>
+					<h3>Power</h3>
+					<div class="stat-row">
+						<label>Strength</label>
+						<div class="controls">
+							<button>&lt;</button>
+							<span class="value">3</span>
+							<button>&gt;</button>
+						</div>
+					</div>
+					<div class="stat-row">
+						<label>Intelligence</label>
+						<div class="controls">
+							<button>&lt;</button>
+							<span class="value">3</span>
+							<button>&gt;</button>
+						</div>
+					</div>
+				</section>
+
+				<!-- Prowess -->
+				<section>
+					<h3>Prowess</h3>
+					<div class="stat-row">
+						<label>Dexterity</label>
+						<div class="controls">
+							<button>&lt;</button>
+							<span class="value">3</span>
+							<button>&gt;</button>
+						</div>
+					</div>
+					<div class="stat-row">
+						<label>Perception</label>
+						<div class="controls">
+							<button>&lt;</button>
+							<span class="value">3</span>
+							<button>&gt;</button>
+						</div>
+					</div>
+				</section>
+
+				<!-- Resistance -->
+				<section>
+					<h3>Resistance</h3>
+					<div class="stat-row">
+						<label>Constitution</label>
+						<div class="controls">
+							<button>&lt;</button>
+							<span class="value">3</span>
+							<button>&gt;</button>
+						</div>
+					</div>
+					<div class="stat-row">
+						<label>Will</label>
+						<div class="controls">
+							<button>&lt;</button>
+							<span class="value">3</span>
+							<button>&gt;</button>
+						</div>
+					</div>
+				</section>
+
+				<!-- Appearance -->
+				<section>
+					<h3>Appearance</h3>
+					<div class="stat-row">
+						<label>Beauty</label>
+						<div class="controls">
+							<button>&lt;</button>
+							<span class="value">3</span>
+							<button>&gt;</button>
+						</div>
+					</div>
+					<div class="stat-row">
+						<label>Charisma</label>
+						<div class="controls">
+							<button>&lt;</button>
+							<span class="value">3</span>
+							<button>&gt;</button>
+						</div>
+					</div>
+				</section>
+
+				<!-- Spirit -->
+				<section>
+					<h3>Spirit</h3>
+					<div class="stat-row">
+						<label>Instinct</label>
+						<div class="controls">
+							<button>&lt;</button>
+							<span class="value">3</span>
+							<button>&gt;</button>
+						</div>
+					</div>
+					<div class="stat-row">
+						<label>Wisdom</label>
+						<div class="controls">
+							<button>&lt;</button>
+							<span class="value">3</span>
+							<button>&gt;</button>
+						</div>
+					</div>
+				</section>
+
+				<!-- Derived Stats -->
+				<div class="derived-section">
+					<h3>Derived Stats</h3>
+
+					<dl class="derived-group">
+						<dt>STR / CON</dt>
+						<dd>
+							<div class="derived-row"><span>Max HP</span> <data value="11">11</data></div>
+							<div class="derived-row"><span>Damage Bonus</span> <data value="1">1</data></div>
+						</dd>
+					</dl>
+
+					<dl class="derived-group">
+						<dt>Combat (Base)</dt>
+						<dd>
+							<div class="derived-row"><span>Hit Chance</span> <data value="45">45%</data></div>
+							<div class="derived-row"><span>Dodge Chance</span> <data value="55">55%</data></div>
+						</dd>
+					</dl>
+
+					<dl class="derived-group">
+						<dt>INT / WIS / PER</dt>
+						<dd>
+							<div class="derived-row"><span>Cerebral Presence</span> <data value="9">9</data></div>
+							<div class="derived-row"><span>Engage Max</span> <data value="1">1</data></div>
+						</dd>
+					</dl>
+
+					<dl class="derived-group">
+						<dt>INSTINCT / WILL</dt>
+						<dd>
+							<div class="derived-row"><span>HP Buffer</span> <data value="3">3</data></div>
+						</dd>
+					</dl>
+
+					<dl class="derived-group">
+						<dt>Critical (Base)</dt>
+						<dd>
+							<div class="derived-row"><span>Crit Chance</span> <data value="47">47%</data></div>
+							<div class="derived-row"><span>Crit Resist</span> <data value="53">53%</data></div>
+						</dd>
+					</dl>
+				</div>
+			</div>
+		</article>
+
+		<!-- SKILLS Column -->
+		<article>
+			<header>
+				<h2>Skills</h2>
+				<p>Available Points: <strong>0</strong></p>
+			</header>
+			<div class="panel-content">
+				<!-- Defense -->
+				<section>
+					<h3>Defense</h3>
+					<div class="stat-row">
+						<label>Block</label>
+						<div class="controls">
+							<button>&lt;</button>
+							<span class="value">1</span>
+							<button>&gt;</button>
+						</div>
+					</div>
+					<div class="stat-row">
+						<label>Dodge</label>
+						<div class="controls">
+							<button>&lt;</button>
+							<span class="value">1</span>
+							<button>&gt;</button>
+						</div>
+					</div>
+				</section>
+
+				<!-- Weapons -->
+				<section>
+					<h3>Weapons</h3>
+					<div class="stat-row">
+						<label>Unarmed</label>
+						<div class="controls">
+							<button>&lt;</button>
+							<span class="value">1</span>
+							<button>&gt;</button>
+						</div>
+					</div>
+					<div class="stat-row">
+						<label>Short Sword</label>
+						<div class="controls">
+							<button>&lt;</button>
+							<span class="value">1</span>
+							<button>&gt;</button>
+						</div>
+					</div>
+					<div class="stat-row">
+						<label>Long Sword</label>
+						<div class="controls">
+							<button>&lt;</button>
+							<span class="value">1</span>
+							<button>&gt;</button>
+						</div>
+					</div>
+					<div class="stat-row">
+						<label>Short Spear</label>
+						<div class="controls">
+							<button>&lt;</button>
+							<span class="value">1</span>
+							<button>&gt;</button>
+						</div>
+					</div>
+					<div class="stat-row">
+						<label>Long Spear</label>
+						<div class="controls">
+							<button>&lt;</button>
+							<span class="value">1</span>
+							<button>&gt;</button>
+						</div>
+					</div>
+					<div class="stat-row">
+						<label>Short Blunt</label>
+						<div class="controls">
+							<button>&lt;</button>
+							<span class="value">1</span>
+							<button>&gt;</button>
+						</div>
+					</div>
+					<div class="stat-row">
+						<label>Long Blunt</label>
+						<div class="controls">
+							<button>&lt;</button>
+							<span class="value">1</span>
+							<button>&gt;</button>
+						</div>
+					</div>
+				</section>
+
+				<!-- Critical -->
+				<section>
+					<h3>Critical</h3>
+					<div class="stat-row">
+						<label>Critical Strike</label>
+						<div class="controls">
+							<button>&lt;</button>
+							<span class="value">1</span>
+							<button>&gt;</button>
+						</div>
+					</div>
+					<div class="stat-row">
+						<label>Critical Defense</label>
+						<div class="controls">
+							<button>&lt;</button>
+							<span class="value">1</span>
+							<button>&gt;</button>
+						</div>
+					</div>
+				</section>
+			</div>
+
+			<!-- Total Values -->
+			<div class="sub-panel">
+				<div class="sub-panel-header">
+					<h2>Total Values</h2>
+				</div>
+				<div class="sub-panel-content">
+					<section>
+						<h3>Speed</h3>
+						<div class="stat-row">
+							<label>Move Speed</label>
+							<span class="value">17</span>
+						</div>
+						<div class="stat-row">
+							<label>Action Speed</label>
+							<span class="value">25</span>
+						</div>
+					</section>
+				</div>
+			</div>
+		</article>
+
+		<!-- EQUIPMENT Column -->
+		<article>
+			<header>
+				<h2>Equipment</h2>
+			</header>
+			<div class="panel-content">
+				<!-- Main Hand -->
+				<section>
+					<h3>Main Hand</h3>
+					<div class="radio-list">
+						<label><input type="radio" name="mainHand" value="unarmed" checked> Unarmed</label>
+						<label><input type="radio" name="mainHand" value="shortSword"> Short Sword</label>
+						<label><input type="radio" name="mainHand" value="shortSpear"> Short Spear</label>
+						<label><input type="radio" name="mainHand" value="shortBlunt"> Short Blunt</label>
+						<label><input type="radio" name="mainHand" value="longSword"> Long Sword</label>
+						<label><input type="radio" name="mainHand" value="longSpear"> Long Spear</label>
+						<label><input type="radio" name="mainHand" value="longBlunt"> Long Blunt</label>
+					</div>
+				</section>
+
+				<!-- Off Hand -->
+				<section>
+					<h3>Off Hand</h3>
+					<div class="radio-list">
+						<label><input type="radio" name="offHand" value="none" checked> None</label>
+						<label><input type="radio" name="offHand" value="smallShield"> Small Shield</label>
+						<label><input type="radio" name="offHand" value="largeShield"> Large Shield</label>
+					</div>
+				</section>
+
+				<!-- Armor -->
+				<section>
+					<h3>Armor</h3>
+					<div class="radio-list">
+						<label><input type="radio" name="armor" value="none" checked> Unarmored</label>
+						<label><input type="radio" name="armor" value="leather"> Leather</label>
+						<label><input type="radio" name="armor" value="scale"> Scale</label>
+						<label><input type="radio" name="armor" value="brigandine"> Brigandine</label>
+						<label><input type="radio" name="armor" value="chain"> Chain</label>
+						<label><input type="radio" name="armor" value="plate"> Plate</label>
+					</div>
+				</section>
+
+				<!-- Equipment Stats -->
+				<div class="derived-section">
+					<h3>Equipment Stats</h3>
+
+					<dl class="derived-group">
+						<dt>Weapon</dt>
+						<dd>
+							<div class="derived-row"><span>Damage</span> <data value="2">2</data></div>
+							<div class="derived-row"><span>Type</span> <data value="concussive">Concussive</data></div>
+							<div class="derived-row"><span>Speed</span> <data value="16">16</data></div>
+						</dd>
+					</dl>
+
+					<dl class="derived-group">
+						<dt>Armor</dt>
+						<dd>
+							<div class="derived-row"><span>DR</span> <data value="0">0</data></div>
+							<div class="derived-row"><span>Mobility</span> <data value="20">20</data></div>
+							<div class="derived-row"><span>Flank Defense</span> <data value="100">100%</data></div>
+						</dd>
+					</dl>
+
+					<dl class="derived-group">
+						<dt>Passive Bonuses</dt>
+						<dd>
+							<div class="derived-row"><span>Evasion Bonus</span> <data value="5">+5</data></div>
+							<div class="derived-row"><span>Defense Rating</span> <data value="0">+0</data></div>
+							<div class="derived-row"><span>Crit Multiplier</span> <data value="0">+0</data></div>
+						</dd>
+					</dl>
+				</div>
+			</div>
+		</article>
+	</main>
+
+	<footer>
+		<button>Back to Game</button>
+		<div class="button-group">
+			<button>New Character</button>
+			<button>Templates</button>
+			<button class="primary">Start Game</button>
+		</div>
+	</footer>
+</body>
+
+</html>
