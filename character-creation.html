@@ -39,13 +39,16 @@
 			padding: 12px;
 			gap: 12px;
 			min-height: 100vh;
+			max-width: 1200px;
+			margin: 0 auto;
 		}
 
 		/* Header */
 		header {
 			display: flex;
-			justify-content: space-between;
+			justify-content: flex-start;
 			align-items: center;
+			gap: 16px;
 			padding: 10px 16px;
 			background: var(--bg-panel);
 			border: 1px solid var(--border-color);
@@ -137,6 +140,10 @@
 		}
 
 		.sub-panel-content section {
+			margin-bottom: 20px;
+		}
+
+		.sub-panel-content section:last-child {
 			margin-bottom: 0;
 		}
 
@@ -199,11 +206,24 @@
 		}
 
 		.stat-row .value {
-			width: 26px;
-			text-align: center;
 			color: var(--text-value);
 			font-weight: 600;
 			font-size: 14px;
+		}
+
+		.stat-row .controls .value {
+			width: 26px;
+			text-align: center;
+		}
+
+		.stat-row > .value {
+			text-align: right;
+		}
+
+		.stat-row .value small {
+			color: var(--text-secondary);
+			font-weight: 400;
+			font-size: 12px;
 		}
 
 		/* Radio lists (equipment) */
@@ -625,6 +645,21 @@
 							<span class="value">25</span>
 						</div>
 					</section>
+					<section>
+						<h3>Combat</h3>
+						<div class="stat-row">
+							<label>Total Damage</label>
+							<span class="value">3</span>
+						</div>
+						<div class="stat-row">
+							<label>Attack Rating</label>
+							<span class="value">20 <small>(45%)</small></span>
+						</div>
+						<div class="stat-row">
+							<label>Defense Rating</label>
+							<span class="value">25 <small>(60%)</small></span>
+						</div>
+					</section>
 				</div>
 			</div>
 		</article>
@@ -690,7 +725,7 @@
 						<dd>
 							<div class="derived-row"><span>DR</span> <data value="0">0</data></div>
 							<div class="derived-row"><span>Mobility</span> <data value="20">20</data></div>
-							<div class="derived-row"><span>Flank Defense</span> <data value="100">100%</data></div>
+							<div class="derived-row"><span>Flank Defense</span> <data value="none">none</data></div>
 						</dd>
 					</dl>
 
@@ -698,8 +733,6 @@
 						<dt>Passive Bonuses</dt>
 						<dd>
 							<div class="derived-row"><span>Evasion Bonus</span> <data value="5">+5</data></div>
-							<div class="derived-row"><span>Defense Rating</span> <data value="0">+0</data></div>
-							<div class="derived-row"><span>Crit Multiplier</span> <data value="0">+0</data></div>
 						</dd>
 					</dl>
 				</div>

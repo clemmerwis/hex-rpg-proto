@@ -417,7 +417,7 @@ export function getEquipmentBonus(character, bonusName) {
 
 /**
  * Calculate Defense Rating
- * Formula: (skill * 5) + (Dex * 3) + (Instinct * 2) + defenseR (from passives)
+ * Formula: (skill * 5) + (Dex * 3) + (Instinct * 2) + defenseR (from passives) + 5 (base defense bonus)
  * Uses block skill if holding shield, dodge skill otherwise
  */
 export function calculateDefenseRating(character) {
@@ -426,7 +426,7 @@ export function calculateDefenseRating(character) {
 	const hasShield = offHand && offHand.grip === 'off';
 	const skillLevel = hasShield ? character.skills.block : character.skills.dodge;
 	const defenseBonus = getEquipmentBonus(character, 'defenseR');
-	return (skillLevel * 5) + (character.stats.dex * 3) + (character.stats.instinct * 2) + defenseBonus;
+	return (skillLevel * 5) + (character.stats.dex * 3) + (character.stats.instinct * 2) + defenseBonus + 5;
 }
 
 /**
