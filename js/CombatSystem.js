@@ -13,7 +13,7 @@ export class CombatSystem {
      * Attacks target the HEX, not the character - if hex is empty, attack misses
      * THC = ((Attack_R - Defense_R) + (50 - evasionBonus)) / 100
      * CSC = ((CSA_R - CSD_R) + 50) / 100
-     * Crit = 2x damage, critMultiplier from passives stacks (unarmed = 4x on crit)
+     * Crit = 2x damage, critMultiplier from passives stacks multiplicatively if present
      */
     executeAttack(attacker, targetHex, attackType = 'light') {
         // Face the target hex before attacking
@@ -82,7 +82,7 @@ export class CombatSystem {
             // Critical hit: double damage
             damage *= 2;
 
-            // Apply crit multiplier from equipment passives (e.g., unarmed = 2x, so 4x total)
+            // Apply crit multiplier from equipment passives (if any)
             const critMult = getEquipmentBonus(attacker, 'critMultiplier');
             if (critMult > 0) {
                 damage *= critMult;
