@@ -59,7 +59,7 @@ All characters (PC and NPCs) share this structure:
 
     // Engagement (multi-opponent tracking)
     engagedBy,                     // Set<character> - who is engaging this character
-    engagedMax,                    // Max simultaneous engagements (Cerebral Presence / 4)
+    engagedMax,                    // Max simultaneous engagements (Cerebral Presence / 6)
 
     // Movement
     movementQueue,                 // Array of hex targets
@@ -81,10 +81,9 @@ Factions define visual styling and hostility. Defined in `const.js`:
 | `guard` | Guard | #FF9800 (orange) | #ffaa44 |
 
 **Hostility Rules:**
-- Same faction = allies (cannot attack each other)
-- Bandits ↔ PC faction = mutual enemies (bidirectional)
-- Bandits → Guards = one-way aggro (guards neutral until attacked)
-- Attacking makes you mutual enemies
+- Same faction = allies (can accidentally hit with friendly fire, but not target)
+- Attacking any character makes you mutual enemies
+- Enemies are shared across same-faction characters
 
 ## Stats & Combat Calculations
 
@@ -109,7 +108,7 @@ Factions define visual styling and hostility. Defined in `const.js`:
 ```javascript
 maxHealth = ceil((15 + CON_BONUS[con]) * MULTIPLIER[str])
 hpBufferMax = ceil(instinct * MULTIPLIER[will])
-engagedMax = floor((per + wis + int) / 4)  // Cerebral Presence
+engagedMax = floor((per + wis + int) / 6)  // Cerebral Presence
 ```
 
 ### Combat Formulas
@@ -127,7 +126,8 @@ defenseR = (skill * 5) + (dex * 3) + (instinct * 2) + shield.defenseR
 
 **To-Hit Chance:**
 ```
-THC = ((attackR - defenseR) + 50) / 100
+THC = ((attackR - defenseR) + (50 - evasionBonus)) / 100
+// evasionBonus reduces base hit chance (from equipment passives)
 ```
 
 **Critical Strike Ratings:**
@@ -140,9 +140,10 @@ CSC = ((CSA_R - CSD_R) + 50) / 100
 **Damage Calculation:**
 1. Base: `weapon.base + ceil(weapon.force * MULTIPLIER[str]) + attackType.damageMod`
 2. Critical Hit: Multiply by 2, then by weapon.critMultiplier if present
-3. Armor Defense: Subtract min(damage, armor.defense)
-4. Flanking: If flanking, multiply defense by armor.flankingDefense
-5. Resistance/Vulnerability: After DR, multiply by 0.5 (resistant) or 1.5 (vulnerable)
+3. Flanking Check: Attacker behind defender OR defender over-engaged (at max capacity)
+4. Armor Defense: `effectiveDR = flanking ? floor(armor.defense * armor.flankingDefense) : armor.defense`
+5. Subtract DR: `damage = max(0, damage - effectiveDR)`
+6. Resistance/Vulnerability: If damage > 0, multiply by 0.5 (resistant) or 1.5 (vulnerable)
 
 ### Speed & Turn Order
 
@@ -253,14 +254,15 @@ Mouse near canvas edges scrolls camera.
 
 **Action Phase:**
 1. Filter characters with ATTACK actions
-2. Sort by actionSpeed (weapon + shield + attackType - dex), then initiative
+2. Sort by actionSpeed (weapon + shield + light attack modifier - dex), then initiative
+   - Note: Sorting uses light attack speed for all characters regardless of chosen attack type
 3. Execute attacks sequentially
 4. Apply damage through buffer → health
 5. Defeated characters play die animation
 
 ### Engagement System
 - Characters track who is engaging them (`engagedBy` Set)
-- Capacity limited by `engagedMax` (Cerebral Presence / 4)
+- Capacity limited by `engagedMax` (Cerebral Presence / 6)
 - Flanking applies when defender at max engagement and attacker not in engagedBy
 - Cleared when characters separate (non-adjacent)
 

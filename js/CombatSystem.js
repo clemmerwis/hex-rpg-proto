@@ -13,7 +13,7 @@ export class CombatSystem {
      * Attacks target the HEX, not the character - if hex is empty, attack misses
      * THC = ((Attack_R - Defense_R) + (50 - evasionBonus)) / 100
      * CSC = ((CSA_R - CSD_R) + 50) / 100
-     * Crit = 2x damage, critMultiplier from passives stacks (unarmed = 4x on crit)
+     * Crit = 2x damage, critMultiplier from passives stacks multiplicatively if present
      */
     executeAttack(attacker, targetHex, attackType = 'light') {
         // Face the target hex before attacking

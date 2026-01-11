@@ -85,7 +85,7 @@ Combat actions execute in queue order with real-time occupancy validation (if ta
 ### Configuration System
 All magic numbers centralized in `const.js`:
 - **GAME_CONSTANTS** - Movement speed, animation timing, world dimensions, scroll speeds, pathfinding limits
-- **ANIMATION_CONFIGS** - Sprite sheet layouts (cols, rows, frameCount) for each animation
+- **SPRITE_SETS** - Sprite sheet layouts (cols, rows, frameCount) for each animation per sprite set
 - **FACTIONS** - Faction colors and nameplate styling
 
 **IMPORTANT**: When adding new configurable values, add them to const.js rather than hardcoding.
@@ -93,8 +93,8 @@ All magic numbers centralized in `const.js`:
 ## Key Implementation Details
 
 ### Sprite System
-- Sprites use 8-directional facing (dir1-dir8) with separate sprite sheets per direction
-- Animation frames stored in JSON files at `sprites/KnightBasic/`, `sprites/KnightAdvCombat/`, etc.
+- Sprites use 6-directional facing (dir1, dir2, dir3, dir5, dir6, dir7) matching hex grid directions
+- Animation frames stored in sprite sheets at `sprites/KnightBasic/`, `sprites/KnightAdvCombat/`, etc.
 - Frame size: 256x256 pixels (SPRITE_FRAME_SIZE constant)
 
 ### Dependency Injection
@@ -103,8 +103,8 @@ Modules don't import each other directly. Game.js creates all modules and inject
 ## Common Tasks
 
 ### Adding New Character Animations
-1. Add sprite sheets to `sprites/` directory with dir1-dir8 variants
-2. Add animation config to `ANIMATION_CONFIGS` in const.js
+1. Add sprite sheets to `sprites/` directory with dir1, dir2, dir3, dir5, dir6, dir7 variants
+2. Add sprite set and animation configs to `SPRITE_SETS` in const.js
 3. Update animation triggers in MovementSystem or InputHandler
 
 ### Modifying Combat Behavior
