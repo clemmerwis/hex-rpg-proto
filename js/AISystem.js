@@ -33,9 +33,10 @@ export class AISystem {
             // AGGRESSIVE: attack adjacent enemy or pursue closest
             const adjacentEnemy = this.findAdjacentEnemy(character, enemies);
             if (adjacentEnemy) {
-                // Choose attack type based on target's armor
+                // Choose attack type - heavy every third attack
+                this.currentAttacker = character;
                 const attackType = this.selectAttackType(adjacentEnemy);
-                this.logger.debug(`[AI] ${character.name} (aggressive) enemies=[${enemyNames}] - adjacent to ${adjacentEnemy.name}, using ${attackType} attack!`);
+                this.logger.debug(`[AI] ${character.name} (aggressive) enemies=[${enemyNames}] - adjacent to ${adjacentEnemy.name}, using ${attackType} attack (count: ${character.attackCounter})!`);
                 return {
                     action: 'attack',
                     target: { q: adjacentEnemy.hexQ, r: adjacentEnemy.hexR },
@@ -95,19 +96,24 @@ export class AISystem {
     }
 
     /**
-     * Select attack type based on target's armor
-     * Heavy attacks (+10 damage) against heavy armor (chain/plate with 10+ DEF)
-     * Light attacks (faster) against lighter armor
+     * Select attack type - uses heavy attack every third attack regardless of armor
      */
     selectAttackType(target) {
-        const armor = ARMOR_TYPES[target.equipment.armor || 'none'];
+        // Initialize attack counter if needed (stored on the AI character's own object)
+        const attacker = this.currentAttacker;
+        if (!attacker.attackCounter) {
+            attacker.attackCounter = 0;
+        }
 
-        // Use heavy attack against heavy armor (10+ defense)
-        if (armor.weight === 'heavy') {
+        // Increment counter
+        attacker.attackCounter++;
+
+        // Every third attack is heavy
+        if (attacker.attackCounter % 3 === 0) {
             return 'heavy';
         }
 
-        // Default to light attack (faster, sufficient for light armor)
+        // Default to light attack
         return 'light';
     }
 
