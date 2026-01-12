@@ -15,6 +15,10 @@
 .claude-config.md
 .claude/settings.local.json
 
+# Claude Code temporary working directory files (auto-ignored by *, but explicit for clarity)
+# These are created during Claude Code sessions and should be cleaned up automatically
+# Safe to delete when Claude Code is not running
+
 # Track used assets
 !*.jpg
 !*.png

@@ -120,8 +120,9 @@ attackR = (weaponSkill * 5) + (str * 3) + (dex * 2) + weapon.attackR
 
 **Defense Rating:**
 ```
-defenseR = (skill * 5) + (dex * 3) + (instinct * 2) + shield.defenseR
+defenseR = (skill * 5) + (dex * 3) + (instinct * 2) + equipment.defenseR + 5
 // Uses block skill if shield, dodge skill otherwise
+// +5 base defense bonus makes hitting slightly harder
 ```
 
 **To-Hit Chance:**
