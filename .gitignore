@@ -28,3 +28,4 @@ sprites/Items/**
 
 # ...even if they are in subdirectories
 !*/
+!.planning/

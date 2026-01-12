@@ -8,17 +8,11 @@ For detailed reference (controls, data structures, debug features): see [docs/re
 
 ## Project Overview
 
-This is a hex-grid based isometric RPG prototype built with vanilla JavaScript (ES6 modules). The game features turn-based tactical combat on a hexagonal grid with smooth character movement, pathfinding, and an AI system for enemy behavior.
+This is a hex-grid based isometric RPG prototype built with vanilla JavaScript (ES6 modules). The game features turn-based tactical combat on a hexagonal grid with smooth character movement, pathfinding, and an AI system for enemy behavior
 
-## Development Commands
-
-### **⚠️ IMPORTANT: NEVER RUN DOCKER COMMANDS ⚠️**
-
-**CLAUDE: DO NOT run any `docker` or `docker compose` commands. The user will handle all Docker operations manually.**
-
-### Running the Application
+### Running the Application (Usually it's already running if you are working on it!)
 ```bash
-# Using Docker (recommended) - USER RUNS THIS, NOT CLAUDE
+# Using Docker (recommended)
 docker compose -p $project_name up
 
 # Access at http://localhost:8080
