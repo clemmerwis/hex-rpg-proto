@@ -6,6 +6,13 @@ For detailed reference (controls, data structures, debug features): see [docs/re
 
 **Note**: Local machine-specific configuration (API tokens, etc.) is stored in `.claude-config.md` (gitignored).
 
+## Planning System (GSD)
+
+This project uses the [Get Shit Done (GSD)](https://github.com/glittercowboy/get-shit-done) planning system. Planning files are stored in `.planning/` directory.
+
+- **Read freely**: Reference `.planning/` files for context on project roadmap, current phase, and implementation plans
+- **Do not write**: Let GSD commands (`/gsd:*`) handle all writes to `.planning/` files
+
 ## Project Overview
 
 This is a hex-grid based isometric RPG prototype built with vanilla JavaScript (ES6 modules). The game features turn-based tactical combat on a hexagonal grid with smooth character movement, pathfinding, and an AI system for enemy behavior
