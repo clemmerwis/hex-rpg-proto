@@ -50,15 +50,16 @@ export class CombatSystem {
         const attackRating = calculateAttackRating(attacker);
         const defenseRating = calculateDefenseRating(defender);
 
-        // Calculate to-hit chance (evasionBonus reduces base 50%)
+        // Calculate to-hit chance as integer percentage (0-100%)
         const evasionBonus = getEquipmentBonus(defender, 'evasionBonus');
-        const thc = (attackRating - defenseRating + (50 - evasionBonus)) / 100;
+        const thc = Math.max(0, Math.min(100, attackRating - defenseRating + (50 - evasionBonus)));
 
-        // Capture roll for display (both inverted: roll > THC = hit)
-        const thcRoll = Math.random();
-        const thcPercent = 100 - Math.round(thc * 100); // Inverted: difficulty to beat
-        const rollPercent = 100 - Math.round(thcRoll * 100); // Inverted: roll high is good
-        const hit = thcRoll < thc;
+        // Roll d100 (1-100), hit if roll <= THC
+        const thcRoll = Math.floor(Math.random() * 100) + 1;
+        // Display inverted so "roll high = good" for player readability
+        const thcPercent = 100 - thc;
+        const rollPercent = 101 - thcRoll;
+        const hit = thcRoll <= thc;
 
         if (!hit) {
             this.logger.combat(`{{char:${attacker.name}}} ${attackTypeName} {{char:${defender.name}}} (THC= {{thc}}${thcPercent}%{{/thc}}, Roll= {{roll}}${rollPercent}{{/roll}}, {{miss}})`);
@@ -74,9 +75,10 @@ export class CombatSystem {
         let damage = calculateDamage(attacker.stats, attacker.equipment.mainHand, attackType);
         const baseDamage = damage;
 
-        // Roll for critical hit
+        // Roll d100 for critical hit (CSC is integer percentage 0-100%)
         const csc = calculateCSC(attacker, defender);
-        const crit = Math.random() < csc;
+        const cscRoll = Math.floor(Math.random() * 100) + 1;
+        const crit = cscRoll <= csc;
 
         if (crit) {
             // Critical hit: double damage

@@ -352,13 +352,13 @@ export function calculateCSD_R(character) {
 }
 
 /**
- * Calculate Critical Strike Chance
- * Formula: ((CSA_R - CSD_R) + 50) / 100
+ * Calculate Critical Strike Chance as integer percentage (0-100%)
+ * Formula: (CSA_R - CSD_R) + 50, clamped to 0-100
  */
 export function calculateCSC(attacker, defender) {
 	const csaR = calculateCSA_R(attacker);
 	const csdR = calculateCSD_R(defender);
-	return ((csaR - csdR) + 50) / 100;
+	return Math.max(0, Math.min(100, (csaR - csdR) + 50));
 }
 
 // Skill definitions (all range 1-10)
