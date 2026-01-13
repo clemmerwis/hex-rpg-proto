@@ -62,7 +62,10 @@ export class GameStateManager {
      * @param {string} phase - 'move' or 'action'
      */
     sortBySpeed(characters, phase) {
-        return [...characters].sort((a, b) => {
+        // Assign d100 tiebreaker roll to each character once (avoids sort comparator bias)
+        characters.forEach(c => c._tiebreakRoll = Math.floor(Math.random() * 100) + 1);
+
+        const sorted = [...characters].sort((a, b) => {
             // Calculate speed based on phase
             const speedA = phase === 'move' ? calculateMoveSpeed(a) : calculateActionSpeed(a, 'light');
             const speedB = phase === 'move' ? calculateMoveSpeed(b) : calculateActionSpeed(b, 'light');
@@ -83,9 +86,13 @@ export class GameStateManager {
                 return initB - initA;  // Higher initiative first
             }
 
-            // Tied initiative: random tiebreaker
-            return Math.random() - 0.5;
+            // Tied initiative: higher tiebreaker roll goes first
+            return b._tiebreakRoll - a._tiebreakRoll;
         });
+
+        // Clean up temp property
+        sorted.forEach(c => delete c._tiebreakRoll);
+        return sorted;
     }
 
     setState(newState) {
