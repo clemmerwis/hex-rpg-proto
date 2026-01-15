@@ -23,7 +23,7 @@ export class AssetManager {
 	async loadAssets() {
 		this.loadingState.isLoading = true;
 		this.loadingState.assetsLoaded = 0;
-		this.loadingState.totalAssets = 1; // Start with background
+		this.loadingState.totalAssets = 0;
 
 		const directions = ['dir1', 'dir2', 'dir3', 'dir4', 'dir5', 'dir6', 'dir7', 'dir8'];
 		const spriteSetNames = Object.keys(SPRITE_SETS);
@@ -34,38 +34,13 @@ export class AssetManager {
 			this.loadingState.totalAssets += directions.length * animationCount;
 		}
 
-		// Load background
-		await this.loadBackground();
-
-		// Load all sprite sets
+		// Load all sprite sets (backgrounds are loaded by AreaManager)
 		for (const setName of spriteSetNames) {
 			await this.loadSpriteSet(setName, directions);
 		}
 
 		this.loadingState.isLoading = false;
 		return this.assets;
-	}
-
-	async loadBackground() {
-		return new Promise((resolve) => {
-			this.assets.background = new Image();
-
-			this.assets.background.onload = () => {
-				this.incrementProgress();
-				resolve();
-			};
-
-			this.assets.background.onerror = () => {
-				this.assets.background = null;
-				this.incrementProgress();
-				if (this.onError) {
-					this.onError('Background failed to load');
-				}
-				resolve();
-			};
-
-			this.assets.background.src = 'IsometricBridge.jpg';
-		});
 	}
 
 	async loadSpriteSet(setName, directions) {
