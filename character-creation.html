@@ -363,13 +363,13 @@
 		<article>
 			<header>
 				<h2>Stats</h2>
-				<p>Available Points: <strong>30</strong></p>
+				<p>Available Points: <strong data-points="stats">33</strong></p>
 			</header>
 			<div class="panel-content">
 				<!-- Power -->
 				<section>
 					<h3>Power</h3>
-					<div class="stat-row">
+					<div class="stat-row" data-stat="str">
 						<label>Strength</label>
 						<div class="controls">
 							<button>&lt;</button>
@@ -377,7 +377,7 @@
 							<button>&gt;</button>
 						</div>
 					</div>
-					<div class="stat-row">
+					<div class="stat-row" data-stat="int">
 						<label>Intelligence</label>
 						<div class="controls">
 							<button>&lt;</button>
@@ -390,7 +390,7 @@
 				<!-- Prowess -->
 				<section>
 					<h3>Prowess</h3>
-					<div class="stat-row">
+					<div class="stat-row" data-stat="dex">
 						<label>Dexterity</label>
 						<div class="controls">
 							<button>&lt;</button>
@@ -398,7 +398,7 @@
 							<button>&gt;</button>
 						</div>
 					</div>
-					<div class="stat-row">
+					<div class="stat-row" data-stat="per">
 						<label>Perception</label>
 						<div class="controls">
 							<button>&lt;</button>
@@ -411,7 +411,7 @@
 				<!-- Resistance -->
 				<section>
 					<h3>Resistance</h3>
-					<div class="stat-row">
+					<div class="stat-row" data-stat="con">
 						<label>Constitution</label>
 						<div class="controls">
 							<button>&lt;</button>
@@ -419,7 +419,7 @@
 							<button>&gt;</button>
 						</div>
 					</div>
-					<div class="stat-row">
+					<div class="stat-row" data-stat="will">
 						<label>Will</label>
 						<div class="controls">
 							<button>&lt;</button>
@@ -432,7 +432,7 @@
 				<!-- Appearance -->
 				<section>
 					<h3>Appearance</h3>
-					<div class="stat-row">
+					<div class="stat-row" data-stat="beauty">
 						<label>Beauty</label>
 						<div class="controls">
 							<button>&lt;</button>
@@ -440,7 +440,7 @@
 							<button>&gt;</button>
 						</div>
 					</div>
-					<div class="stat-row">
+					<div class="stat-row" data-stat="cha">
 						<label>Charisma</label>
 						<div class="controls">
 							<button>&lt;</button>
@@ -453,7 +453,7 @@
 				<!-- Spirit -->
 				<section>
 					<h3>Spirit</h3>
-					<div class="stat-row">
+					<div class="stat-row" data-stat="instinct">
 						<label>Instinct</label>
 						<div class="controls">
 							<button>&lt;</button>
@@ -461,7 +461,7 @@
 							<button>&gt;</button>
 						</div>
 					</div>
-					<div class="stat-row">
+					<div class="stat-row" data-stat="wis">
 						<label>Wisdom</label>
 						<div class="controls">
 							<button>&lt;</button>
@@ -478,39 +478,39 @@
 					<dl class="derived-group">
 						<dt>STR / CON</dt>
 						<dd>
-							<div class="derived-row"><span>Max HP</span> <data value="11">11</data></div>
-							<div class="derived-row"><span>Damage Bonus</span> <data value="1">1</data></div>
+							<div class="derived-row"><span>Max HP</span> <data data-derived="maxHP" value="11">11</data></div>
+							<div class="derived-row"><span>Damage Bonus</span> <data data-derived="damageBonus" value="1">1</data></div>
 						</dd>
 					</dl>
 
 					<dl class="derived-group">
 						<dt>Combat (Base)</dt>
 						<dd>
-							<div class="derived-row"><span>Hit Chance</span> <data value="40">40%</data></div>
-							<div class="derived-row"><span>Dodge Chance</span> <data value="50">50%</data></div>
+							<div class="derived-row"><span>Hit Chance</span> <data data-derived="hitChance" value="40">40%</data></div>
+							<div class="derived-row"><span>Dodge Chance</span> <data data-derived="dodgeChance" value="50">50%</data></div>
 						</dd>
 					</dl>
 
 					<dl class="derived-group">
 						<dt>INT / WIS / PER</dt>
 						<dd>
-							<div class="derived-row"><span>Cerebral Presence</span> <data value="9">9</data></div>
-							<div class="derived-row"><span>Engage Max</span> <data value="1">1</data></div>
+							<div class="derived-row"><span>Cerebral Presence</span> <data data-derived="cerebralPresence" value="9">9</data></div>
+							<div class="derived-row"><span>Engage Max</span> <data data-derived="engageMax" value="1">1</data></div>
 						</dd>
 					</dl>
 
 					<dl class="derived-group">
 						<dt>INSTINCT / WILL</dt>
 						<dd>
-							<div class="derived-row"><span>HP Buffer</span> <data value="3">3</data></div>
+							<div class="derived-row"><span>HP Buffer</span> <data data-derived="hpBuffer" value="3">3</data></div>
 						</dd>
 					</dl>
 
 					<dl class="derived-group">
 						<dt>Critical (Base)</dt>
 						<dd>
-							<div class="derived-row"><span>Crit Chance</span> <data value="47">47%</data></div>
-							<div class="derived-row"><span>Crit Resist</span> <data value="53">53%</data></div>
+							<div class="derived-row"><span>Crit Chance</span> <data data-derived="critChance" value="47">47%</data></div>
+							<div class="derived-row"><span>Crit Resist</span> <data data-derived="critResist" value="53">53%</data></div>
 						</dd>
 					</dl>
 				</div>
@@ -521,13 +521,13 @@
 		<article>
 			<header>
 				<h2>Skills</h2>
-				<p>Available Points: <strong>0</strong></p>
+				<p>Available Points: <strong data-points="skills">4</strong></p>
 			</header>
 			<div class="panel-content">
 				<!-- Defense -->
 				<section>
 					<h3>Defense</h3>
-					<div class="stat-row">
+					<div class="stat-row" data-skill="block">
 						<label>Block</label>
 						<div class="controls">
 							<button>&lt;</button>
@@ -535,7 +535,7 @@
 							<button>&gt;</button>
 						</div>
 					</div>
-					<div class="stat-row">
+					<div class="stat-row" data-skill="dodge">
 						<label>Dodge</label>
 						<div class="controls">
 							<button>&lt;</button>
@@ -548,7 +548,7 @@
 				<!-- Weapons -->
 				<section>
 					<h3>Weapons</h3>
-					<div class="stat-row">
+					<div class="stat-row" data-skill="unarmed">
 						<label>Unarmed</label>
 						<div class="controls">
 							<button>&lt;</button>
@@ -556,7 +556,7 @@
 							<button>&gt;</button>
 						</div>
 					</div>
-					<div class="stat-row">
+					<div class="stat-row" data-skill="shortSword">
 						<label>Short Sword</label>
 						<div class="controls">
 							<button>&lt;</button>
@@ -564,7 +564,7 @@
 							<button>&gt;</button>
 						</div>
 					</div>
-					<div class="stat-row">
+					<div class="stat-row" data-skill="longSword">
 						<label>Long Sword</label>
 						<div class="controls">
 							<button>&lt;</button>
@@ -572,7 +572,7 @@
 							<button>&gt;</button>
 						</div>
 					</div>
-					<div class="stat-row">
+					<div class="stat-row" data-skill="shortSpear">
 						<label>Short Spear</label>
 						<div class="controls">
 							<button>&lt;</button>
@@ -580,7 +580,7 @@
 							<button>&gt;</button>
 						</div>
 					</div>
-					<div class="stat-row">
+					<div class="stat-row" data-skill="longSpear">
 						<label>Long Spear</label>
 						<div class="controls">
 							<button>&lt;</button>
@@ -588,7 +588,7 @@
 							<button>&gt;</button>
 						</div>
 					</div>
-					<div class="stat-row">
+					<div class="stat-row" data-skill="shortBlunt">
 						<label>Short Blunt</label>
 						<div class="controls">
 							<button>&lt;</button>
@@ -596,7 +596,7 @@
 							<button>&gt;</button>
 						</div>
 					</div>
-					<div class="stat-row">
+					<div class="stat-row" data-skill="longBlunt">
 						<label>Long Blunt</label>
 						<div class="controls">
 							<button>&lt;</button>
@@ -609,7 +609,7 @@
 				<!-- Critical -->
 				<section>
 					<h3>Critical</h3>
-					<div class="stat-row">
+					<div class="stat-row" data-skill="criticalStrike">
 						<label>Critical Strike</label>
 						<div class="controls">
 							<button>&lt;</button>
@@ -617,7 +617,7 @@
 							<button>&gt;</button>
 						</div>
 					</div>
-					<div class="stat-row">
+					<div class="stat-row" data-skill="criticalDefense">
 						<label>Critical Defense</label>
 						<div class="controls">
 							<button>&lt;</button>
@@ -638,26 +638,26 @@
 						<h3>Speed</h3>
 						<div class="stat-row">
 							<label>Move Speed</label>
-							<span class="value">17</span>
+							<span class="value" data-total="moveSpeed">17</span>
 						</div>
 						<div class="stat-row">
 							<label>Action Speed</label>
-							<span class="value">25</span>
+							<span class="value" data-total="actionSpeed">25</span>
 						</div>
 					</section>
 					<section>
 						<h3>Combat</h3>
 						<div class="stat-row">
 							<label>Total Damage</label>
-							<span class="value">3</span>
+							<span class="value" data-total="totalDamage">3</span>
 						</div>
 						<div class="stat-row">
 							<label>Attack Rating</label>
-							<span class="value">20 <small>(45%)</small></span>
+							<span class="value" data-total="attackRating">20 <small>(45%)</small></span>
 						</div>
 						<div class="stat-row">
 							<label>Defense Rating</label>
-							<span class="value">25 <small>(60%)</small></span>
+							<span class="value" data-total="defenseRating">25 <small>(60%)</small></span>
 						</div>
 					</section>
 				</div>
@@ -714,25 +714,25 @@
 					<dl class="derived-group">
 						<dt>Weapon</dt>
 						<dd>
-							<div class="derived-row"><span>Damage</span> <data value="2">2</data></div>
-							<div class="derived-row"><span>Type</span> <data value="concussive">Concussive</data></div>
-							<div class="derived-row"><span>Speed</span> <data value="16">16</data></div>
+							<div class="derived-row"><span>Damage</span> <data data-equip="weaponDamage" value="2">2</data></div>
+							<div class="derived-row"><span>Type</span> <data data-equip="weaponType" value="concussive">Concussive</data></div>
+							<div class="derived-row"><span>Speed</span> <data data-equip="weaponSpeed" value="16">16</data></div>
 						</dd>
 					</dl>
 
 					<dl class="derived-group">
 						<dt>Armor</dt>
 						<dd>
-							<div class="derived-row"><span>DR</span> <data value="0">0</data></div>
-							<div class="derived-row"><span>Mobility</span> <data value="20">20</data></div>
-							<div class="derived-row"><span>Flank Defense</span> <data value="none">none</data></div>
+							<div class="derived-row"><span>DR</span> <data data-equip="armorDR" value="0">0</data></div>
+							<div class="derived-row"><span>Mobility</span> <data data-equip="armorMobility" value="20">20</data></div>
+							<div class="derived-row"><span>Flank Defense</span> <data data-equip="flankDefense" value="none">none</data></div>
 						</dd>
 					</dl>
 
 					<dl class="derived-group">
 						<dt>Passive Bonuses</dt>
 						<dd>
-							<div class="derived-row"><span>Evasion Bonus</span> <data value="5">+5</data></div>
+							<div class="derived-row"><span>Evasion Bonus</span> <data data-equip="evasionBonus" value="5">+5</data></div>
 						</dd>
 					</dl>
 				</div>
@@ -741,13 +741,14 @@
 	</main>
 
 	<footer>
-		<button>Back to Game</button>
+		<button id="newCharacterBtn">New Character</button>
 		<div class="button-group">
-			<button>New Character</button>
-			<button>Templates</button>
-			<button class="primary">Start Game</button>
+			<button id="loadTemplateBtn">Load Template</button>
+			<button id="saveTemplateBtn">Save Template</button>
 		</div>
 	</footer>
+
+	<script type="module" src="js/CharacterCreation.js"></script>
 </body>
 
 </html>
