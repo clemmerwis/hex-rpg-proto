@@ -252,10 +252,9 @@ class CharacterCreator {
 		return Math.max(0, Math.min(100, (csaBase - csdBase) + 50));
 	}
 
-	calculateDamageBonus() {
-		// Base force contribution from STR (assuming force 1)
-		const strMult = STAT_BONUSES.MULTIPLIER[this.character.stats.str] ?? 1;
-		return Math.ceil(1 * strMult);
+	calculateDamageMultiplier() {
+		// STR multiplier for damage calculation
+		return STAT_BONUSES.MULTIPLIER[this.character.stats.str];
 	}
 
 	// --- Calculations (Full - Center Column) ---
@@ -335,11 +334,11 @@ class CharacterCreator {
 			d.maxHP.value = maxHP;
 		}
 
-		// Damage Bonus
+		// Damage Multiplier
 		if (d.damageBonus) {
-			const dmgBonus = this.calculateDamageBonus();
-			d.damageBonus.textContent = dmgBonus;
-			d.damageBonus.value = dmgBonus;
+			const mult = this.calculateDamageMultiplier();
+			d.damageBonus.textContent = mult + 'x';
+			d.damageBonus.value = mult;
 		}
 
 		// Hit Chance (Base)

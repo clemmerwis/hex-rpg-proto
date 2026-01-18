@@ -60,15 +60,25 @@ export class GameStateManager {
      * Sort characters by speed tier, then initiative, with random tiebreaker
      * @param {Array} characters - Characters to sort
      * @param {string} phase - 'move' or 'action'
+     * @param {Map} [actionsMap] - Map of character -> action (used for action phase to get attack type)
      */
-    sortBySpeed(characters, phase) {
+    sortBySpeed(characters, phase, actionsMap = null) {
         // Assign d100 tiebreaker roll to each character once (avoids sort comparator bias)
         characters.forEach(c => c._tiebreakRoll = Math.floor(Math.random() * 100) + 1);
 
         const sorted = [...characters].sort((a, b) => {
             // Calculate speed based on phase
-            const speedA = phase === 'move' ? calculateMoveSpeed(a) : calculateActionSpeed(a, 'light');
-            const speedB = phase === 'move' ? calculateMoveSpeed(b) : calculateActionSpeed(b, 'light');
+            let speedA, speedB;
+            if (phase === 'move') {
+                speedA = calculateMoveSpeed(a);
+                speedB = calculateMoveSpeed(b);
+            } else {
+                // Action phase: use actual attack type from actions map
+                const attackTypeA = actionsMap?.get(a)?.attackType || 'light';
+                const attackTypeB = actionsMap?.get(b)?.attackType || 'light';
+                speedA = calculateActionSpeed(a, attackTypeA);
+                speedB = calculateActionSpeed(b, attackTypeB);
+            }
 
             // Get tiers (lower tier = faster = goes first)
             const tierA = getSpeedTier(speedA).tier;
@@ -271,7 +281,7 @@ export class GameStateManager {
             const action = this.characterActions.get(char);
             return action && action.action === COMBAT_ACTIONS.ATTACK;
         });
-        this.actionQueue = this.sortBySpeed(attackers, 'action');
+        this.actionQueue = this.sortBySpeed(attackers, 'action', this.characterActions);
         this.currentActionIndex = 0;
 
         this.executeNextAttack();

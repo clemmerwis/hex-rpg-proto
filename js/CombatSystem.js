@@ -120,8 +120,15 @@ export class CombatSystem {
                 damage = Math.floor(damage * 0.5);
                 resistMod = 'resistant';
             } else if (armor.vulnerableAgainst.includes(weapon.type)) {
-                damage = Math.floor(damage * 1.5);
-                resistMod = 'vulnerable';
+                let vulnMult = 1.5;
+                // Enhancement replaces base multiplier when attack type matches
+                if (attackType === 'light' && weapon.effects?.includes('vulnerableEnhancementLight')) {
+                    vulnMult = 2.0;
+                } else if (attackType === 'heavy' && weapon.effects?.includes('vulnerableEnhancementHeavy')) {
+                    vulnMult = 2.5;
+                }
+                damage = Math.floor(damage * vulnMult);
+                resistMod = vulnMult > 1.5 ? 'vulnerableEnhanced' : 'vulnerable';
             }
         }
 
@@ -149,6 +156,7 @@ export class CombatSystem {
         if (effectiveDR > 0) damageBreakdown += ` → DR: {{dr}}-${effectiveDR}{{/dr}}${flanking ? ` (flanked ${Math.round(armor.flankingDefense * 100)}%)` : ''}`;
         if (resistMod === 'resistant') damageBreakdown += ` → Resist: {{resist}}×0.5{{/resist}}`;
         if (resistMod === 'vulnerable') damageBreakdown += ` → Vuln: {{vuln}}×1.5{{/vuln}}`;
+        if (resistMod === 'vulnerableEnhanced') damageBreakdown += ` → Vuln+: {{vuln}}×${attackType === 'heavy' ? '2.5' : '2.0'}{{/vuln}}`;
         damageBreakdown += ` = {{dmg}}${finalDamage}{{/dmg}}`;
 
         // Log attack result and damage breakdown on separate lines

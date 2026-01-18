@@ -144,7 +144,7 @@ CSC = ((CSA_R - CSD_R) + 50) / 100
 3. Flanking Check: Attacker behind defender OR defender over-engaged (at max capacity)
 4. Armor Defense: `effectiveDR = flanking ? floor(armor.defense * armor.flankingDefense) : armor.defense`
 5. Subtract DR: `damage = max(0, damage - effectiveDR)`
-6. Resistance/Vulnerability: If damage > 0, multiply by 0.5 (resistant) or 1.5 (vulnerable)
+6. Resistance/Vulnerability: If damage > 0, multiply by 0.5 (resistant) or 1.5 (vulnerable). Weapon enhancements can increase vulnerable multiplier (see Weapon Effects below)
 
 ### Speed & Turn Order
 
@@ -190,6 +190,19 @@ Each attacker must deplete a character's buffer individually before dealing real
 | Large Shield | 1 | blunt | 3 | 20 | off | defenseR: 8 |
 
 **Grip types:** `one` (mainHand only), `two` (both hands), `off` (offHand only)
+
+### Weapon Effects
+
+| Effect | Attack Type | Description |
+|--------|-------------|-------------|
+| evasionBonus | - | Reduces enemy to-hit chance (passive) |
+| bypasses buffer | - | Concussive damage goes directly to HP |
+| vulnerableEnhancementLight | Light | Replaces 1.5x vulnerable multiplier with 2.0x |
+| vulnerableEnhancementHeavy | Heavy | Replaces 1.5x vulnerable multiplier with 2.5x |
+| bleedingLight/Heavy | - | Not yet implemented |
+| armorDamageEnhancementLight/Heavy | - | Not yet implemented |
+
+**Note:** Enhancement effects only activate when using the matching attack type. Using the wrong attack type (e.g., heavy attack with vulnerableEnhancementLight) applies only the base 1.5x multiplier.
 
 ### Attack Types
 | Type | Speed Mod | Damage Mod |
@@ -255,8 +268,7 @@ Mouse near canvas edges scrolls camera.
 
 **Action Phase:**
 1. Filter characters with ATTACK actions
-2. Sort by actionSpeed (weapon + shield + light attack modifier - dex), then initiative
-   - Note: Sorting uses light attack speed for all characters regardless of chosen attack type
+2. Sort by actionSpeed (weapon + shield + attack type modifier - dex), then initiative
 3. Execute attacks sequentially
 4. Apply damage through buffer → health
 5. Defeated characters play die animation
