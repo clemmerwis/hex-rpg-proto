@@ -159,6 +159,9 @@
 		}
 
 		section h3 {
+			display: flex;
+			justify-content: space-between;
+			align-items: baseline;
 			font-size: 11px;
 			font-weight: 600;
 			color: var(--text-header);
@@ -167,6 +170,12 @@
 			padding-bottom: 6px;
 			margin-bottom: 10px;
 			border-bottom: 1px solid var(--border-color);
+		}
+
+		section h3 .formula {
+			font-size: 11px;
+			font-weight: 600;
+			text-transform: none;
 		}
 
 		/* Stat rows */
@@ -252,21 +261,33 @@
 			height: 14px;
 		}
 
-		/* Derived stats */
+		/* Derived stats - uses sub-panel structure */
 		.derived-section {
-			background: var(--bg-section);
-			border: 1px solid var(--border-color);
-			padding: 12px 14px;
-			margin-top: 14px;
+			border-top: 1px solid var(--border-color);
+			margin-top: 0;
+			flex: 1;
+			display: flex;
+			flex-direction: column;
 		}
 
 		.derived-section h3 {
-			margin-bottom: 10px;
-			font-size: 12px;
+			font-size: 14px;
+			font-weight: 600;
+			color: var(--text-header);
+			text-transform: uppercase;
+			letter-spacing: 1px;
+			padding: 10px 14px;
+			margin-bottom: 0;
+			background: var(--bg-section);
+			border-bottom: 1px solid var(--border-color);
+		}
+
+		.derived-section-content {
+			padding: 14px;
 		}
 
 		.derived-group {
-			margin-bottom: 12px;
+			margin-bottom: 20px;
 		}
 
 		.derived-group:last-child {
@@ -274,13 +295,23 @@
 		}
 
 		.derived-group dt {
-			font-size: 10px;
+			display: flex;
+			justify-content: space-between;
+			align-items: baseline;
+			font-size: 11px;
+			font-weight: 600;
 			color: var(--text-header);
 			text-transform: uppercase;
 			letter-spacing: 0.5px;
-			margin-bottom: 4px;
-			padding-bottom: 3px;
+			margin-bottom: 10px;
+			padding-bottom: 6px;
 			border-bottom: 1px solid var(--border-color);
+		}
+
+		.derived-group dt .formula {
+			font-size: 11px;
+			font-weight: 600;
+			text-transform: none;
 		}
 
 		.derived-group dd {
@@ -288,26 +319,22 @@
 		}
 
 		.derived-row {
-			display: grid;
-			grid-template-columns: 1fr auto;
-			gap: 10px;
-			font-size: 12px;
-			padding: 4px 6px;
-		}
-
-		.derived-row:nth-child(odd) {
-			background: rgba(0, 0, 0, 0.15);
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			padding: 5px 0;
 		}
 
 		.derived-row span {
 			color: var(--text-primary);
+			font-size: 13px;
 		}
 
 		.derived-row data {
 			color: var(--text-value);
 			font-weight: 600;
+			font-size: 14px;
 			text-align: right;
-			min-width: 60px;
 		}
 
 		/* Footer */
@@ -348,6 +375,57 @@
 		.button-group {
 			display: flex;
 			gap: 10px;
+		}
+
+		/* Formula tooltips */
+		[data-formula] {
+			position: relative;
+			cursor: help;
+			border-bottom: 1px dotted var(--text-muted);
+		}
+
+		[data-formula]::after {
+			content: attr(data-formula);
+			position: absolute;
+			bottom: calc(100% + 6px);
+			left: 0;
+			background: #1a1a1a;
+			color: #e0e0e0;
+			padding: 8px 12px;
+			border-radius: 4px;
+			font-size: 14px;
+			font-weight: normal;
+			white-space: nowrap;
+			opacity: 0;
+			visibility: hidden;
+			transition: opacity 0.15s, visibility 0.15s;
+			z-index: 100;
+			border: 1px solid var(--border-color);
+			box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+		}
+
+		[data-formula]:hover::after {
+			opacity: 1;
+			visibility: visible;
+		}
+
+		/* Tooltip arrow */
+		[data-formula]::before {
+			content: '';
+			position: absolute;
+			bottom: calc(100% + 2px);
+			left: 10px;
+			border: 4px solid transparent;
+			border-top-color: #1a1a1a;
+			opacity: 0;
+			visibility: hidden;
+			transition: opacity 0.15s, visibility 0.15s;
+			z-index: 101;
+		}
+
+		[data-formula]:hover::before {
+			opacity: 1;
+			visibility: visible;
 		}
 	</style>
 </head>
@@ -470,11 +548,12 @@
 						</div>
 					</div>
 				</section>
+			</div>
 
-				<!-- Derived Stats -->
-				<div class="derived-section">
-					<h3>Derived Stats</h3>
-
+			<!-- Derived Stats -->
+			<div class="derived-section">
+				<h3>Derived Stats</h3>
+				<div class="derived-section-content">
 					<dl class="derived-group">
 						<dt>STR / CON</dt>
 						<dd>
@@ -484,10 +563,10 @@
 					</dl>
 
 					<dl class="derived-group">
-						<dt>Combat (Base)</dt>
+						<dt>Combat <span class="formula">THC = Atk - Def + 50</span></dt>
 						<dd>
-							<div class="derived-row"><span>Hit Chance</span> <data data-derived="hitChance" value="40">40%</data></div>
-							<div class="derived-row"><span>Dodge Chance</span> <data data-derived="dodgeChance" value="50">50%</data></div>
+							<div class="derived-row"><span>Attack Rating</span> <data data-derived="attackRating" value="17">17</data></div>
+							<div class="derived-row"><span>Defense Rating</span> <data data-derived="defenseRating" value="22">22</data></div>
 						</dd>
 					</dl>
 
@@ -507,10 +586,10 @@
 					</dl>
 
 					<dl class="derived-group">
-						<dt>Critical (Base)</dt>
+						<dt>Critical <span class="formula">CSC = CritAtk - CritDef + 50</span></dt>
 						<dd>
-							<div class="derived-row"><span>Crit Chance</span> <data data-derived="critChance" value="47">47%</data></div>
-							<div class="derived-row"><span>Crit Resist</span> <data data-derived="critResist" value="53">53%</data></div>
+							<div class="derived-row"><span>Crit Attack</span> <data data-derived="critAttack" value="15">15</data></div>
+							<div class="derived-row"><span>Crit Defense</span> <data data-derived="critDefense" value="18">18</data></div>
 						</dd>
 					</dl>
 				</div>
@@ -635,6 +714,32 @@
 				</div>
 				<div class="sub-panel-content">
 					<section>
+						<h3>Combat <span class="formula">THC = Atk - Def + (50 - Evasion)</span></h3>
+						<div class="stat-row">
+							<label>Total Damage</label>
+							<span class="value" data-total="totalDamage">3</span>
+						</div>
+						<div class="stat-row">
+							<label>Attack Rating</label>
+							<span class="value" data-total="attackRating">20</span>
+						</div>
+						<div class="stat-row">
+							<label>Defense Rating</label>
+							<span class="value" data-total="defenseRating">25</span>
+						</div>
+					</section>
+					<section>
+						<h3>Critical <span class="formula">CSC = CritAtk - CritDef + 50</span></h3>
+						<div class="stat-row">
+							<label>Crit Attack</label>
+							<span class="value" data-total="critAttack">20</span>
+						</div>
+						<div class="stat-row">
+							<label>Crit Defense</label>
+							<span class="value" data-total="critDefense">23</span>
+						</div>
+					</section>
+					<section>
 						<h3>Speed</h3>
 						<div class="stat-row">
 							<label>Move Speed</label>
@@ -643,21 +748,6 @@
 						<div class="stat-row">
 							<label>Action Speed</label>
 							<span class="value" data-total="actionSpeed">25</span>
-						</div>
-					</section>
-					<section>
-						<h3>Combat</h3>
-						<div class="stat-row">
-							<label>Total Damage</label>
-							<span class="value" data-total="totalDamage">3</span>
-						</div>
-						<div class="stat-row">
-							<label>Attack Rating</label>
-							<span class="value" data-total="attackRating">20 <small>(45%)</small></span>
-						</div>
-						<div class="stat-row">
-							<label>Defense Rating</label>
-							<span class="value" data-total="defenseRating">25 <small>(60%)</small></span>
 						</div>
 					</section>
 				</div>
@@ -706,11 +796,12 @@
 						<label><input type="radio" name="armor" value="plate"> Plate</label>
 					</div>
 				</section>
+			</div>
 
-				<!-- Equipment Stats -->
-				<div class="derived-section">
-					<h3>Equipment Stats</h3>
-
+			<!-- Equipment Stats -->
+			<div class="derived-section">
+				<h3>Equipment Stats</h3>
+				<div class="derived-section-content">
 					<dl class="derived-group">
 						<dt>Weapon</dt>
 						<dd>

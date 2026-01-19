@@ -79,13 +79,13 @@ class CharacterCreator {
 		this.elements.derived = {
 			maxHP: document.querySelector('[data-derived="maxHP"]'),
 			damageBonus: document.querySelector('[data-derived="damageBonus"]'),
-			hitChance: document.querySelector('[data-derived="hitChance"]'),
-			dodgeChance: document.querySelector('[data-derived="dodgeChance"]'),
+			attackRating: document.querySelector('[data-derived="attackRating"]'),
+			defenseRating: document.querySelector('[data-derived="defenseRating"]'),
 			cerebralPresence: document.querySelector('[data-derived="cerebralPresence"]'),
 			engageMax: document.querySelector('[data-derived="engageMax"]'),
 			hpBuffer: document.querySelector('[data-derived="hpBuffer"]'),
-			critChance: document.querySelector('[data-derived="critChance"]'),
-			critResist: document.querySelector('[data-derived="critResist"]')
+			critAttack: document.querySelector('[data-derived="critAttack"]'),
+			critDefense: document.querySelector('[data-derived="critDefense"]')
 		};
 
 		// Total values displays (center column - everything)
@@ -94,7 +94,9 @@ class CharacterCreator {
 			actionSpeed: document.querySelector('[data-total="actionSpeed"]'),
 			totalDamage: document.querySelector('[data-total="totalDamage"]'),
 			attackRating: document.querySelector('[data-total="attackRating"]'),
-			defenseRating: document.querySelector('[data-total="defenseRating"]')
+			defenseRating: document.querySelector('[data-total="defenseRating"]'),
+			critAttack: document.querySelector('[data-total="critAttack"]'),
+			critDefense: document.querySelector('[data-total="critDefense"]')
 		};
 
 		// Equipment stats displays (right column)
@@ -327,11 +329,17 @@ class CharacterCreator {
 		const d = this.elements.derived;
 		const stats = this.character.stats;
 
+		// Helper to get the label element (previous sibling span)
+		const getLabel = (el) => el?.previousElementSibling;
+
 		// Max HP
 		if (d.maxHP) {
+			const conBonus = STAT_BONUSES.CON_BONUS[stats.con] ?? 0;
+			const strMult = STAT_BONUSES.MULTIPLIER[stats.str] ?? 1;
 			const maxHP = calculateMaxHP(stats);
 			d.maxHP.textContent = maxHP;
 			d.maxHP.value = maxHP;
+			getLabel(d.maxHP).dataset.formula = `(base(15) + Con bonus(${conBonus})) × Str mult(${strMult})`;
 		}
 
 		// Damage Multiplier
@@ -339,20 +347,23 @@ class CharacterCreator {
 			const mult = this.calculateDamageMultiplier();
 			d.damageBonus.textContent = mult + 'x';
 			d.damageBonus.value = mult;
+			getLabel(d.damageBonus).dataset.formula = `Str(${stats.str}) → ${mult}x`;
 		}
 
-		// Hit Chance (Base)
-		if (d.hitChance) {
-			const hitChance = this.calculateBaseHitChance();
-			d.hitChance.textContent = hitChance + '%';
-			d.hitChance.value = hitChance;
+		// Attack Rating (stats only)
+		if (d.attackRating) {
+			const attackRating = this.calculateBaseAttackRating();
+			d.attackRating.textContent = attackRating;
+			d.attackRating.value = attackRating;
+			getLabel(d.attackRating).dataset.formula = `(Str(${stats.str}) × 3) + (Dex(${stats.dex}) × 2)`;
 		}
 
-		// Dodge Chance (Base)
-		if (d.dodgeChance) {
-			const dodgeChance = this.calculateBaseDodgeChance();
-			d.dodgeChance.textContent = dodgeChance + '%';
-			d.dodgeChance.value = dodgeChance;
+		// Defense Rating (stats only)
+		if (d.defenseRating) {
+			const defenseRating = this.calculateBaseDefenseRating();
+			d.defenseRating.textContent = defenseRating;
+			d.defenseRating.value = defenseRating;
+			getLabel(d.defenseRating).dataset.formula = `(Dex(${stats.dex}) × 3) + (Inst(${stats.instinct}) × 2) + 5`;
 		}
 
 		// Cerebral Presence
@@ -360,13 +371,16 @@ class CharacterCreator {
 			const cp = calculateCerebralPresence(stats);
 			d.cerebralPresence.textContent = cp;
 			d.cerebralPresence.value = cp;
+			getLabel(d.cerebralPresence).dataset.formula = `Per(${stats.per}) + Wis(${stats.wis}) + Int(${stats.int})`;
 		}
 
 		// Engage Max
 		if (d.engageMax) {
+			const cp = calculateCerebralPresence(stats);
 			const engageMax = calculateEngagedMax(stats);
 			d.engageMax.textContent = engageMax;
 			d.engageMax.value = engageMax;
+			getLabel(d.engageMax).dataset.formula = `CP(${cp}) / 6`;
 		}
 
 		// HP Buffer
@@ -374,56 +388,95 @@ class CharacterCreator {
 			const buffer = calculateHPBuffer(stats);
 			d.hpBuffer.textContent = buffer;
 			d.hpBuffer.value = buffer;
+			const willMult = STAT_BONUSES.MULTIPLIER[stats.will] ?? 1;
+			getLabel(d.hpBuffer).dataset.formula = `Inst(${stats.instinct}) × Will mult(${willMult})`;
 		}
 
-		// Crit Chance (Base)
-		if (d.critChance) {
-			const critChance = this.calculateBaseCritChance();
-			d.critChance.textContent = critChance + '%';
-			d.critChance.value = critChance;
+		// Crit Attack (stats only)
+		if (d.critAttack) {
+			const critAttack = (stats.int * 3) + (stats.str * 2);
+			d.critAttack.textContent = critAttack;
+			d.critAttack.value = critAttack;
+			getLabel(d.critAttack).dataset.formula = `(Int(${stats.int}) × 3) + (Str(${stats.str}) × 2)`;
 		}
 
-		// Crit Resist (Base)
-		if (d.critResist) {
-			const critResist = 100 - this.calculateBaseCritChance();
-			d.critResist.textContent = critResist + '%';
-			d.critResist.value = critResist;
+		// Crit Defense (stats only)
+		if (d.critDefense) {
+			const critDefense = (stats.dex * 3) + (stats.per * 2) + stats.instinct;
+			d.critDefense.textContent = critDefense;
+			d.critDefense.value = critDefense;
+			getLabel(d.critDefense).dataset.formula = `(Dex(${stats.dex}) × 3) + (Per(${stats.per}) × 2) + Inst(${stats.instinct})`;
 		}
 	}
 
 	updateTotalDisplays() {
 		const t = this.elements.totals;
+		const stats = this.character.stats;
+		const weapon = WEAPONS[this.character.equipment.mainHand];
+		const armor = ARMOR_TYPES[this.character.equipment.armor || 'none'];
+		const offHand = this.character.equipment.offHand ? WEAPONS[this.character.equipment.offHand] : null;
+		const hasShield = offHand && offHand.grip === 'off';
+
+		// Helper to get the label element (previous sibling)
+		const getLabel = (el) => el?.previousElementSibling;
 
 		// Move Speed
 		if (t.moveSpeed) {
 			const moveSpeed = calculateMoveSpeed(this.character);
 			t.moveSpeed.textContent = moveSpeed;
+			getLabel(t.moveSpeed).dataset.formula = `${armor.name} mobility(${armor.mobility}) - Str(${stats.str})`;
 		}
 
 		// Action Speed (using light attack as default display)
 		if (t.actionSpeed) {
 			const actionSpeed = calculateActionSpeed(this.character, 'light');
 			t.actionSpeed.textContent = actionSpeed;
+			const shieldSpeed = hasShield ? offHand.speed : 0;
+			const shieldPart = hasShield ? ` + shield(${shieldSpeed})` : '';
+			getLabel(t.actionSpeed).dataset.formula = `${weapon.name} speed(${weapon.speed})${shieldPart} + light Attack(12) - Dex(${stats.dex})`;
 		}
 
 		// Total Damage (using light attack)
 		if (t.totalDamage) {
-			const damage = calculateDamage(this.character.stats, this.character.equipment.mainHand, 'light');
+			const damage = calculateDamage(stats, this.character.equipment.mainHand, 'light');
 			t.totalDamage.textContent = damage;
+			const strMult = STAT_BONUSES.MULTIPLIER[stats.str] ?? 1;
+			getLabel(t.totalDamage).dataset.formula = `${weapon.name} base(${weapon.base}) + (force(${weapon.force}) × Str mult(${strMult}))`;
 		}
 
-		// Attack Rating with percentage
+		// Attack Rating
 		if (t.attackRating) {
+			const weaponSkill = this.character.skills[this.character.equipment.mainHand] || 1;
 			const attackR = this.calculateFullAttackRating();
-			const hitPct = this.calculateFullHitChance();
-			t.attackRating.innerHTML = `${attackR} <small>(${hitPct}%)</small>`;
+			t.attackRating.textContent = attackR;
+			getLabel(t.attackRating).dataset.formula = `(${weapon.name} skill(${weaponSkill}) × 5) + (Str(${stats.str}) × 3) + (Dex(${stats.dex}) × 2)`;
 		}
 
-		// Defense Rating with percentage
+		// Defense Rating
 		if (t.defenseRating) {
+			const defSkill = hasShield ? this.character.skills.block : this.character.skills.dodge;
+			const skillName = hasShield ? 'Block' : 'Dodge';
+			const defenseBonus = getEquipmentBonus(this.character, 'defenseR');
 			const defenseR = this.calculateFullDefenseRating();
-			const dodgePct = this.calculateFullDodgeChance();
-			t.defenseRating.innerHTML = `${defenseR} <small>(${dodgePct}%)</small>`;
+			t.defenseRating.textContent = defenseR;
+			const bonusPart = defenseBonus > 0 ? ` + equip(${defenseBonus})` : '';
+			getLabel(t.defenseRating).dataset.formula = `(${skillName}(${defSkill}) × 5) + (Dex(${stats.dex}) × 3) + (Inst(${stats.instinct}) × 2) + 5${bonusPart}`;
+		}
+
+		// Crit Attack (full - with skill)
+		if (t.critAttack) {
+			const critAttack = calculateCSA_R(this.character);
+			const critSkill = this.character.skills.criticalStrike || 1;
+			t.critAttack.textContent = critAttack;
+			getLabel(t.critAttack).dataset.formula = `(Crit Strike(${critSkill}) × 5) + (Int(${stats.int}) × 3) + (Str(${stats.str}) × 2)`;
+		}
+
+		// Crit Defense (full - with skill)
+		if (t.critDefense) {
+			const critDefense = calculateCSD_R(this.character);
+			const critDefSkill = this.character.skills.criticalDefense || 1;
+			t.critDefense.textContent = critDefense;
+			getLabel(t.critDefense).dataset.formula = `(Crit Def(${critDefSkill}) × 5) + (Dex(${stats.dex}) × 3) + (Per(${stats.per}) × 2) + Inst(${stats.instinct})`;
 		}
 	}
 
