@@ -134,17 +134,22 @@ export class Renderer {
     }
 
     drawHexGrid(cameraX, cameraY) {
-        const margin = this.hexSize * 2;
-        const startX = cameraX / this.zoomLevel - margin;
-        const startY = cameraY / this.zoomLevel - margin;
-        const endX = (cameraX + this.viewportWidth) / this.zoomLevel + margin;
-        const endY = (cameraY + this.viewportHeight) / this.zoomLevel + margin;
+        // Calculate hex range that covers the entire world
+        // Use corners of the world to find the full hex range needed
+        const corners = [
+            this.hexGrid.pixelToHex(0, 0),
+            this.hexGrid.pixelToHex(this.worldWidth, 0),
+            this.hexGrid.pixelToHex(0, this.worldHeight),
+            this.hexGrid.pixelToHex(this.worldWidth, this.worldHeight)
+        ];
 
-        const startHex = this.hexGrid.pixelToHex(startX, startY);
-        const endHex = this.hexGrid.pixelToHex(endX, endY);
+        const minQ = Math.min(...corners.map(c => c.q)) - 2;
+        const maxQ = Math.max(...corners.map(c => c.q)) + 2;
+        const minR = Math.min(...corners.map(c => c.r)) - 2;
+        const maxR = Math.max(...corners.map(c => c.r)) + 2;
 
-        for (let q = startHex.q - 5; q <= endHex.q + 5; q++) {
-            for (let r = startHex.r - 5; r <= endHex.r + 5; r++) {
+        for (let q = minQ; q <= maxQ; q++) {
+            for (let r = minR; r <= maxR; r++) {
                 const pos = this.hexGrid.hexToPixel(q, r);
                 if (
                     pos.x >= -this.hexSize &&
@@ -193,12 +198,13 @@ export class Renderer {
         const center = this.hexGrid.hexToPixel(q, r);
         const characterHere = this.getCharacterAtHex(q, r);
 
-        // Calculate hex corner points
+        // Calculate hex corner points (with isometric Y compression)
+        const isoRatio = this.hexGrid.isoRatio;
         const hexPoints = [];
         for (let i = 0; i < 6; i++) {
             const angle = ((2 * Math.PI) / 6) * i - Math.PI / 6;
             const x = center.x + this.hexSize * Math.cos(angle);
-            const y = center.y + this.hexSize * Math.sin(angle);
+            const y = center.y + this.hexSize * Math.sin(angle) * isoRatio;
             hexPoints.push({ x, y });
         }
 

@@ -14,6 +14,7 @@ export const GAME_CONSTANTS = {
 
 	// World and rendering
 	HEX_SIZE: 70,
+	ISO_RATIO: 0.5, // Vertical compression for isometric projection (0.5 = classic 2:1 iso)
 	WORLD_WIDTH: 3220,
 	WORLD_HEIGHT: 2240,
 	ZOOM_LEVEL: 0.5,

@@ -345,6 +345,22 @@ Three sprite sets available, each with 8-directional variants:
 
 Conversion: canvas → world (factor camera/zoom) → hex (hexGrid.pixelToHex)
 
+### Isometric Projection
+
+The hex grid uses vertical compression to match isometric background art. Controlled by `ISO_RATIO` in const.js (default 0.5 = classic 2:1 isometric).
+
+**Three places must stay in sync** (all reference `hexGrid.isoRatio`):
+1. `HexGrid.hexToPixel()` - scales Y spacing between hex centers
+2. `HexGrid.pixelToHex()` - un-scales Y for click detection
+3. `Renderer.drawHex()` - scales Y offset of hex corner points
+
+**Tuning:** If hexes don't align with floor tiles in background art, adjust `ISO_RATIO`. Values 0.48-0.55 cover most isometric art styles.
+
+**Future considerations:**
+- Per-area ratio: If backgrounds have different angles, make `ISO_RATIO` per-area in area.json
+- Performance: `drawHexGrid` currently iterates all world hexes. For very large maps, add camera culling
+- `hexHeight` is updated to `2 * hexSize * isoRatio` but may be unused - verify if adding spacing logic
+
 ## Direction System
 
 Only 6 directions matching hex grid neighbors:

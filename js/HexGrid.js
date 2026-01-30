@@ -1,21 +1,27 @@
+import { GAME_CONSTANTS } from "./const.js";
+
 export class HexGrid {
     constructor(hexSize, worldWidth, worldHeight) {
         this.hexSize = hexSize;
         this.worldWidth = worldWidth;
         this.worldHeight = worldHeight;
+        this.isoRatio = GAME_CONSTANTS.ISO_RATIO;
         this.hexWidth = Math.sqrt(3) * hexSize;
-        this.hexHeight = 2 * hexSize;
+        this.hexHeight = 2 * hexSize * this.isoRatio; // Compressed for isometric
     }
 
     hexToPixel(q, r) {
         const x = this.hexSize * (Math.sqrt(3) * q + Math.sqrt(3) / 2 * r) + this.worldWidth / 2;
-        const y = this.hexSize * (3 / 2 * r) + this.worldHeight / 2;
+        // Scale only the hex-relative Y, not the world center offset
+        const y = this.hexSize * (3 / 2 * r) * this.isoRatio + this.worldHeight / 2;
         return { x, y };
     }
 
     pixelToHex(x, y) {
         x -= this.worldWidth / 2;
         y -= this.worldHeight / 2;
+        // Un-scale Y before hex calculation
+        y /= this.isoRatio;
 
         const q = (Math.sqrt(3) / 3 * x - 1 / 3 * y) / this.hexSize;
         const r = (2 / 3 * y) / this.hexSize;
