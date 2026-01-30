@@ -380,7 +380,7 @@ class CharacterCreator {
 			const engageMax = calculateEngagedMax(stats);
 			d.engageMax.textContent = engageMax;
 			d.engageMax.value = engageMax;
-			getLabel(d.engageMax).dataset.formula = `CP(${cp}) / 6`;
+			getLabel(d.engageMax).dataset.formula = `Cerebral Presence(${cp}) / 6`;
 		}
 
 		// HP Buffer
@@ -389,7 +389,7 @@ class CharacterCreator {
 			d.hpBuffer.textContent = buffer;
 			d.hpBuffer.value = buffer;
 			const willMult = STAT_BONUSES.MULTIPLIER[stats.will] ?? 1;
-			getLabel(d.hpBuffer).dataset.formula = `Inst(${stats.instinct}) × Will mult(${willMult})`;
+			getLabel(d.hpBuffer).dataset.formula = `Inst(${stats.instinct}) × Will Multiplier(${willMult})`;
 		}
 
 		// Crit Attack (stats only)
