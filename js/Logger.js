@@ -1,3 +1,5 @@
+import { GAME_CONSTANTS } from './const.js';
+
 /**
  * Centralized logging system for both development debugging and gameplay combat logs
  * Provides structured logging with levels, filtering, and dual output (console + in-game)
@@ -23,7 +25,7 @@ export class Logger {
 		this.gameLog = [];
 
 		// Maximum entries to keep in gameLog (prevent memory bloat)
-		this.maxGameLogEntries = 100;
+		this.maxGameLogEntries = GAME_CONSTANTS.COMBAT_LOG_HISTORY;
 
 		// Per-level console filtering (can disable specific levels)
 		this.levelFilters = {

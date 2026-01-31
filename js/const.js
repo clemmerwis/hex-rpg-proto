@@ -35,6 +35,10 @@ export const GAME_CONSTANTS = {
 	HEALTH_BAR_HEIGHT: 22,
 	BUFFER_BAR_HEIGHT: 8,
 
+	// Combat Log - VISIBLE must be < HISTORY to prevent index sync issues
+	COMBAT_LOG_HISTORY: 500,  // Logger data retention
+	COMBAT_LOG_VISIBLE: 150,  // UI DOM retention
+
 	// Sprite
 	SPRITE_FRAME_SIZE: 256,
 };

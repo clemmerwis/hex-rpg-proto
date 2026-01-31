@@ -1,4 +1,4 @@
-import { FACTIONS } from './const.js';
+import { FACTIONS, GAME_CONSTANTS } from './const.js';
 
 /**
  * Semantic tokens used by CombatSystem - replaced with formatted HTML
@@ -26,6 +26,7 @@ const WRAPPER_TAGS = {
 	'hp': (content) => `<span class="log-hp">${content}</span>`,
 	'dmg': (content) => `<span class="log-damage">${content}</span>`,
 	'thc': (content) => `<span class="log-thc">${content}</span>`,
+	'csc': (content) => `<span class="log-csc">${content}</span>`,
 	'roll': (content) => `<span class="log-thc">${content}</span>`,
 	'dr': (content) => `<span style="color: #1a1a1a;">${content}</span>`,
 	'vuln': (content) => `<span style="color: #9932CC;">${content}</span>`,
@@ -289,8 +290,26 @@ export class CombatUILog {
 
 			this.lastProcessedIndex = allLogs.length;
 
+			// Trim old DOM entries if exceeding visible limit
+			this.trimOldEntries();
+
 			// Auto-scroll to bottom
 			this.content.scrollTop = this.content.scrollHeight;
+		}
+	}
+
+	/**
+	 * Remove oldest DOM entries when exceeding COMBAT_LOG_VISIBLE limit
+	 */
+	trimOldEntries() {
+		const maxVisible = GAME_CONSTANTS.COMBAT_LOG_VISIBLE;
+		const entries = this.content.querySelectorAll('.log-entry');
+
+		if (entries.length > maxVisible) {
+			const removeCount = entries.length - maxVisible;
+			for (let i = 0; i < removeCount; i++) {
+				entries[i].remove();
+			}
 		}
 	}
 

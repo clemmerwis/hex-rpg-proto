@@ -79,6 +79,9 @@ export class CombatSystem {
         const csc = calculateCSC(attacker, defender);
         const cscRoll = Math.floor(Math.random() * 100) + 1;
         const crit = cscRoll <= csc;
+        // Display inverted so "roll high = good" for player readability (same as THC)
+        const cscPercent = 100 - csc;
+        const cscRollPercent = 101 - cscRoll;
 
         if (crit) {
             // Critical hit: double damage
@@ -148,19 +151,37 @@ export class CombatSystem {
 
         // Format weapon name (camelCase to hyphen-separated)
         const weaponName = attacker.equipment.mainHand.replace(/([A-Z])/g, '-$1').toLowerCase();
-        let damageBreakdown = `${weaponName}: ${weapon.base} + str(${attacker.stats.str})×force(${weapon.force}): +${strBonus}`;
-        if (attackMod !== 0) damageBreakdown += ` + ${attackType}: ${attackMod > 0 ? '+' : ''}${attackMod}`;
+
+        // Track damage after DR for logging
+        const damageAfterDR = Math.max(0, damageAfterCrit - effectiveDR);
+
+        // Base damage formula: weapon(base) + str(raw->mult Mult) x weapon force(X)
+        let damageBreakdown = `${weaponName}(${weapon.base}) + str(${attacker.stats.str}->${strMult} Mult) x ${weaponName} force(${weapon.force})`;
+        if (attackMod !== 0) damageBreakdown += ` + ${attackType}(${attackMod})`;
         damageBreakdown += ` = {{dmg}}${baseDamage}{{/dmg}}`;
 
-        if (crit) damageBreakdown += ` → Crit: {{dmg}}${damageAfterCrit}{{/dmg}}`;
-        if (effectiveDR > 0) damageBreakdown += ` → DR: {{dr}}-${effectiveDR}{{/dr}}${flanking ? ` (flanked ${Math.round(armor.flankingDefense * 100)}%)` : ''}`;
-        if (resistMod === 'resistant') damageBreakdown += ` → Resist: {{resist}}×0.5{{/resist}}`;
-        if (resistMod === 'vulnerable') damageBreakdown += ` → Vuln: {{vuln}}×1.5{{/vuln}}`;
-        if (resistMod === 'vulnerableEnhanced') damageBreakdown += ` → Vuln+: {{vuln}}×${attackType === 'heavy' ? '2.5' : '2.0'}{{/vuln}}`;
-        damageBreakdown += ` = {{dmg}}${finalDamage}{{/dmg}}`;
+        // Crit modifier
+        if (crit) damageBreakdown += ` -> Crit: x2 = {{dmg}}${damageAfterCrit}{{/dmg}}`;
+
+        // DR modifier with armor name
+        if (effectiveDR > 0) {
+            damageBreakdown += ` -> ${armor.name} DR({{dr}}-${effectiveDR}{{/dr}})`;
+            if (flanking) damageBreakdown += ` (flanked ${Math.round(armor.flankingDefense * 100)}%)`;
+            damageBreakdown += ` = {{dmg}}${damageAfterDR}{{/dmg}}`;
+        }
+
+        // Resist/Vuln modifier
+        if (resistMod === 'resistant') {
+            damageBreakdown += ` -> Resist: {{resist}}x0.5{{/resist}} = {{dmg}}${finalDamage}{{/dmg}}`;
+        } else if (resistMod === 'vulnerable') {
+            damageBreakdown += ` -> Vuln: {{vuln}}x1.5{{/vuln}} = {{dmg}}${finalDamage}{{/dmg}}`;
+        } else if (resistMod === 'vulnerableEnhanced') {
+            damageBreakdown += ` -> Vuln+: {{vuln}}x${attackType === 'heavy' ? '2.5' : '2.0'}{{/vuln}} = {{dmg}}${finalDamage}{{/dmg}}`;
+        }
 
         // Log attack result and damage breakdown on separate lines
         this.logger.combat(logParts.join(' '));
+        if (crit) this.logger.combat(`  CSC= {{csc}}${cscPercent}%{{/csc}}, Roll= {{roll}}${cscRollPercent}{{/roll}}, CRIT`);
         this.logger.combat(`  {{hitPrefix}} ${damageBreakdown}`);
 
         // NOW apply damage through buffer (per-attacker temp HP) - logs appear after damage calc

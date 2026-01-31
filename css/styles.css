@@ -225,6 +225,11 @@ body {
     font-weight: 900; /* Extra bold */
 }
 
+.log-csc {
+    color: #DAA520; /* Goldenrod for CSC percentages */
+    font-weight: 900; /* Extra bold */
+}
+
 .log-hp {
     color: #D2691E; /* Chocolate brown for HP changes */
     font-weight: 900; /* Extra bold */
