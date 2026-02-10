@@ -25,9 +25,6 @@ export class MovementSystem {
         // Get all characters (PC + NPCs)
         const allCharacters = [this.game.pc, ...this.game.npcs];
 
-        // Debug: log any moving characters
-        const movingChars = allCharacters.filter(c => c.isMoving);
-
         allCharacters.forEach(character => {
             if (!character.isMoving || character.movementQueue.length === 0) {
                 return;

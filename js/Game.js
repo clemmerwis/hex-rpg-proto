@@ -246,28 +246,41 @@ export class Game {
     }
 
     async init() {
-        // Load assets (sprites)
-        const assets = await this.assetManager.loadAssets();
-        this.state.assets = assets;
+        try {
+            // Load assets (sprites)
+            const assets = await this.assetManager.loadAssets();
+            this.state.assets = assets;
 
-        // Load initial area (NPCs are instantiated inside loadArea via repository pattern)
-        await this.areaManager.loadArea('bridge_crossing');
+            // Load initial area (NPCs are instantiated inside loadArea via repository pattern)
+            await this.areaManager.loadArea('bridge_crossing');
 
-        // Retrieve instantiated NPCs from AreaManager (loaded from area.json + templates)
-        this.state.npcs = this.areaManager.getNPCs();
+            // Retrieve instantiated NPCs from AreaManager (loaded from area.json + templates)
+            this.state.npcs = this.areaManager.getNPCs();
 
-        // Store area background for renderer fallback
-        this.state.assets.background = this.areaManager.getBackground();
+            // Store area background for renderer fallback
+            this.state.assets.background = this.areaManager.getBackground();
 
-        // Update world dimensions from area
-        const dims = this.areaManager.getDimensions();
-        this.config.world.width = dims.width;
-        this.config.world.height = dims.height;
-        this.renderer.worldWidth = dims.width;
-        this.renderer.worldHeight = dims.height;
+            // Update world dimensions from area
+            const dims = this.areaManager.getDimensions();
+            this.config.world.width = dims.width;
+            this.config.world.height = dims.height;
+            this.renderer.worldWidth = dims.width;
+            this.renderer.worldHeight = dims.height;
 
-        // NOW initialize all characters (assets and NPCs are both loaded)
-        this.onAssetsLoaded();
+            // NOW initialize all characters (assets and NPCs are both loaded)
+            this.onAssetsLoaded();
+        } catch (error) {
+            console.error('Game initialization failed:', error);
+            this.ctx.fillStyle = '#1a1a1a';
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            this.ctx.fillStyle = '#ff4444';
+            this.ctx.font = 'bold 24px Arial';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText('Failed to load game', this.canvas.width / 2, this.canvas.height / 2 - 20);
+            this.ctx.fillStyle = '#aaaaaa';
+            this.ctx.font = '16px Arial';
+            this.ctx.fillText(error.message || 'Check console for details', this.canvas.width / 2, this.canvas.height / 2 + 15);
+        }
     }
 
     onAssetsLoaded() {

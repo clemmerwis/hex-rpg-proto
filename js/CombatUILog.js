@@ -85,7 +85,6 @@ export class CombatUILog {
 	 * Initialize the combat log UI - cache DOM elements and setup events
 	 */
 	init() {
-		console.log('[CombatUILog] Initializing...');
 		// Cache DOM elements
 		this.container = document.getElementById('combatLog');
 		this.header = document.getElementById('combatLogHeader');
@@ -97,8 +96,6 @@ export class CombatUILog {
 			console.error('[CombatUILog] Could not find #combatLog element');
 			return;
 		}
-
-		console.log('[CombatUILog] Initialized successfully');
 
 		// Setup event listeners
 		this.setupDragAndDrop();
@@ -227,13 +224,11 @@ export class CombatUILog {
 	 * Show the combat log
 	 */
 	show() {
-		console.log('[CombatUILog] show() called, container:', this.container);
 		if (!this.container) {
 			console.error('[CombatUILog] Cannot show - container is null');
 			return;
 		}
 		this.container.style.display = 'block';
-		console.log('[CombatUILog] Display set to block');
 
 		// Reset to default position if never moved
 		if (!this.hasBeenMoved) {

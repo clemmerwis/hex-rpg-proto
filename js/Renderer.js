@@ -29,6 +29,10 @@ export class Renderer {
     }
 
     setDependencies(deps) {
+        const required = ['game', 'hexGrid', 'gameStateManager', 'getCharacterAtHex', 'inputHandler', 'pathfinding'];
+        for (const dep of required) {
+            if (!deps[dep]) throw new Error(`Renderer: missing required dependency '${dep}'`);
+        }
         this.game = deps.game;
         this.hexGrid = deps.hexGrid;
         this.gameStateManager = deps.gameStateManager;

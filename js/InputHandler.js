@@ -55,6 +55,10 @@ export class InputHandler {
     }
 
     setDependencies(deps) {
+        const required = ['game', 'hexGrid', 'gameStateManager', 'findPath', 'getCharacterAtHex'];
+        for (const dep of required) {
+            if (!deps[dep]) throw new Error(`InputHandler: missing required dependency '${dep}'`);
+        }
         this.game = deps.game;
         this.hexGrid = deps.hexGrid;
         this.gameStateManager = deps.gameStateManager;
@@ -268,11 +272,13 @@ export class InputHandler {
         if (this.keys['ArrowLeft'] || this.keys['a'] || this.keys['A']) scrollX -= GAME_CONSTANTS.KEYBOARD_SCROLL_SPEED;
         if (this.keys['ArrowRight'] || this.keys['d'] || this.keys['D']) scrollX += GAME_CONSTANTS.KEYBOARD_SCROLL_SPEED;
 
-        if (scrollX !== 0 || scrollY !== 0) {
-            this.keyboardScrollActive = true;
-            this.onCameraUpdate?.({ scrollX, scrollY });
+        if (scrollX === 0 && scrollY === 0) {
+            this.keyboardScrollActive = false;
+            return { scrollX, scrollY };
         }
 
+        this.keyboardScrollActive = true;
+        this.onCameraUpdate?.({ scrollX, scrollY });
         return { scrollX, scrollY };
     }
 
