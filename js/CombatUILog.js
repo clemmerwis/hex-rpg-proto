@@ -388,21 +388,52 @@ export class CombatUILog {
 	}
 
 	/**
+	 * Replace tooltip tokens with hoverable spans
+	 * Format: {{tip:tooltip text}}visible content{{/tip}} -> <span data-tooltip="...">content</span>
+	 * Must run before other tag replacements so inner tokens are still processed
+	 */
+	replaceTooltipTags(text) {
+		const openPattern = '{{tip:';
+		const closeTag = '{{/tip}}';
+
+		while (text.includes(openPattern)) {
+			const startIdx = text.indexOf(openPattern);
+			const tooltipEndIdx = text.indexOf('}}', startIdx + openPattern.length);
+			if (tooltipEndIdx === -1) break;
+
+			const tooltipText = text.substring(startIdx + openPattern.length, tooltipEndIdx);
+			const contentStartIdx = tooltipEndIdx + 2;
+			const contentEndIdx = text.indexOf(closeTag, contentStartIdx);
+			if (contentEndIdx === -1) break;
+
+			const content = text.substring(contentStartIdx, contentEndIdx);
+			const escaped = tooltipText.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+			const formatted = `<span data-tooltip="${escaped}">${content}</span>`;
+
+			text = text.substring(0, startIdx) + formatted + text.substring(contentEndIdx + closeTag.length);
+		}
+		return text;
+	}
+
+	/**
 	 * Format a single log entry with color coding and styling
 	 */
 	formatLogEntry(entry) {
 		let html = entry.message;
 
-		// 1. Replace simple semantic tokens ({{critical}}, {{hit}}, etc.)
+		// 1. Replace tooltip tokens ({{tip:text}}content{{/tip}}) - must be first
+		html = this.replaceTooltipTags(html);
+
+		// 2. Replace simple semantic tokens ({{critical}}, {{hit}}, etc.)
 		html = this.replaceCombatTags(html);
 
-		// 2. Replace wrapper tokens ({{buf}}...{{/buf}}, {{dmg}}...{{/dmg}}, etc.)
+		// 3. Replace wrapper tokens ({{buf}}...{{/buf}}, {{dmg}}...{{/dmg}}, etc.)
 		html = this.replaceWrapperTags(html);
 
-		// 3. Replace character name tokens ({{char:Name}})
+		// 4. Replace character name tokens ({{char:Name}})
 		html = this.replaceCharacterTokens(html);
 
-		// 4. Check if this is a turn separator
+		// 5. Check if this is a turn separator
 		const isSeparator = html.includes('===') || html.includes('---');
 		const cssClass = isSeparator ? 'log-entry log-turn-separator' : 'log-entry';
 

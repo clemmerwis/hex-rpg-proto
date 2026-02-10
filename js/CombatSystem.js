@@ -153,10 +153,11 @@ export class CombatSystem {
         // Format weapon name (camelCase to hyphen-separated)
         const weaponName = attacker.equipment.mainHand.replace(/([A-Z])/g, '-$1').toLowerCase();
 
-        // Base damage formula: weapon(base) + str(raw->mult Mult) x weapon force(X)
-        let damageBreakdown = `${weaponName}(${weapon.base}) + str(${attacker.stats.str}->${strMult} Mult) x ${weaponName} force(${weapon.force})`;
-        if (attackMod !== 0) damageBreakdown += ` + ${attackType}(${attackMod})`;
-        damageBreakdown += ` = {{dmg}}${baseDamage}{{/dmg}}`;
+        // Base damage formula (detail shown on hover, only base number visible)
+        let baseFormula = `${weaponName}_dmg: ${weapon.base}`;
+        if (attackMod !== 0) baseFormula += ` + ${attackType}_dmg: ${attackMod}`;
+        baseFormula += ` + (str_multiplier: ${strMult} x ${weaponName}_force: ${weapon.force})`;
+        let damageBreakdown = `{{tip:${baseFormula}}}{{dmg}}${baseDamage}{{/dmg}}{{/tip}}`;
 
         // Crit modifier
         if (crit) damageBreakdown += ` -> Crit: x2 = {{dmg}}${damageAfterCrit}{{/dmg}}`;
