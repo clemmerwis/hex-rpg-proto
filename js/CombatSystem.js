@@ -13,6 +13,7 @@ export class CombatSystem {
      * Attacks target the HEX, not the character - if hex is empty, attack misses
      * THC = ((Attack_R - Defense_R) + (50 - evasionBonus)) / 100
      * CSC = ((CSA_R - CSD_R) + 50) / 100
+     * Damage pipeline: base → crit(x2) → vuln/resist → flat DR
      * Crit = 2x damage, critMultiplier from passives stacks multiplicatively if present
      */
     executeAttack(attacker, targetHex, attackType = 'light') {
@@ -96,6 +97,25 @@ export class CombatSystem {
 
         const damageAfterCrit = damage;
 
+        // Apply resistance/vulnerability (before DR - multipliers amplify raw damage)
+        let resistMod = null;
+        if (armor.resistantAgainst.includes(weapon.type)) {
+            damage = Math.floor(damage * 0.5);
+            resistMod = 'resistant';
+        } else if (armor.vulnerableAgainst.includes(weapon.type)) {
+            let vulnMult = 1.5;
+            // Enhancement replaces base multiplier when attack type matches
+            if (attackType === 'light' && weapon.effects?.includes('vulnerableEnhancementLight')) {
+                vulnMult = 2.0;
+            } else if (attackType === 'heavy' && weapon.effects?.includes('vulnerableEnhancementHeavy')) {
+                vulnMult = 2.5;
+            }
+            damage = Math.floor(damage * vulnMult);
+            resistMod = vulnMult > 1.5 ? 'vulnerableEnhanced' : 'vulnerable';
+        }
+
+        const damageAfterResist = damage;
+
         // Check flanking (attacker behind defender OR defender over-engaged)
         const behindDefender = isFlanking(
             { q: attacker.hexQ, r: attacker.hexR },
@@ -112,28 +132,9 @@ export class CombatSystem {
             effectiveDR = Math.floor(armor.defense * armor.flankingDefense);
         }
 
-        // Apply DR
+        // Apply DR (flat reduction, final step)
         const drAbsorbed = Math.min(damage, effectiveDR);
         damage = Math.max(0, damage - effectiveDR);
-
-        // Apply resistance/vulnerability (after DR, only if damage > 0)
-        let resistMod = null;
-        if (damage > 0) {
-            if (armor.resistantAgainst.includes(weapon.type)) {
-                damage = Math.floor(damage * 0.5);
-                resistMod = 'resistant';
-            } else if (armor.vulnerableAgainst.includes(weapon.type)) {
-                let vulnMult = 1.5;
-                // Enhancement replaces base multiplier when attack type matches
-                if (attackType === 'light' && weapon.effects?.includes('vulnerableEnhancementLight')) {
-                    vulnMult = 2.0;
-                } else if (attackType === 'heavy' && weapon.effects?.includes('vulnerableEnhancementHeavy')) {
-                    vulnMult = 2.5;
-                }
-                damage = Math.floor(damage * vulnMult);
-                resistMod = vulnMult > 1.5 ? 'vulnerableEnhanced' : 'vulnerable';
-            }
-        }
 
         const finalDamage = damage;
 
@@ -152,9 +153,6 @@ export class CombatSystem {
         // Format weapon name (camelCase to hyphen-separated)
         const weaponName = attacker.equipment.mainHand.replace(/([A-Z])/g, '-$1').toLowerCase();
 
-        // Track damage after DR for logging
-        const damageAfterDR = Math.max(0, damageAfterCrit - effectiveDR);
-
         // Base damage formula: weapon(base) + str(raw->mult Mult) x weapon force(X)
         let damageBreakdown = `${weaponName}(${weapon.base}) + str(${attacker.stats.str}->${strMult} Mult) x ${weaponName} force(${weapon.force})`;
         if (attackMod !== 0) damageBreakdown += ` + ${attackType}(${attackMod})`;
@@ -163,20 +161,20 @@ export class CombatSystem {
         // Crit modifier
         if (crit) damageBreakdown += ` -> Crit: x2 = {{dmg}}${damageAfterCrit}{{/dmg}}`;
 
-        // DR modifier with armor name
+        // Resist/Vuln modifier (applied before DR)
+        if (resistMod === 'resistant') {
+            damageBreakdown += ` -> Resist: {{resist}}x0.5{{/resist}} = {{dmg}}${damageAfterResist}{{/dmg}}`;
+        } else if (resistMod === 'vulnerable') {
+            damageBreakdown += ` -> Vuln: {{vuln}}x1.5{{/vuln}} = {{dmg}}${damageAfterResist}{{/dmg}}`;
+        } else if (resistMod === 'vulnerableEnhanced') {
+            damageBreakdown += ` -> Vuln+: {{vuln}}x${attackType === 'heavy' ? '2.5' : '2.0'}{{/vuln}} = {{dmg}}${damageAfterResist}{{/dmg}}`;
+        }
+
+        // DR modifier with armor name (flat reduction, final step)
         if (effectiveDR > 0) {
             damageBreakdown += ` -> ${armor.name} DR({{dr}}-${effectiveDR}{{/dr}})`;
             if (flanking) damageBreakdown += ` (flanked ${Math.round(armor.flankingDefense * 100)}%)`;
-            damageBreakdown += ` = {{dmg}}${damageAfterDR}{{/dmg}}`;
-        }
-
-        // Resist/Vuln modifier
-        if (resistMod === 'resistant') {
-            damageBreakdown += ` -> Resist: {{resist}}x0.5{{/resist}} = {{dmg}}${finalDamage}{{/dmg}}`;
-        } else if (resistMod === 'vulnerable') {
-            damageBreakdown += ` -> Vuln: {{vuln}}x1.5{{/vuln}} = {{dmg}}${finalDamage}{{/dmg}}`;
-        } else if (resistMod === 'vulnerableEnhanced') {
-            damageBreakdown += ` -> Vuln+: {{vuln}}x${attackType === 'heavy' ? '2.5' : '2.0'}{{/vuln}} = {{dmg}}${finalDamage}{{/dmg}}`;
+            damageBreakdown += ` = {{dmg}}${finalDamage}{{/dmg}}`;
         }
 
         // Log attack result and damage breakdown on separate lines
@@ -190,7 +188,7 @@ export class CombatSystem {
         // Log where the damage actually went (context-sensitive)
         if (bypassed && healthDamage > 0) {
             // Buffer bypassed - damage went directly to HP
-            this.logger.combat(`    → {{char:${defender.name}}}: {{dmg}}-${healthDamage}{{/dmg}} HP {{hp}}(${healthBefore} → ${healthAfter}){{/hp}} {{buf_bypassed}}(buffer bypassed){{/buf_bypassed}}`);
+            this.logger.combat(`    → {{char:${defender.name}}}: {{dmg}}-${healthDamage}{{/dmg}} HP {{hp}}(${healthBefore} → ${healthAfter}){{/hp}} {{buf_bypassed}}[buffer bypassed]{{/buf_bypassed}}`);
         } else if (bufferDamage > 0 && healthDamage > 0) {
             // Damage overflowed buffer into HP
             this.logger.combat(`    → {{char:${defender.name}}}: {{dmg}}-${bufferDamage}{{/dmg}} {{buf_depleted}}buffer (depleted){{/buf_depleted}}, {{dmg}}-${healthDamage}{{/dmg}} HP {{hp}}(${healthBefore} → ${healthAfter}){{/hp}}`);
