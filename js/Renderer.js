@@ -152,6 +152,8 @@ export class Renderer {
         const minR = Math.min(...corners.map(c => c.r)) - 2;
         const maxR = Math.max(...corners.map(c => c.r)) + 2;
 
+        // Collect visible hexes for two-pass rendering
+        const visibleHexes = [];
         for (let q = minQ; q <= maxQ; q++) {
             for (let r = minR; r <= maxR; r++) {
                 const pos = this.hexGrid.hexToPixel(q, r);
@@ -161,9 +163,29 @@ export class Renderer {
                     pos.y >= -this.hexSize &&
                     pos.y <= this.worldHeight + this.hexSize
                 ) {
-                    this.drawHex(q, r);
+                    visibleHexes.push({ q, r });
                 }
             }
+        }
+
+        // Pass 1: Grid lines (base layer)
+        const isoRatio = this.hexGrid.isoRatio;
+        for (const { q, r } of visibleHexes) {
+            const center = this.hexGrid.hexToPixel(q, r);
+            const hexPoints = [];
+            for (let i = 0; i < 6; i++) {
+                const angle = ((2 * Math.PI) / 6) * i - Math.PI / 6;
+                hexPoints.push({
+                    x: center.x + this.hexSize * Math.cos(angle),
+                    y: center.y + this.hexSize * Math.sin(angle) * isoRatio
+                });
+            }
+            this._drawHexPath(hexPoints, null, "rgba(255, 255, 255, 1)", 1);
+        }
+
+        // Pass 2: Hex content (fills, borders, highlights on top of grid)
+        for (const { q, r } of visibleHexes) {
+            this.drawHex(q, r);
         }
     }
 
@@ -211,9 +233,6 @@ export class Renderer {
             const y = center.y + this.hexSize * Math.sin(angle) * isoRatio;
             hexPoints.push({ x, y });
         }
-
-        // Draw default grid
-        this._drawHexPath(hexPoints, null, "rgba(255, 255, 255, 1)", 1);
 
         // Draw dark overlay for blocked hexes (only during combat when hovering blocked terrain)
         const isBlocked = this.pathfinding?.blockedHexes?.has(`${q},${r}`);
