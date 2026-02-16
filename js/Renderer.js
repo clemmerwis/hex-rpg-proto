@@ -1,4 +1,4 @@
-import { GAME_CONSTANTS, FACTIONS, getAnimationConfig } from "./const.js";
+import { GAME_CONSTANTS, FACTIONS, getAnimationConfig, hexKey } from "./const.js";
 import { GAME_STATES, COMBAT_ACTIONS } from "./GameStateManager.js";
 
 export class Renderer {
@@ -60,7 +60,7 @@ export class Renderer {
 
         while (queue.length > 0) {
             const current = queue.shift();
-            const key = `${current.q},${current.r}`;
+            const key = hexKey(current.q, current.r);
 
             if (connected.has(key)) continue;
             if (!this.pathfinding?.blockedHexes?.has(key)) continue;
@@ -70,7 +70,7 @@ export class Renderer {
             // Add all neighbors to queue
             const neighbors = this.hexGrid.getNeighbors(current);
             for (const neighbor of neighbors) {
-                const neighborKey = `${neighbor.q},${neighbor.r}`;
+                const neighborKey = hexKey(neighbor.q, neighbor.r);
                 if (!connected.has(neighborKey)) {
                     queue.push(neighbor);
                 }
@@ -235,13 +235,13 @@ export class Renderer {
         }
 
         // Draw dark overlay for blocked hexes (only during combat when hovering blocked terrain)
-        const isBlocked = this.pathfinding?.blockedHexes?.has(`${q},${r}`);
+        const isBlocked = this.pathfinding?.blockedHexes?.has(hexKey(q, r));
         const inCombat =
             this.gameStateManager?.currentState !== GAME_STATES.EXPLORATION;
         if (isBlocked && inCombat) {
             const hoveredHex = this.inputHandler?.hoveredHex;
             if (hoveredHex) {
-                const hoveredKey = `${hoveredHex.q},${hoveredHex.r}`;
+                const hoveredKey = hexKey(hoveredHex.q, hoveredHex.r);
                 const isHoveredBlocked =
                     this.pathfinding?.blockedHexes?.has(hoveredKey);
 
@@ -256,7 +256,7 @@ export class Renderer {
                         this._cachedHoveredBlockedKey = hoveredKey;
                     }
 
-                    if (this._cachedConnectedBlockedHexes?.has(`${q},${r}`)) {
+                    if (this._cachedConnectedBlockedHexes?.has(hexKey(q, r))) {
                         this._drawHexPath(hexPoints, "rgba(0, 0, 0, 0.20)");
                     }
                 }
@@ -306,7 +306,7 @@ export class Renderer {
                 const distance = this.hexGrid.hexDistance(pcHex, { q, r });
                 const isOccupied = this.getCharacterAtHex(q, r);
                 const isBlocked = this.pathfinding?.blockedHexes?.has(
-                    `${q},${r}`,
+                    hexKey(q, r),
                 );
 
                 if (distance === 1 && !isOccupied && !isBlocked) {
@@ -326,7 +326,7 @@ export class Renderer {
         }
 
         // Draw marked hexes (for map editing)
-        if (this.inputHandler?.markedHexes?.has(`${q},${r}`)) {
+        if (this.inputHandler?.markedHexes?.has(hexKey(q, r))) {
             this.drawMarkedHex(hexPoints);
         }
     }

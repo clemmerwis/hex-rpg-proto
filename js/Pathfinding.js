@@ -1,4 +1,4 @@
-import { GAME_CONSTANTS } from './const.js';
+import { GAME_CONSTANTS, hexKey } from './const.js';
 
 
 export class Pathfinding {
@@ -18,7 +18,7 @@ export class Pathfinding {
         }
 
         // Convert obstacles to a Set for faster lookups
-        const obstacleSet = new Set(obstacles.map(obs => `${obs.q},${obs.r}`));
+        const obstacleSet = new Set(obstacles.map(obs => hexKey(obs.q, obs.r)));
 
         // A* algorithm implementation
         const openSet = [start];
@@ -27,7 +27,7 @@ export class Pathfinding {
         const gScore = new Map();
         const fScore = new Map();
 
-        const startKey = `${start.q},${start.r}`;
+        const startKey = hexKey(start.q, start.r);
         gScore.set(startKey, 0);
         fScore.set(startKey, this.hexGrid.hexDistance(start, goal));
 
@@ -47,7 +47,7 @@ export class Pathfinding {
 
             // Remove current from openSet
             openSet.splice(currentIndex, 1);
-            const currentKey = `${current.q},${current.r}`;
+            const currentKey = hexKey(current.q, current.r);
             closedSet.add(currentKey);
 
             // Check if we reached the goal
@@ -64,11 +64,11 @@ export class Pathfinding {
 
     getLowestFScore(openSet, fScore) {
         let lowest = openSet[0];
-        let lowestScore = fScore.get(`${lowest.q},${lowest.r}`) || Infinity;
+        let lowestScore = fScore.get(hexKey(lowest.q, lowest.r)) || Infinity;
 
         for (let i = 1; i < openSet.length; i++) {
             const node = openSet[i];
-            const score = fScore.get(`${node.q},${node.r}`) || Infinity;
+            const score = fScore.get(hexKey(node.q, node.r)) || Infinity;
             if (score < lowestScore) {
                 lowest = node;
                 lowestScore = score;
@@ -80,11 +80,11 @@ export class Pathfinding {
 
     processNeighbors(current, goal, openSet, closedSet, cameFrom, gScore, fScore, obstacleSet) {
         const neighbors = this.hexGrid.getNeighbors(current);
-        const currentKey = `${current.q},${current.r}`;
+        const currentKey = hexKey(current.q, current.r);
         const currentGScore = gScore.get(currentKey);
 
         for (const neighbor of neighbors) {
-            const neighborKey = `${neighbor.q},${neighbor.r}`;
+            const neighborKey = hexKey(neighbor.q, neighbor.r);
 
             // Skip if already processed, blocked by obstacle, or blocked by terrain
             if (closedSet.has(neighborKey) || obstacleSet.has(neighborKey) || this.blockedHexes.has(neighborKey)) {
@@ -118,7 +118,7 @@ export class Pathfinding {
 
         while (temp) {
             path.unshift(temp);
-            const tempKey = `${temp.q},${temp.r}`;
+            const tempKey = hexKey(temp.q, temp.r);
             temp = cameFrom.get(tempKey);
         }
 
@@ -135,6 +135,6 @@ export class Pathfinding {
     }
 
     setBlockedHexes(hexes) {
-        this.blockedHexes = new Set(hexes.map(h => `${h.q},${h.r}`));
+        this.blockedHexes = new Set(hexes.map(h => hexKey(h.q, h.r)));
     }
 }

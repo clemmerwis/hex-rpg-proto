@@ -1,5 +1,5 @@
 import { GAME_STATES, COMBAT_ACTIONS } from './GameStateManager.js';
-import { GAME_CONSTANTS, rotateFacing } from './const.js';
+import { GAME_CONSTANTS, rotateFacing, hexKey } from './const.js';
 
 export class InputHandler {
     constructor(canvas, config) {
@@ -364,14 +364,14 @@ export class InputHandler {
         if (enabled && blockedHexes.length > 0) {
             // Pre-populate with existing blocked hexes
             blockedHexes.forEach(hex => {
-                this.markedHexes.set(`${hex.q},${hex.r}`, { q: hex.q, r: hex.r });
+                this.markedHexes.set(hexKey(hex.q, hex.r), { q: hex.q, r: hex.r });
             });
         }
         console.log(`Hex marker mode: ${enabled ? 'ON' : 'OFF'}${enabled ? ` (${this.markedHexes.size} blocked hexes loaded)` : ''}`);
     }
 
     toggleMarkedHex(q, r) {
-        const key = `${q},${r}`;
+        const key = hexKey(q, r);
         if (this.markedHexes.has(key)) {
             this.markedHexes.delete(key);
         } else {

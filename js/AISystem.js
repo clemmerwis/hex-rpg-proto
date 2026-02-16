@@ -1,4 +1,4 @@
-import { ARMOR_TYPES } from './const.js';
+import { ARMOR_TYPES, hexKey } from './const.js';
 
 export class AISystem {
     constructor(hexGrid, getCharacterAtHex, pathfinding, logger) {
@@ -225,7 +225,7 @@ export class AISystem {
         let bestPathLength = Infinity;
 
         for (const goalHex of targetNeighbors) {
-            const goalKey = `${goalHex.q},${goalHex.r}`;
+            const goalKey = hexKey(goalHex.q, goalHex.r);
 
             // Skip blocked terrain
             if (this.pathfinding?.blockedHexes?.has(goalKey)) continue;

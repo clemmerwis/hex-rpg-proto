@@ -1,5 +1,5 @@
 import { AISystem } from './AISystem.js';
-import { GAME_CONSTANTS, calculateMoveSpeed, calculateActionSpeed, getSpeedTier, calculateInitiative, getFacingFromDelta } from './const.js';
+import { GAME_CONSTANTS, calculateMoveSpeed, calculateActionSpeed, getSpeedTier, calculateInitiative, getFacingFromDelta, hexKey } from './const.js';
 import { makeEnemies } from './utils.js';
 
 export const GAME_STATES = {
@@ -601,7 +601,7 @@ export class GameStateManager {
         }
 
         // Check if hex is blocked terrain
-        if (this.pathfinding?.blockedHexes?.has(`${hexQ},${hexR}`)) {
+        if (this.pathfinding?.blockedHexes?.has(hexKey(hexQ, hexR))) {
             return false;
         }
 
