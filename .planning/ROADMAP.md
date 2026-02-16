@@ -51,10 +51,10 @@ Plans:
 **Goal**: 722-line GameStateManager broken into focused modules; engagement tracking consolidated; animation timing derived from frameCount
 **Depends on**: Phase 2
 **Research**: Unlikely (internal refactoring)
-**Plans**: TBD
+**Plans**: 3 plans (6 tasks)
 
 Plans:
-- [ ] 03-01: Extract combat execution logic into dedicated module
+- [x] 03-01: Extract combat execution logic into dedicated module (2 tasks)
 - [ ] 03-02: Extract state transition logic and consolidate engagement tracking
 - [ ] 03-03: Derive animation timing from frameCount instead of hardcoded values
 
@@ -109,7 +109,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 |-------|----------------|--------|-----------|
 | 1. Constants & Utilities | 2/2 | Complete | 2026-02-16 |
 | 2. CombatSystem Pipeline | 3/3 | Complete | 2026-02-16 |
-| 3. GameStateManager Split | 0/3 | Not started | - |
+| 3. GameStateManager Split | 1/3 | In progress | - |
 | 4. Renderer Refactor | 0/3 | Not started | - |
 | 5. Supporting File Splits | 0/2 | Not started | - |
 | 6. Bug Fixes & Validation | 0/3 | Not started | - |
