@@ -69,46 +69,15 @@ export class CombatSystem {
 
         const damageAfterResist = damage;
 
-        // Check flanking (attacker behind defender OR defender over-engaged)
-        const behindDefender = isFlanking(
-            { q: attacker.hexQ, r: attacker.hexR },
-            { q: defender.hexQ, r: defender.hexR },
-            defender.facing,
-            this.hexGrid
-        );
-        const cannotEngageBack = !this.gameStateManager.canEngageBack(defender, attacker);
-        const flanking = behindDefender || cannotEngageBack;
-
-        // Calculate effective DR (modified by flanking)
-        let effectiveDR = armor.defense;
-        if (flanking) {
-            effectiveDR = Math.floor(armor.defense * armor.flankingDefense);
-        }
-
-        // Apply DR (flat reduction, before crit)
-        const drAbsorbed = Math.min(damage, effectiveDR);
-        damage = Math.max(0, damage - effectiveDR);
+        // Calculate flanking status and apply DR
+        let flanking, effectiveDR, drAbsorbed;
+        ({ flanking, effectiveDR, drAbsorbed, damage } = this.calculateFlankingAndDR(attacker, defender, damage, armor));
 
         const damageAfterDR = damage;
 
-        // Roll d100 for critical hit (CSC is integer percentage 0-100%)
-        const csc = calculateCSC(attacker, defender);
-        const cscRoll = Math.floor(Math.random() * 100) + 1;
-        const crit = cscRoll <= csc;
-        // Display inverted so "roll high = good" for player readability (same as THC)
-        const cscPercent = 100 - csc;
-        const cscRollPercent = 101 - cscRoll;
-
-        if (crit) {
-            // Critical hit: double damage (applied last in pipeline)
-            damage *= 2;
-
-            // Apply crit multiplier from equipment passives (if any)
-            const critMult = getEquipmentBonus(attacker, 'critMultiplier');
-            if (critMult > 0) {
-                damage *= critMult;
-            }
-        }
+        // Roll for critical hit and apply crit multiplier
+        let crit, cscPercent, cscRollPercent;
+        ({ crit, cscPercent, cscRollPercent, damage } = this.applyCritModifier(attacker, defender, damage));
 
         const finalDamage = damage;
 
@@ -277,6 +246,63 @@ export class CombatSystem {
         const hit = thcRoll <= thc;
 
         return { hit, thc, thcRoll, thcPercent, rollPercent };
+    }
+
+    /**
+     * Calculate flanking status and apply DR (flat damage reduction)
+     * Side-effect-free (read-only queries on gameStateManager and hexGrid)
+     * Returns { flanking, behindDefender, cannotEngageBack, effectiveDR, drAbsorbed, damage: damageAfterDR }
+     */
+    calculateFlankingAndDR(attacker, defender, damage, armor) {
+        // Check flanking (attacker behind defender OR defender over-engaged)
+        const behindDefender = isFlanking(
+            { q: attacker.hexQ, r: attacker.hexR },
+            { q: defender.hexQ, r: defender.hexR },
+            defender.facing,
+            this.hexGrid
+        );
+        const cannotEngageBack = !this.gameStateManager.canEngageBack(defender, attacker);
+        const flanking = behindDefender || cannotEngageBack;
+
+        // Calculate effective DR (modified by flanking)
+        let effectiveDR = armor.defense;
+        if (flanking) {
+            effectiveDR = Math.floor(armor.defense * armor.flankingDefense);
+        }
+
+        // Apply DR (flat reduction, before crit)
+        const drAbsorbed = Math.min(damage, effectiveDR);
+        damage = Math.max(0, damage - effectiveDR);
+
+        return { flanking, behindDefender, cannotEngageBack, effectiveDR, drAbsorbed, damage };
+    }
+
+    /**
+     * Roll for critical hit and apply crit damage multiplier
+     * Has a random roll (d100) so not deterministic, but isolated
+     * Returns { crit, csc, cscRoll, cscPercent, cscRollPercent, damage: finalDamage }
+     */
+    applyCritModifier(attacker, defender, damage) {
+        // Roll d100 for critical hit (CSC is integer percentage 0-100%)
+        const csc = calculateCSC(attacker, defender);
+        const cscRoll = Math.floor(Math.random() * 100) + 1;
+        const crit = cscRoll <= csc;
+        // Display inverted so "roll high = good" for player readability (same as THC)
+        const cscPercent = 100 - csc;
+        const cscRollPercent = 101 - cscRoll;
+
+        if (crit) {
+            // Critical hit: double damage (applied last in pipeline)
+            damage *= 2;
+
+            // Apply crit multiplier from equipment passives (if any)
+            const critMult = getEquipmentBonus(attacker, 'critMultiplier');
+            if (critMult > 0) {
+                damage *= critMult;
+            }
+        }
+
+        return { crit, csc, cscRoll, cscPercent, cscRollPercent, damage };
     }
 
     /**
