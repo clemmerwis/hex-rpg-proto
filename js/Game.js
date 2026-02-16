@@ -9,6 +9,7 @@ import { MovementSystem } from './MovementSystem.js';
 import { CombatSystem } from './CombatSystem.js';
 import { CombatExecutor } from './CombatExecutor.js';
 import { EngagementManager } from './EngagementManager.js';
+import { HexGridRenderer } from './HexGridRenderer.js';
 import { Logger } from './Logger.js';
 import { CombatUILog } from './CombatUILog.js';
 import { CharacterFactory } from './CharacterFactory.js';
@@ -110,6 +111,8 @@ export class Game {
             GAME_CONSTANTS.WORLD_HEIGHT
         );
 
+        this.hexGridRenderer = new HexGridRenderer(this.hexGrid, GAME_CONSTANTS.HEX_SIZE);
+
         this.pathfinding = new Pathfinding(this.hexGrid);
 
         // Initialize AreaManager for map loading
@@ -196,6 +199,16 @@ export class Game {
             this.updateGameStateUI();
         };
 
+        // HexGridRenderer dependencies
+        this.hexGridRenderer.setDependencies({
+            game: this.state,
+            getCharacterAtHex: this.getCharacterAtHex.bind(this),
+            gameStateManager: this.gameStateManager,
+            inputHandler: this.inputHandler,
+            pathfinding: this.pathfinding,
+            engagementManager: this.engagementManager,
+        });
+
         // Renderer dependencies
         this.renderer.setDependencies({
             game: this.state,
@@ -205,7 +218,7 @@ export class Game {
             inputHandler: this.inputHandler,
             areaManager: this.areaManager,
             pathfinding: this.pathfinding,
-            engagementManager: this.engagementManager,
+            hexGridRenderer: this.hexGridRenderer,
         });
 
         // InputHandler dependencies and callbacks

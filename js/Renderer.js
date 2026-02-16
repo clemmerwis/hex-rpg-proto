@@ -1,5 +1,4 @@
-import { GAME_CONSTANTS, FACTIONS, getAnimationConfig, hexKey } from "./const.js";
-import { GAME_STATES, COMBAT_ACTIONS } from "./GameStateManager.js";
+import { GAME_CONSTANTS, getAnimationConfig } from "./const.js";
 
 export class Renderer {
     constructor(canvas, ctx, config) {
@@ -22,14 +21,11 @@ export class Renderer {
         this.inputHandler = null;
         this.areaManager = null;
         this.pathfinding = null;
-
-        // Cache for connected blocked hexes (flood-fill)
-        this._cachedConnectedBlockedHexes = null;
-        this._cachedHoveredBlockedKey = null;
+        this.hexGridRenderer = null;
     }
 
     setDependencies(deps) {
-        const required = ['game', 'hexGrid', 'gameStateManager', 'getCharacterAtHex', 'inputHandler', 'pathfinding'];
+        const required = ['game', 'hexGrid', 'gameStateManager', 'getCharacterAtHex', 'inputHandler', 'pathfinding', 'hexGridRenderer'];
         for (const dep of required) {
             if (!deps[dep]) throw new Error(`Renderer: missing required dependency '${dep}'`);
         }
@@ -40,45 +36,12 @@ export class Renderer {
         this.inputHandler = deps.inputHandler;
         this.areaManager = deps.areaManager;
         this.pathfinding = deps.pathfinding;
-        this.engagementManager = deps.engagementManager;
+        this.hexGridRenderer = deps.hexGridRenderer;
     }
 
-    // Get faction display data (companions use different color than hero)
+    // Delegate to HexGridRenderer (needed by drawCharacter/drawNameplate)
     getFactionData(character) {
-        if (character === this.game.pc) {
-            return FACTIONS.pc;
-        }
-        if (character.faction === "pc") {
-            return FACTIONS.pc_ally;
-        }
-        return FACTIONS[character.faction] || FACTIONS.guard;
-    }
-
-    // Find all blocked hexes connected to the starting hex (flood-fill)
-    getConnectedBlockedHexes(startQ, startR) {
-        const connected = new Set();
-        const queue = [{ q: startQ, r: startR }];
-
-        while (queue.length > 0) {
-            const current = queue.shift();
-            const key = hexKey(current.q, current.r);
-
-            if (connected.has(key)) continue;
-            if (!this.pathfinding?.blockedHexes?.has(key)) continue;
-
-            connected.add(key);
-
-            // Add all neighbors to queue
-            const neighbors = this.hexGrid.getNeighbors(current);
-            for (const neighbor of neighbors) {
-                const neighborKey = hexKey(neighbor.q, neighbor.r);
-                if (!connected.has(neighborKey)) {
-                    queue.push(neighbor);
-                }
-            }
-        }
-
-        return connected;
+        return this.hexGridRenderer.getFactionData(character);
     }
 
     render(cameraX, cameraY, showGrid) {
@@ -96,7 +59,7 @@ export class Renderer {
         // Draw layers
         this.drawBackground();
         if (showGrid) {
-            this.drawHexGrid(cameraX, cameraY);
+            this.hexGridRenderer.drawHexGrid(this.ctx, cameraX, cameraY);
         }
         this.drawCharacters();
 
@@ -136,309 +99,6 @@ export class Renderer {
                 this.ctx.stroke();
             }
         }
-    }
-
-    drawHexGrid(cameraX, cameraY) {
-        // Calculate hex range that covers the entire world
-        // Use corners of the world to find the full hex range needed
-        const corners = [
-            this.hexGrid.pixelToHex(0, 0),
-            this.hexGrid.pixelToHex(this.worldWidth, 0),
-            this.hexGrid.pixelToHex(0, this.worldHeight),
-            this.hexGrid.pixelToHex(this.worldWidth, this.worldHeight)
-        ];
-
-        const minQ = Math.min(...corners.map(c => c.q)) - 2;
-        const maxQ = Math.max(...corners.map(c => c.q)) + 2;
-        const minR = Math.min(...corners.map(c => c.r)) - 2;
-        const maxR = Math.max(...corners.map(c => c.r)) + 2;
-
-        // Collect visible hexes for two-pass rendering
-        const visibleHexes = [];
-        for (let q = minQ; q <= maxQ; q++) {
-            for (let r = minR; r <= maxR; r++) {
-                const pos = this.hexGrid.hexToPixel(q, r);
-                if (
-                    pos.x >= -this.hexSize &&
-                    pos.x <= this.worldWidth + this.hexSize &&
-                    pos.y >= -this.hexSize &&
-                    pos.y <= this.worldHeight + this.hexSize
-                ) {
-                    visibleHexes.push({ q, r });
-                }
-            }
-        }
-
-        // Pass 1: Grid lines (base layer)
-        const isoRatio = this.hexGrid.isoRatio;
-        for (const { q, r } of visibleHexes) {
-            const center = this.hexGrid.hexToPixel(q, r);
-            const hexPoints = [];
-            for (let i = 0; i < 6; i++) {
-                const angle = ((2 * Math.PI) / 6) * i - Math.PI / 6;
-                hexPoints.push({
-                    x: center.x + this.hexSize * Math.cos(angle),
-                    y: center.y + this.hexSize * Math.sin(angle) * isoRatio
-                });
-            }
-            this._drawHexPath(hexPoints, null, "rgba(255, 255, 255, 1)", 1);
-        }
-
-        // Pass 2: Hex content (fills, borders, highlights on top of grid)
-        for (const { q, r } of visibleHexes) {
-            this.drawHex(q, r);
-        }
-    }
-
-    /**
-     * Helper method to draw a hex path with optional fill and stroke
-     * Eliminates duplication of the hex path drawing pattern (8 instances)
-     * @param {Array} hexPoints - Array of {x, y} points for hex corners
-     * @param {string|null} fillStyle - Fill color (null to skip fill)
-     * @param {string|null} strokeStyle - Stroke color (null to skip stroke)
-     * @param {number} lineWidth - Line width for stroke (default: 1)
-     */
-    _drawHexPath(hexPoints, fillStyle = null, strokeStyle = null, lineWidth = 1) {
-        this.ctx.beginPath();
-        hexPoints.forEach((point, i) => {
-            if (i === 0) {
-                this.ctx.moveTo(point.x, point.y);
-            } else {
-                this.ctx.lineTo(point.x, point.y);
-            }
-        });
-        this.ctx.closePath();
-
-        if (fillStyle) {
-            this.ctx.fillStyle = fillStyle;
-            this.ctx.fill();
-        }
-
-        if (strokeStyle) {
-            this.ctx.strokeStyle = strokeStyle;
-            this.ctx.lineWidth = lineWidth;
-            this.ctx.stroke();
-        }
-    }
-
-    drawHex(q, r) {
-        const center = this.hexGrid.hexToPixel(q, r);
-        const characterHere = this.getCharacterAtHex(q, r);
-
-        // Calculate hex corner points (with isometric Y compression)
-        const isoRatio = this.hexGrid.isoRatio;
-        const hexPoints = [];
-        for (let i = 0; i < 6; i++) {
-            const angle = ((2 * Math.PI) / 6) * i - Math.PI / 6;
-            const x = center.x + this.hexSize * Math.cos(angle);
-            const y = center.y + this.hexSize * Math.sin(angle) * isoRatio;
-            hexPoints.push({ x, y });
-        }
-
-        // Draw dark overlay for blocked hexes (only during combat when hovering blocked terrain)
-        const isBlocked = this.pathfinding?.blockedHexes?.has(hexKey(q, r));
-        const inCombat =
-            this.gameStateManager?.currentState !== GAME_STATES.EXPLORATION;
-        if (isBlocked && inCombat) {
-            const hoveredHex = this.inputHandler?.hoveredHex;
-            if (hoveredHex) {
-                const hoveredKey = hexKey(hoveredHex.q, hoveredHex.r);
-                const isHoveredBlocked =
-                    this.pathfinding?.blockedHexes?.has(hoveredKey);
-
-                if (isHoveredBlocked) {
-                    // Use cached connected set, or compute if hovered hex changed
-                    if (this._cachedHoveredBlockedKey !== hoveredKey) {
-                        this._cachedConnectedBlockedHexes =
-                            this.getConnectedBlockedHexes(
-                                hoveredHex.q,
-                                hoveredHex.r,
-                            );
-                        this._cachedHoveredBlockedKey = hoveredKey;
-                    }
-
-                    if (this._cachedConnectedBlockedHexes?.has(hexKey(q, r))) {
-                        this._drawHexPath(hexPoints, "rgba(0, 0, 0, 0.20)");
-                    }
-                }
-            }
-        }
-
-        // Draw active character hex glow (before faction borders so gradient appears on top)
-        if (characterHere) {
-            const inCombatInput = this.gameStateManager?.isInCombatInput();
-            const inCombatExecution =
-                this.gameStateManager?.isInCombatExecution();
-
-            // During combat input: highlight PC's hex
-            if (inCombatInput && characterHere === this.game.pc) {
-                this.drawActiveHexGlow(hexPoints, center, characterHere);
-            }
-            // During combat execution: highlight executing character's hex
-            // but NOT if they've arrived at their move destination
-            if (
-                inCombatExecution &&
-                this.gameStateManager.isExecutingCharacter(characterHere)
-            ) {
-                const action = this.gameStateManager.characterActions.get(characterHere);
-                const isAtMoveDestination = action?.action === COMBAT_ACTIONS.MOVE &&
-                    action.target.q === q && action.target.r === r;
-
-                if (!isAtMoveDestination) {
-                    this.drawActiveHexGlow(hexPoints, center, characterHere);
-                }
-            }
-        }
-
-        // Draw faction borders if character present
-        if (characterHere) {
-            this.drawFactionBorders(hexPoints, q, r, characterHere);
-        }
-
-        // Draw hover highlight for valid adjacent hexes during combat input
-        if (
-            this.gameStateManager.currentState === GAME_STATES.COMBAT_INPUT &&
-            !this.gameStateManager.characterActions.has(this.game.pc)
-        ) {
-            const hoveredHex = this.inputHandler?.hoveredHex;
-            if (hoveredHex && hoveredHex.q === q && hoveredHex.r === r) {
-                // Check if this is a valid adjacent hex (distance 1 from player, unoccupied, not blocked)
-                const pcHex = { q: this.game.pc.hexQ, r: this.game.pc.hexR };
-                const distance = this.hexGrid.hexDistance(pcHex, { q, r });
-                const isOccupied = this.getCharacterAtHex(q, r);
-                const isBlocked = this.pathfinding?.blockedHexes?.has(
-                    hexKey(q, r),
-                );
-
-                if (distance === 1 && !isOccupied && !isBlocked) {
-                    this.drawHoverHex(hexPoints);
-                }
-            }
-        }
-
-        // Draw player selected move target (but not if character already there)
-        if (
-            this.gameStateManager.playerSelectedHex &&
-            this.gameStateManager.playerSelectedHex.q === q &&
-            this.gameStateManager.playerSelectedHex.r === r &&
-            !characterHere
-        ) {
-            this.drawSelectedHex(hexPoints);
-        }
-
-        // Draw marked hexes (for map editing)
-        if (this.inputHandler?.markedHexes?.has(hexKey(q, r))) {
-            this.drawMarkedHex(hexPoints);
-        }
-    }
-
-    drawFactionBorders(hexPoints, q, r, character) {
-        const factionData = this.getFactionData(character);
-
-        // Fill hex with very transparent faction color
-        this._drawHexPath(hexPoints, factionData.tintColor + "25");
-
-        // Check for adjacent different factions
-        const adjacentDirs = [
-            [1, 0],
-            [0, 1],
-            [-1, 1],
-            [-1, 0],
-            [0, -1],
-            [1, -1],
-        ];
-
-        const sharedEdges = [];
-        adjacentDirs.forEach((dir, edgeIndex) => {
-            const [dq, dr] = dir;
-            const adjCharacter = this.getCharacterAtHex(q + dq, r + dr);
-            if (adjCharacter && adjCharacter.faction !== character.faction) {
-                sharedEdges.push(edgeIndex);
-            }
-        });
-
-        // Draw main faction border
-        this._drawHexPath(hexPoints, null, factionData.tintColor + "99", 2);
-
-        // Draw shared borders with engagement-aware gradients
-        sharedEdges.forEach((edgeIndex) => {
-            const [dq, dr] = adjacentDirs[edgeIndex];
-            const adjCharacter = this.getCharacterAtHex(q + dq, r + dr);
-            const adjFactionData = this.getFactionData(adjCharacter);
-
-            const startPoint = hexPoints[edgeIndex];
-            const endPoint = hexPoints[(edgeIndex + 1) % 6];
-
-            // Check engagement status for visual indicator
-            const thisCanEngageAdj = this.engagementManager?.canEngageBack(character, adjCharacter) ?? true;
-            const adjCanEngageThis = this.engagementManager?.canEngageBack(adjCharacter, character) ?? true;
-
-            let strokeStyle;
-            if (thisCanEngageAdj && adjCanEngageThis) {
-                // Mutual engagement: 50/50 gradient
-                const gradient = this.ctx.createLinearGradient(
-                    startPoint.x, startPoint.y,
-                    endPoint.x, endPoint.y
-                );
-                gradient.addColorStop(0, factionData.tintColor);
-                gradient.addColorStop(1, adjFactionData.tintColor);
-                strokeStyle = gradient;
-            } else if (!thisCanEngageAdj && adjCanEngageThis) {
-                // This character cannot engage adjacent back: adjacent's color dominates (they have advantage)
-                strokeStyle = adjFactionData.tintColor;
-            } else if (thisCanEngageAdj && !adjCanEngageThis) {
-                // Adjacent cannot engage this character back: this character's color dominates
-                strokeStyle = factionData.tintColor;
-            } else {
-                // Neither can engage the other: neutral gradient
-                const gradient = this.ctx.createLinearGradient(
-                    startPoint.x, startPoint.y,
-                    endPoint.x, endPoint.y
-                );
-                gradient.addColorStop(0, factionData.tintColor);
-                gradient.addColorStop(1, adjFactionData.tintColor);
-                strokeStyle = gradient;
-            }
-
-            this.ctx.beginPath();
-            this.ctx.moveTo(startPoint.x, startPoint.y);
-            this.ctx.lineTo(endPoint.x, endPoint.y);
-            this.ctx.strokeStyle = strokeStyle;
-            this.ctx.lineWidth = 15;
-            this.ctx.stroke();
-        });
-    }
-
-    drawHoverHex(hexPoints) {
-        this._drawHexPath(hexPoints, "rgba(33, 150, 243, 0.25)", "rgba(33, 150, 243, 0.7)", 2);
-    }
-
-    drawSelectedHex(hexPoints) {
-        this._drawHexPath(hexPoints, "rgba(173, 216, 230, 0.4)", "#87CEEB", 3);
-    }
-
-    drawMarkedHex(hexPoints) {
-        this._drawHexPath(hexPoints, "rgba(255, 165, 0, 0.5)", "#FF8C00", 3);
-    }
-
-    drawActiveHexGlow(hexPoints, center, character) {
-        // Glowing effect using character's faction color
-        const factionData = this.getFactionData(character);
-        const hexColor = factionData.tintColor;
-
-        // Convert hex to RGB for rgba usage
-        const r = parseInt(hexColor.slice(1, 3), 16);
-        const g = parseInt(hexColor.slice(3, 5), 16);
-        const b = parseInt(hexColor.slice(5, 7), 16);
-
-        this.ctx.save();
-
-        // Outer soft glow using faction color
-        this.ctx.shadowColor = `rgba(${r}, ${g}, ${b}, 0.8)`;
-        this.ctx.shadowBlur = 20;
-        this._drawHexPath(hexPoints, null, `rgba(${r}, ${g}, ${b}, 0.6)`, 4);
-
-        this.ctx.restore();
     }
 
     drawCharacters() {
