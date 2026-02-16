@@ -46,20 +46,8 @@ export class CombatSystem {
             this.logger.warn(`[FRIENDLY FIRE WARNING] ${attacker.name} attacks ally ${defender.name}!`);
         }
 
-        // Calculate ratings from skills and stats
-        const attackRating = calculateAttackRating(attacker);
-        const defenseRating = calculateDefenseRating(defender);
-
-        // Calculate to-hit chance as integer percentage (0-100%)
-        const evasionBonus = getEquipmentBonus(defender, 'evasionBonus');
-        const thc = Math.max(0, Math.min(100, attackRating - defenseRating + (50 - evasionBonus)));
-
-        // Roll d100 (1-100), hit if roll <= THC
-        const thcRoll = Math.floor(Math.random() * 100) + 1;
-        // Display inverted so "roll high = good" for player readability
-        const thcPercent = 100 - thc;
-        const rollPercent = 101 - thcRoll;
-        const hit = thcRoll <= thc;
+        // Resolve hit roll (attack/defense ratings, THC, d100)
+        const { hit, thc, thcRoll, thcPercent, rollPercent } = this.resolveHitRoll(attacker, defender);
 
         if (!hit) {
             this.logger.combat(`{{char:${attacker.name}}}: ${attackTypeName} {{char:${defender.name}}} (THC= {{thc}}${thcPercent}%{{/thc}}, Roll= {{roll}}${rollPercent}{{/roll}}, {{miss}})`);
@@ -76,21 +64,8 @@ export class CombatSystem {
         const baseDamage = damage;
 
         // Apply resistance/vulnerability (multipliers amplify raw damage before DR)
-        let resistMod = null;
-        if (armor.resistantAgainst.includes(weapon.type)) {
-            damage = Math.floor(damage * 0.5);
-            resistMod = 'resistant';
-        } else if (armor.vulnerableAgainst.includes(weapon.type)) {
-            let vulnMult = 1.5;
-            // Enhancement replaces base multiplier when attack type matches
-            if (attackType === 'light' && weapon.effects?.includes('vulnerableEnhancementLight')) {
-                vulnMult = 2.0;
-            } else if (attackType === 'heavy' && weapon.effects?.includes('vulnerableEnhancementHeavy')) {
-                vulnMult = 2.5;
-            }
-            damage = Math.floor(damage * vulnMult);
-            resistMod = vulnMult > 1.5 ? 'vulnerableEnhanced' : 'vulnerable';
-        }
+        let resistMod;
+        ({ damage, resistMod } = this.applyResistanceModifier(damage, weapon, armor, attackType));
 
         const damageAfterResist = damage;
 
@@ -279,6 +254,53 @@ export class CombatSystem {
         const healthAfter = defender.health;
 
         return { bufferDamage, healthDamage, bufferBefore, bufferAfter, healthBefore, healthAfter, bypassed: bypassBuffer };
+    }
+
+    /**
+     * Resolve hit roll: calculate THC from ratings and roll d100
+     * Pure calculation — no side effects, no logging
+     * Returns { hit, thc, thcRoll, thcPercent, rollPercent }
+     */
+    resolveHitRoll(attacker, defender) {
+        const attackRating = calculateAttackRating(attacker);
+        const defenseRating = calculateDefenseRating(defender);
+
+        // Calculate to-hit chance as integer percentage (0-100%)
+        const evasionBonus = getEquipmentBonus(defender, 'evasionBonus');
+        const thc = Math.max(0, Math.min(100, attackRating - defenseRating + (50 - evasionBonus)));
+
+        // Roll d100 (1-100), hit if roll <= THC
+        const thcRoll = Math.floor(Math.random() * 100) + 1;
+        // Display inverted so "roll high = good" for player readability
+        const thcPercent = 100 - thc;
+        const rollPercent = 101 - thcRoll;
+        const hit = thcRoll <= thc;
+
+        return { hit, thc, thcRoll, thcPercent, rollPercent };
+    }
+
+    /**
+     * Apply resistance/vulnerability modifier to damage based on weapon type vs armor
+     * Pure calculation — no side effects
+     * Returns { damage: modifiedDamage, resistMod } where resistMod is null | 'resistant' | 'vulnerable' | 'vulnerableEnhanced'
+     */
+    applyResistanceModifier(damage, weapon, armor, attackType) {
+        let resistMod = null;
+        if (armor.resistantAgainst.includes(weapon.type)) {
+            damage = Math.floor(damage * 0.5);
+            resistMod = 'resistant';
+        } else if (armor.vulnerableAgainst.includes(weapon.type)) {
+            let vulnMult = 1.5;
+            // Enhancement replaces base multiplier when attack type matches
+            if (attackType === 'light' && weapon.effects?.includes('vulnerableEnhancementLight')) {
+                vulnMult = 2.0;
+            } else if (attackType === 'heavy' && weapon.effects?.includes('vulnerableEnhancementHeavy')) {
+                vulnMult = 2.5;
+            }
+            damage = Math.floor(damage * vulnMult);
+            resistMod = vulnMult > 1.5 ? 'vulnerableEnhanced' : 'vulnerable';
+        }
+        return { damage, resistMod };
     }
 
     /**
