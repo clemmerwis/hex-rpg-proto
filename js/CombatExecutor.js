@@ -1,4 +1,4 @@
-import { GAME_CONSTANTS, calculateMoveSpeed, calculateActionSpeed, getSpeedTier, calculateInitiative, getFacingFromDelta } from './const.js';
+import { GAME_CONSTANTS, calculateMoveSpeed, calculateActionSpeed, getSpeedTier, calculateInitiative, getFacingFromDelta, calculateAttackTiming } from './const.js';
 import { makeEnemies } from './utils.js';
 
 export class CombatExecutor {
@@ -17,12 +17,27 @@ export class CombatExecutor {
         this.currentMoveIndex = 0;
         this.currentActionIndex = 0;
 
+        // Attack timing — derived from sprite data via setAttackTiming(),
+        // falls back to GAME_CONSTANTS if never called
+        this.attackWindupMs = GAME_CONSTANTS.COMBAT_ATTACK_WINDUP;
+        this.attackRecoveryMs = GAME_CONSTANTS.COMBAT_ATTACK_RECOVERY;
+
         // Callbacks — set by GameStateManager after construction
         this.onExecutionComplete = null;
         this.onCharacterDefeated = null;
         this.onClearRecentlyHit = null;
         this.onClearPlayerSelection = null;
         this.onUpdateEngagement = null;
+    }
+
+    /**
+     * Derive attack timing from a sprite set's animation data.
+     * Call once after construction to replace GAME_CONSTANTS fallbacks.
+     */
+    setAttackTiming(spriteSet) {
+        const timing = calculateAttackTiming(spriteSet);
+        this.attackWindupMs = timing.windupMs;
+        this.attackRecoveryMs = timing.recoveryMs;
     }
 
     /**
@@ -250,8 +265,8 @@ export class CombatExecutor {
                 character.currentAnimation = 'idle';
                 this.currentActionIndex++;
                 this.executeNextAttack();
-            }, GAME_CONSTANTS.COMBAT_ATTACK_RECOVERY);
-        }, GAME_CONSTANTS.COMBAT_ATTACK_WINDUP);
+            }, this.attackRecoveryMs);
+        }, this.attackWindupMs);
     }
 
     /**

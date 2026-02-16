@@ -13,7 +13,7 @@ import { Logger } from './Logger.js';
 import { CombatUILog } from './CombatUILog.js';
 import { CharacterFactory } from './CharacterFactory.js';
 import { UIManager } from './UIManager.js';
-import { GAME_CONSTANTS, FACTIONS, calculateMaxHP, calculateHPBuffer, calculateEngagedMax } from './const.js';
+import { GAME_CONSTANTS, FACTIONS, SPRITE_SETS, calculateMaxHP, calculateHPBuffer, calculateEngagedMax } from './const.js';
 import { makeEnemies } from './utils.js';
 
 export class Game {
@@ -143,6 +143,9 @@ export class Game {
             this.combatSystem,
             this.logger
         );
+
+        // Use first available sprite set's attack timing (all sets share same attack/impact frameCount)
+        this.combatExecutor.setAttackTiming(SPRITE_SETS[Object.keys(SPRITE_SETS)[0]]);
 
         // Initialize EngagementManager (canonical source for all engagement logic)
         this.engagementManager = new EngagementManager(
