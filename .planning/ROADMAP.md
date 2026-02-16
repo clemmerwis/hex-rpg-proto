@@ -65,7 +65,7 @@ Plans:
 **Plans**: TBD
 
 Plans:
-- [ ] 04-01: Extract hex grid rendering into dedicated module
+- [x] 04-01: Extract hex grid rendering into dedicated module
 - [ ] 04-02: Extract UI overlay rendering
 - [ ] 04-03: Add hex visibility caching and pre-compute flood-fill regions
 
@@ -110,7 +110,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 1. Constants & Utilities | 2/2 | Complete | 2026-02-16 |
 | 2. CombatSystem Pipeline | 3/3 | Complete | 2026-02-16 |
 | 3. GameStateManager Split | 3/3 | Complete | 2026-02-16 |
-| 4. Renderer Refactor | 0/3 | Not started | - |
+| 4. Renderer Refactor | 1/3 | In progress | - |
 | 5. Supporting File Splits | 0/2 | Not started | - |
 | 6. Bug Fixes & Validation | 0/3 | Not started | - |
 | 7. Performance Optimization | 0/2 | Not started | - |
