@@ -198,6 +198,11 @@ body {
 /* Combat log text formatting classes */
 .log-entry {
     margin-bottom: 2px;
+    padding: 4px 0;
+}
+
+.log-entry:has(.log-hit) {
+    margin-top: 8px;
 }
 
 .log-damage {
@@ -226,7 +231,7 @@ body {
 }
 
 .log-csc {
-    color: #DAA520; /* Goldenrod for CSC percentages */
+    color: #D2691E; /* Match THC/Roll color */
     font-weight: 900; /* Extra bold */
 }
 
@@ -300,4 +305,9 @@ body {
     margin: 8px 0;
     padding-top: 4px;
     font-weight: bold;
+}
+
+.log-row-separator {
+    border-top: 1px solid #8B451380;
+    margin: 8px 0;
 }

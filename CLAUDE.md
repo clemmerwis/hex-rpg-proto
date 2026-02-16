@@ -12,6 +12,7 @@ This project uses the [Get Shit Done (GSD)](https://github.com/glittercowboy/get
 
 - **Read freely**: Reference `.planning/` files for context on project roadmap, current phase, and implementation plans
 - **Do not write**: Let GSD commands (`/gsd:*`) handle all writes to `.planning/` files
+- **No auto-commits**: GSD workflows must NOT commit automatically. Always let the user decide when to commit.
 
 ## Project Overview
 

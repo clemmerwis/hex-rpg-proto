@@ -93,6 +93,10 @@ export class Logger {
 		this.log(LOG_LEVELS.COMBAT, message, data);
 	}
 
+	combatSeparator() {
+		this.log(LOG_LEVELS.COMBAT, '{{row_separator}}');
+	}
+
 	warn(message, data) {
 		this.log(LOG_LEVELS.WARNING, message, data);
 	}

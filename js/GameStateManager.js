@@ -138,10 +138,11 @@ export class GameStateManager {
         // Show combat log UI
         this.gameInstance?.combatUILog?.show();
 
-        // Log combat start or new turn
+        // Log combat start or new round
         if (this.turnNumber === 1) {
             this.logger.combat('=== COMBAT START ===');
-            this.logger.combat('-------------\n');
+        } else {
+            this.logger.combat(`--- Round ${this.turnNumber} ---`);
         }
 
         // Stop any current movement
@@ -235,6 +236,9 @@ export class GameStateManager {
         // Clear recently hit - new character is starting their turn
         this.clearRecentlyHitCharacters();
 
+        // Separator between character actions
+        this.logger.combatSeparator();
+
         const action = this.characterActions.get(character);
 
         // Check if target hex is occupied (collision detection)
@@ -306,6 +310,9 @@ export class GameStateManager {
 
         // Clear recently hit - new character is starting their turn
         this.clearRecentlyHitCharacters();
+
+        // Separator between character actions
+        this.logger.combatSeparator();
 
         const action = this.characterActions.get(character);
 

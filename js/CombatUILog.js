@@ -70,6 +70,7 @@ export class CombatUILog {
 
 		// Last processed log index (for incremental updates)
 		this.lastProcessedIndex = 0;
+		this.lastWasSeparator = false;
 
 		// Track if box has been moved by user
 		this.hasBeenMoved = false;
@@ -263,6 +264,7 @@ export class CombatUILog {
 		this.logger.clearGameLog();
 		this.content.innerHTML = '';
 		this.lastProcessedIndex = 0;
+		this.lastWasSeparator = false;
 	}
 
 	/**
@@ -278,6 +280,10 @@ export class CombatUILog {
 			for (const entry of newEntries) {
 				// Only show combat and info level logs
 				if (entry.level === 'combat' || entry.level === 'info') {
+					// Skip consecutive separators
+					if (entry.message === '{{row_separator}}' && this.lastWasSeparator) continue;
+					this.lastWasSeparator = entry.message === '{{row_separator}}';
+
 					const formattedHTML = this.formatLogEntry(entry);
 					this.content.innerHTML += formattedHTML;
 				}
@@ -419,6 +425,11 @@ export class CombatUILog {
 	 * Format a single log entry with color coding and styling
 	 */
 	formatLogEntry(entry) {
+		// Row separator - thin line between character actions
+		if (entry.message === '{{row_separator}}') {
+			return '<div class="log-row-separator"></div>';
+		}
+
 		let html = entry.message;
 
 		// 1. Replace tooltip tokens ({{tip:text}}content{{/tip}}) - must be first
