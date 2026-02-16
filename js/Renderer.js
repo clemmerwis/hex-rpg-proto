@@ -40,6 +40,7 @@ export class Renderer {
         this.inputHandler = deps.inputHandler;
         this.areaManager = deps.areaManager;
         this.pathfinding = deps.pathfinding;
+        this.engagementManager = deps.engagementManager;
     }
 
     // Get faction display data (companions use different color than hero)
@@ -369,8 +370,8 @@ export class Renderer {
             const endPoint = hexPoints[(edgeIndex + 1) % 6];
 
             // Check engagement status for visual indicator
-            const thisCanEngageAdj = this.gameStateManager?.canEngageBack(character, adjCharacter) ?? true;
-            const adjCanEngageThis = this.gameStateManager?.canEngageBack(adjCharacter, character) ?? true;
+            const thisCanEngageAdj = this.engagementManager?.canEngageBack(character, adjCharacter) ?? true;
+            const adjCanEngageThis = this.engagementManager?.canEngageBack(adjCharacter, character) ?? true;
 
             let strokeStyle;
             if (thisCanEngageAdj && adjCanEngageThis) {

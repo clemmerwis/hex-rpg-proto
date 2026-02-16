@@ -8,6 +8,7 @@ import { Pathfinding } from './Pathfinding.js';
 import { MovementSystem } from './MovementSystem.js';
 import { CombatSystem } from './CombatSystem.js';
 import { CombatExecutor } from './CombatExecutor.js';
+import { EngagementManager } from './EngagementManager.js';
 import { Logger } from './Logger.js';
 import { CombatUILog } from './CombatUILog.js';
 import { CharacterFactory } from './CharacterFactory.js';
@@ -143,6 +144,13 @@ export class Game {
             this.logger
         );
 
+        // Initialize EngagementManager (canonical source for all engagement logic)
+        this.engagementManager = new EngagementManager(
+            this.hexGrid,
+            this.getCharacterAtHex.bind(this),
+            this.logger
+        );
+
         // Now create GameStateManager with MovementSystem, CombatSystem, logger, and Game instance
         this.gameStateManager = new GameStateManager(
             this.state,
@@ -153,12 +161,14 @@ export class Game {
             this.pathfinding,
             this.logger,
             this,  // Pass the Game instance for accessing UI systems
-            this.combatExecutor
+            this.combatExecutor,
+            this.engagementManager
         );
 
         // Set the gameStateManager reference in dependent systems (circular dependency)
         this.movementSystem.gameStateManager = this.gameStateManager;
         this.combatSystem.gameStateManager = this.gameStateManager;
+        this.combatSystem.engagementManager = this.engagementManager;
 
         this.renderer = new Renderer(this.canvas, this.ctx, {
             viewportWidth: this.config.viewport.width,
@@ -192,6 +202,7 @@ export class Game {
             inputHandler: this.inputHandler,
             areaManager: this.areaManager,
             pathfinding: this.pathfinding,
+            engagementManager: this.engagementManager,
         });
 
         // InputHandler dependencies and callbacks

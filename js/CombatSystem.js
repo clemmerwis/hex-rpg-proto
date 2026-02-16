@@ -168,7 +168,7 @@ export class CombatSystem {
             defender.facing,
             this.hexGrid
         );
-        const cannotEngageBack = !this.gameStateManager.canEngageBack(defender, attacker);
+        const cannotEngageBack = !this.engagementManager.canEngageBack(defender, attacker);
         const flanking = behindDefender || cannotEngageBack;
 
         // Calculate effective DR (modified by flanking)
