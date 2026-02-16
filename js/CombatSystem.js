@@ -29,12 +29,11 @@ export class CombatSystem {
 
         // Format attack name: "weapon Attack" or "heavy weapon Attack"
         const weaponKey = attacker.equipment.mainHand;
-        const heavyPrefix = attackType === 'heavy' ? '{{heavy}}heavy{{/heavy}} ' : '';
-        const attackTypeName = `${heavyPrefix}{{weapon:${weaponKey}}} Attack`;
+        const attackTypeName = this.formatAttackTypeName(weaponKey, attackType);
 
         if (!defender) {
             // Empty hex - attack whiffs
-            const whiffAttackName = `${heavyPrefix}{{weapon:${weaponKey}}} attacks`;
+            const whiffAttackName = this.formatAttackTypeName(weaponKey, attackType, 'attacks');
             this.logger.combat(`{{char:${attacker.name}}}: ${whiffAttackName} at empty hex (${targetHex.q}, ${targetHex.r}) - {{whiff}}`);
             // Animation already set by GameStateManager - don't reset here
             return { hit: false, damage: 0, crit: false, defenderDefeated: false, whiff: true };
@@ -89,38 +88,11 @@ export class CombatSystem {
         if (friendlyFire) logParts.push('{{friendlyFire}}');
 
         // Build detailed damage breakdown showing formula components
-        const strMult = STAT_BONUSES.MULTIPLIER[attacker.stats.str] ?? 1;
-        const strBonus = Math.ceil(weapon.force * strMult);
-        const attackMod = ATTACK_TYPES[attackType]?.damageMod || 0;
-
-        // Format weapon name (camelCase to hyphen-separated)
-        const weaponName = attacker.equipment.mainHand.replace(/([A-Z])/g, '-$1').toLowerCase();
-
-        // Base damage formula (detail shown on hover, only base number visible)
-        let baseFormula = `${weaponName}_dmg: ${weapon.base}`;
-        if (attackMod !== 0) baseFormula += ` + ${attackType}_dmg: ${attackMod}`;
-        baseFormula += ` + (str_multiplier: ${strMult} x ${weaponName}_force: ${weapon.force})`;
-        let damageBreakdown = `{{tip:${baseFormula}}}{{dmg}}${baseDamage}{{/dmg}}{{/tip}}`;
-
-        // Resist/Vuln modifier (applied before DR)
-        if (resistMod === 'resistant') {
-            damageBreakdown += ` -> Resist: {{resist}}x0.5{{/resist}} = {{dmg}}${damageAfterResist}{{/dmg}}`;
-        } else if (resistMod === 'vulnerable') {
-            damageBreakdown += ` -> Vuln: {{vuln}}x1.5{{/vuln}} = {{dmg}}${damageAfterResist}{{/dmg}}`;
-        } else if (resistMod === 'vulnerableEnhanced') {
-            damageBreakdown += ` -> Vuln+: {{vuln}}x${attackType === 'heavy' ? '2.5' : '2.0'}{{/vuln}} = {{dmg}}${damageAfterResist}{{/dmg}}`;
-        }
-
-        // DR modifier with armor name
-        if (effectiveDR > 0) {
-            const armorKey = defender.equipment.armor || 'none';
-            damageBreakdown += ` -> {{armor:${armorKey}}} DR({{dr}}-${effectiveDR}{{/dr}})`;
-            if (flanking) damageBreakdown += ` (flanked ${Math.round(armor.flankingDefense * 100)}%)`;
-            damageBreakdown += ` = {{dmg}}${damageAfterDR}{{/dmg}}`;
-        }
-
-        // Crit modifier (applied last, after DR)
-        if (crit) damageBreakdown += ` -> Crit: x2 = {{dmg}}${finalDamage}{{/dmg}}`;
+        const damageBreakdown = this.buildDamageBreakdown(
+            attacker, attackType, weapon, armor, baseDamage,
+            damageAfterResist, resistMod, effectiveDR, flanking,
+            drAbsorbed, damageAfterDR, crit, finalDamage, defender
+        );
 
         // Log attack result and damage breakdown on separate lines
         this.logger.combat(logParts.join(' '));
@@ -327,6 +299,58 @@ export class CombatSystem {
             resistMod = vulnMult > 1.5 ? 'vulnerableEnhanced' : 'vulnerable';
         }
         return { damage, resistMod };
+    }
+
+    /**
+     * Format the attack type name for combat log display
+     * Pure string building — no side effects
+     * Returns e.g. "{{weapon:longSword}} Attack" or "{{heavy}}heavy{{/heavy}} {{weapon:longSword}} attacks"
+     */
+    formatAttackTypeName(weaponKey, attackType, verb = "Attack") {
+        const heavyPrefix = attackType === "heavy" ? "{{heavy}}heavy{{/heavy}} " : "";
+        return `${heavyPrefix}{{weapon:${weaponKey}}} ${verb}`;
+    }
+
+    /**
+     * Build the detailed damage breakdown string with semantic tokens
+     * Pure string building — references STAT_BONUSES, ATTACK_TYPES for formula display
+     * Returns the complete breakdown: base {{tip}} → resist/vuln → DR → crit
+     */
+    buildDamageBreakdown(attacker, attackType, weapon, armor, baseDamage, damageAfterResist, resistMod, effectiveDR, flanking, drAbsorbed, damageAfterDR, crit, finalDamage, defender) {
+        const strMult = STAT_BONUSES.MULTIPLIER[attacker.stats.str] ?? 1;
+        const strBonus = Math.ceil(weapon.force * strMult);
+        const attackMod = ATTACK_TYPES[attackType]?.damageMod || 0;
+
+        // Format weapon name (camelCase to hyphen-separated)
+        const weaponName = attacker.equipment.mainHand.replace(/([A-Z])/g, "-$1").toLowerCase();
+
+        // Base damage formula (detail shown on hover, only base number visible)
+        let baseFormula = `${weaponName}_dmg: ${weapon.base}`;
+        if (attackMod !== 0) baseFormula += ` + ${attackType}_dmg: ${attackMod}`;
+        baseFormula += ` + (str_multiplier: ${strMult} x ${weaponName}_force: ${weapon.force})`;
+        let breakdown = `{{tip:${baseFormula}}}{{dmg}}${baseDamage}{{/dmg}}{{/tip}}`;
+
+        // Resist/Vuln modifier (applied before DR)
+        if (resistMod === "resistant") {
+            breakdown += ` -> Resist: {{resist}}x0.5{{/resist}} = {{dmg}}${damageAfterResist}{{/dmg}}`;
+        } else if (resistMod === "vulnerable") {
+            breakdown += ` -> Vuln: {{vuln}}x1.5{{/vuln}} = {{dmg}}${damageAfterResist}{{/dmg}}`;
+        } else if (resistMod === "vulnerableEnhanced") {
+            breakdown += ` -> Vuln+: {{vuln}}x${attackType === "heavy" ? "2.5" : "2.0"}{{/vuln}} = {{dmg}}${damageAfterResist}{{/dmg}}`;
+        }
+
+        // DR modifier with armor name
+        if (effectiveDR > 0) {
+            const armorKey = defender.equipment.armor || "none";
+            breakdown += ` -> {{armor:${armorKey}}} DR({{dr}}-${effectiveDR}{{/dr}})`;
+            if (flanking) breakdown += ` (flanked ${Math.round(armor.flankingDefense * 100)}%)`;
+            breakdown += ` = {{dmg}}${damageAfterDR}{{/dmg}}`;
+        }
+
+        // Crit modifier (applied last, after DR)
+        if (crit) breakdown += ` -> Crit: x2 = {{dmg}}${finalDamage}{{/dmg}}`;
+
+        return breakdown;
     }
 
     /**
