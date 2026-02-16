@@ -14,9 +14,8 @@ export class HexGridRenderer {
         this.pathfinding = null;
         this.engagementManager = null;
 
-        // Cache for connected blocked hexes (flood-fill)
-        this._cachedConnectedBlockedHexes = null;
-        this._cachedHoveredBlockedKey = null;
+        // Pre-computed blocked regions (hexKey -> Set of hexKeys in same region)
+        this._blockedRegionByHex = null;
 
         // Cache for visible hexes (avoids recalculating every frame)
         this._cachedVisibleHexes = null;
@@ -95,6 +94,48 @@ export class HexGridRenderer {
         this._cachedVisibleHexes = null;
     }
 
+    /**
+     * Pre-compute all connected blocked regions from a set of blocked hexes.
+     * Each region is a Set of hex keys that are connected via adjacency.
+     * Stores a lookup: hexKey -> regionSet for O(1) region retrieval on hover.
+     * @param {Set<string>} blockedHexes - Set of blocked hex keys (from pathfinding)
+     */
+    precomputeBlockedRegions(blockedHexes) {
+        this._blockedRegionByHex = new Map();
+        const visited = new Set();
+
+        for (const key of blockedHexes) {
+            if (visited.has(key)) continue;
+
+            // Flood-fill from this hex to find its connected region
+            const region = new Set();
+            const [startQ, startR] = key.split(",").map(Number);
+            const queue = [{ q: startQ, r: startR }];
+
+            while (queue.length > 0) {
+                const current = queue.shift();
+                const currentKey = hexKey(current.q, current.r);
+
+                if (region.has(currentKey)) continue;
+                if (!blockedHexes.has(currentKey)) continue;
+
+                region.add(currentKey);
+                visited.add(currentKey);
+
+                const neighbors = this.hexGrid.getNeighbors(current);
+                for (const neighbor of neighbors) {
+                    const nKey = hexKey(neighbor.q, neighbor.r);
+                    if (!region.has(nKey)) queue.push(neighbor);
+                }
+            }
+
+            // Map every hex in this region to the same region Set
+            for (const hexKeyInRegion of region) {
+                this._blockedRegionByHex.set(hexKeyInRegion, region);
+            }
+        }
+    }
+
     // Get faction display data (companions use different color than hero)
     getFactionData(character) {
         if (character === this.game.pc) {
@@ -106,21 +147,35 @@ export class HexGridRenderer {
         return FACTIONS[character.faction] || FACTIONS.guard;
     }
 
-    // Find all blocked hexes connected to the starting hex (flood-fill)
+    /**
+     * Get all blocked hexes connected to the starting hex.
+     * Uses pre-computed regions for O(1) lookup when available,
+     * falls back to flood-fill if precomputeBlockedRegions was not called.
+     * @param {number} startQ - Starting hex Q coordinate
+     * @param {number} startR - Starting hex R coordinate
+     * @returns {Set<string>} Set of connected blocked hex keys
+     */
     getConnectedBlockedHexes(startQ, startR) {
+        const key = hexKey(startQ, startR);
+
+        // Use pre-computed region if available (O(1) lookup)
+        if (this._blockedRegionByHex?.has(key)) {
+            return this._blockedRegionByHex.get(key);
+        }
+
+        // Fallback: compute on the fly (shouldn't happen if precompute was called)
         const connected = new Set();
         const queue = [{ q: startQ, r: startR }];
 
         while (queue.length > 0) {
             const current = queue.shift();
-            const key = hexKey(current.q, current.r);
+            const currentKey = hexKey(current.q, current.r);
 
-            if (connected.has(key)) continue;
-            if (!this.pathfinding?.blockedHexes?.has(key)) continue;
+            if (connected.has(currentKey)) continue;
+            if (!this.pathfinding?.blockedHexes?.has(currentKey)) continue;
 
-            connected.add(key);
+            connected.add(currentKey);
 
-            // Add all neighbors to queue
             const neighbors = this.hexGrid.getNeighbors(current);
             for (const neighbor of neighbors) {
                 const neighborKey = hexKey(neighbor.q, neighbor.r);
@@ -219,17 +274,11 @@ export class HexGridRenderer {
                     this.pathfinding?.blockedHexes?.has(hoveredKey);
 
                 if (isHoveredBlocked) {
-                    // Use cached connected set, or compute if hovered hex changed
-                    if (this._cachedHoveredBlockedKey !== hoveredKey) {
-                        this._cachedConnectedBlockedHexes =
-                            this.getConnectedBlockedHexes(
-                                hoveredHex.q,
-                                hoveredHex.r,
-                            );
-                        this._cachedHoveredBlockedKey = hoveredKey;
-                    }
-
-                    if (this._cachedConnectedBlockedHexes?.has(hexKey(q, r))) {
+                    // O(1) lookup using pre-computed blocked regions
+                    const connectedRegion = this.getConnectedBlockedHexes(
+                        hoveredHex.q, hoveredHex.r
+                    );
+                    if (connectedRegion.has(hexKey(q, r))) {
                         this._drawHexPath(ctx, hexPoints, "rgba(0, 0, 0, 0.20)");
                     }
                 }

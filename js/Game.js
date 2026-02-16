@@ -309,6 +309,9 @@ export class Game {
             this.renderer.worldWidth = dims.width;
             this.renderer.worldHeight = dims.height;
 
+            // Pre-compute connected blocked regions for O(1) hover lookup
+            this.hexGridRenderer.precomputeBlockedRegions(this.pathfinding.blockedHexes);
+
             // NOW initialize all characters (assets and NPCs are both loaded)
             this.onAssetsLoaded();
         } catch (error) {
