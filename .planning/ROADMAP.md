@@ -19,7 +19,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Constants & Utilities** - Consolidate magic numbers and create shared utility functions
 - [x] **Phase 2: CombatSystem Pipeline** - Decompose executeAttack() into discrete pipeline stages
 - [x] **Phase 3: GameStateManager Split** - Break up monolithic GSM into focused modules
-- [ ] **Phase 4: Renderer Refactor** - Split Renderer and add visibility/flood-fill caching
+- [x] **Phase 4: Renderer Refactor** - Split Renderer and add visibility/flood-fill caching
 - [ ] **Phase 5: Supporting File Splits** - Split CombatUILog and InputHandler
 - [ ] **Phase 6: Bug Fixes & Validation** - Fix race condition, add validation, improve error handling
 - [ ] **Phase 7: Performance Optimization** - Cache pathfinding and memoize AI calculations
@@ -62,12 +62,12 @@ Plans:
 **Goal**: 663-line Renderer split into focused modules; hex visibility cached; flood-fill regions pre-computed on area load
 **Depends on**: Phase 1
 **Research**: Unlikely (internal refactoring, standard caching patterns)
-**Plans**: TBD
+**Plans**: 3 plans (6 tasks)
 
 Plans:
 - [x] 04-01: Extract hex grid rendering into dedicated module
 - [x] 04-02: Extract character renderer
-- [ ] 04-03: Add hex visibility caching and pre-compute flood-fill regions
+- [x] 04-03: Add hex visibility caching and pre-compute flood-fill regions
 
 ### Phase 5: Supporting File Splits
 **Goal**: CombatUILog (453 lines) and InputHandler (419 lines) split into focused, single-responsibility modules
@@ -110,7 +110,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 1. Constants & Utilities | 2/2 | Complete | 2026-02-16 |
 | 2. CombatSystem Pipeline | 3/3 | Complete | 2026-02-16 |
 | 3. GameStateManager Split | 3/3 | Complete | 2026-02-16 |
-| 4. Renderer Refactor | 2/3 | In progress | - |
+| 4. Renderer Refactor | 3/3 | Complete | 2026-02-16 |
 | 5. Supporting File Splits | 0/2 | Not started | - |
 | 6. Bug Fixes & Validation | 0/3 | Not started | - |
 | 7. Performance Optimization | 0/2 | Not started | - |
