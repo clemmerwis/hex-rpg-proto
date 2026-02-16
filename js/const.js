@@ -45,6 +45,14 @@ export const GAME_CONSTANTS = {
 	SPRITE_FRAME_SIZE: 256,
 };
 
+/**
+ * Create a canonical string key from hex coordinates for Set/Map lookups.
+ * Replaces ad-hoc `${q},${r}` patterns throughout the codebase.
+ */
+export function hexKey(q, r) {
+	return `${q},${r}`;
+}
+
 // Default animation config for fallback when animation not found
 const DEFAULT_ANIM_CONFIG = {
 	cols: 4,
