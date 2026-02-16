@@ -18,7 +18,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Constants & Utilities** - Consolidate magic numbers and create shared utility functions
 - [x] **Phase 2: CombatSystem Pipeline** - Decompose executeAttack() into discrete pipeline stages
-- [ ] **Phase 3: GameStateManager Split** - Break up monolithic GSM into focused modules
+- [x] **Phase 3: GameStateManager Split** - Break up monolithic GSM into focused modules
 - [ ] **Phase 4: Renderer Refactor** - Split Renderer and add visibility/flood-fill caching
 - [ ] **Phase 5: Supporting File Splits** - Split CombatUILog and InputHandler
 - [ ] **Phase 6: Bug Fixes & Validation** - Fix race condition, add validation, improve error handling
@@ -56,7 +56,7 @@ Plans:
 Plans:
 - [x] 03-01: Extract combat execution logic into dedicated module (2 tasks)
 - [x] 03-02: Extract state transition logic and consolidate engagement tracking (2 tasks)
-- [ ] 03-03: Derive animation timing from frameCount instead of hardcoded values
+- [x] 03-03: Derive animation timing from frameCount instead of hardcoded values (2 tasks)
 
 ### Phase 4: Renderer Refactor
 **Goal**: 663-line Renderer split into focused modules; hex visibility cached; flood-fill regions pre-computed on area load
@@ -109,7 +109,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 |-------|----------------|--------|-----------|
 | 1. Constants & Utilities | 2/2 | Complete | 2026-02-16 |
 | 2. CombatSystem Pipeline | 3/3 | Complete | 2026-02-16 |
-| 3. GameStateManager Split | 2/3 | In progress | - |
+| 3. GameStateManager Split | 3/3 | Complete | 2026-02-16 |
 | 4. Renderer Refactor | 0/3 | Not started | - |
 | 5. Supporting File Splits | 0/2 | Not started | - |
 | 6. Bug Fixes & Validation | 0/3 | Not started | - |
