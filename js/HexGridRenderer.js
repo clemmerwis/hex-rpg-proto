@@ -17,6 +17,11 @@ export class HexGridRenderer {
         // Cache for connected blocked hexes (flood-fill)
         this._cachedConnectedBlockedHexes = null;
         this._cachedHoveredBlockedKey = null;
+
+        // Cache for visible hexes (avoids recalculating every frame)
+        this._cachedVisibleHexes = null;
+        this._cachedWorldWidth = null;
+        this._cachedWorldHeight = null;
     }
 
     setDependencies(deps) {
@@ -30,6 +35,64 @@ export class HexGridRenderer {
         this.inputHandler = deps.inputHandler;
         this.pathfinding = deps.pathfinding;
         this.engagementManager = deps.engagementManager;
+    }
+
+    /**
+     * Get the list of visible hexes for the given world dimensions.
+     * Results are cached and only recalculated when world dimensions change.
+     * @param {number} worldWidth - Current world width in pixels
+     * @param {number} worldHeight - Current world height in pixels
+     * @returns {Array<{q: number, r: number}>} Array of visible hex coordinates
+     */
+    getVisibleHexes(worldWidth, worldHeight) {
+        // Return cached result if world dimensions haven't changed
+        if (this._cachedVisibleHexes &&
+            this._cachedWorldWidth === worldWidth &&
+            this._cachedWorldHeight === worldHeight) {
+            return this._cachedVisibleHexes;
+        }
+
+        // Calculate hex range that covers the entire world
+        const corners = [
+            this.hexGrid.pixelToHex(0, 0),
+            this.hexGrid.pixelToHex(worldWidth, 0),
+            this.hexGrid.pixelToHex(0, worldHeight),
+            this.hexGrid.pixelToHex(worldWidth, worldHeight)
+        ];
+
+        const minQ = Math.min(...corners.map(c => c.q)) - 2;
+        const maxQ = Math.max(...corners.map(c => c.q)) + 2;
+        const minR = Math.min(...corners.map(c => c.r)) - 2;
+        const maxR = Math.max(...corners.map(c => c.r)) + 2;
+
+        const visibleHexes = [];
+        for (let q = minQ; q <= maxQ; q++) {
+            for (let r = minR; r <= maxR; r++) {
+                const pos = this.hexGrid.hexToPixel(q, r);
+                if (
+                    pos.x >= -this.hexSize &&
+                    pos.x <= worldWidth + this.hexSize &&
+                    pos.y >= -this.hexSize &&
+                    pos.y <= worldHeight + this.hexSize
+                ) {
+                    visibleHexes.push({ q, r });
+                }
+            }
+        }
+
+        // Cache the result
+        this._cachedVisibleHexes = visibleHexes;
+        this._cachedWorldWidth = worldWidth;
+        this._cachedWorldHeight = worldHeight;
+
+        return visibleHexes;
+    }
+
+    /**
+     * Invalidate the visible hex cache (e.g., on area transitions).
+     */
+    invalidateCache() {
+        this._cachedVisibleHexes = null;
     }
 
     // Get faction display data (companions use different color than hero)
@@ -71,37 +134,11 @@ export class HexGridRenderer {
     }
 
     drawHexGrid(ctx, cameraX, cameraY) {
-        // Calculate hex range that covers the entire world
-        // Use corners of the world to find the full hex range needed
         const worldWidth = this.hexGrid.worldWidth;
         const worldHeight = this.hexGrid.worldHeight;
-        const corners = [
-            this.hexGrid.pixelToHex(0, 0),
-            this.hexGrid.pixelToHex(worldWidth, 0),
-            this.hexGrid.pixelToHex(0, worldHeight),
-            this.hexGrid.pixelToHex(worldWidth, worldHeight)
-        ];
 
-        const minQ = Math.min(...corners.map(c => c.q)) - 2;
-        const maxQ = Math.max(...corners.map(c => c.q)) + 2;
-        const minR = Math.min(...corners.map(c => c.r)) - 2;
-        const maxR = Math.max(...corners.map(c => c.r)) + 2;
-
-        // Collect visible hexes for two-pass rendering
-        const visibleHexes = [];
-        for (let q = minQ; q <= maxQ; q++) {
-            for (let r = minR; r <= maxR; r++) {
-                const pos = this.hexGrid.hexToPixel(q, r);
-                if (
-                    pos.x >= -this.hexSize &&
-                    pos.x <= worldWidth + this.hexSize &&
-                    pos.y >= -this.hexSize &&
-                    pos.y <= worldHeight + this.hexSize
-                ) {
-                    visibleHexes.push({ q, r });
-                }
-            }
-        }
+        // Use cached visible hexes (recalculates only when world dimensions change)
+        const visibleHexes = this.getVisibleHexes(worldWidth, worldHeight);
 
         // Pass 1: Grid lines (base layer)
         const isoRatio = this.hexGrid.isoRatio;
