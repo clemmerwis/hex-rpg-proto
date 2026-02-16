@@ -7,6 +7,7 @@ import { AreaManager } from './AreaManager.js';
 import { Pathfinding } from './Pathfinding.js';
 import { MovementSystem } from './MovementSystem.js';
 import { CombatSystem } from './CombatSystem.js';
+import { CombatExecutor } from './CombatExecutor.js';
 import { Logger } from './Logger.js';
 import { CombatUILog } from './CombatUILog.js';
 import { CharacterFactory } from './CharacterFactory.js';
@@ -133,6 +134,15 @@ export class Game {
             this.logger
         );
 
+        // Initialize CombatExecutor (handles move/action phase sequencing)
+        this.combatExecutor = new CombatExecutor(
+            this.hexGrid,
+            this.getCharacterAtHex.bind(this),
+            this.movementSystem,
+            this.combatSystem,
+            this.logger
+        );
+
         // Now create GameStateManager with MovementSystem, CombatSystem, logger, and Game instance
         this.gameStateManager = new GameStateManager(
             this.state,
@@ -142,7 +152,8 @@ export class Game {
             this.combatSystem,
             this.pathfinding,
             this.logger,
-            this  // Pass the Game instance for accessing UI systems
+            this,  // Pass the Game instance for accessing UI systems
+            this.combatExecutor
         );
 
         // Set the gameStateManager reference in dependent systems (circular dependency)
