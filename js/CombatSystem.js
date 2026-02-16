@@ -80,42 +80,23 @@ export class CombatSystem {
 
         const finalDamage = damage;
 
-        // Build detailed combat log FIRST (before applying damage)
-        let logParts = [];
-        logParts.push(`{{char:${attacker.name}}}: ${attackTypeName} {{char:${defender.name}}} (THC= {{thc}}${thcPercent}%{{/thc}}, Roll= {{roll}}${rollPercent}{{/roll}}, {{hit}})`);
-        if (crit) logParts.push('{{critical}}');
-        if (flanking) logParts.push('{{flanking}}');
-        if (friendlyFire) logParts.push('{{friendlyFire}}');
-
-        // Build detailed damage breakdown showing formula components
+        // Build and emit combat log lines (before applying damage)
         const damageBreakdown = this.buildDamageBreakdown(
             attacker, attackType, weapon, armor, baseDamage,
             damageAfterResist, resistMod, effectiveDR, flanking,
             drAbsorbed, damageAfterDR, crit, finalDamage, defender
         );
-
-        // Log attack result and damage breakdown on separate lines
-        this.logger.combat(logParts.join(' '));
-        if (crit) this.logger.combat(`  CSC= {{csc}}${cscPercent}%{{/csc}}, Roll= {{roll}}${cscRollPercent}{{/roll}}, CRIT`);
-        this.logger.combat(`  {{hitPrefix}} ${damageBreakdown}`);
+        const logLines = this.buildCombatLogLines(
+            attacker, defender, attackTypeName, thcPercent, rollPercent,
+            crit, flanking, friendlyFire, cscPercent, cscRollPercent, damageBreakdown
+        );
+        logLines.forEach(line => this.logger.combat(line));
 
         // NOW apply damage through buffer (per-attacker temp HP) - logs appear after damage calc
-        const { bufferDamage, healthDamage, bufferBefore, bufferAfter, healthBefore, healthAfter, bypassed } = this.applyDamage(attacker, defender, damage);
+        const damageResult = this.applyDamage(attacker, defender, damage);
 
         // Log where the damage actually went (context-sensitive)
-        if (bypassed && healthDamage > 0) {
-            // Buffer bypassed - damage went directly to HP
-            this.logger.combat(`    → {{char:${defender.name}}}: {{dmg}}-${healthDamage}{{/dmg}} HP {{hp}}(${healthBefore} → ${healthAfter}){{/hp}} {{buf_bypassed}}[buffer bypassed]{{/buf_bypassed}}`);
-        } else if (bufferDamage > 0 && healthDamage > 0) {
-            // Damage overflowed buffer into HP
-            this.logger.combat(`    → {{char:${defender.name}}}: {{dmg}}-${bufferDamage}{{/dmg}} {{buf_depleted}}buffer (depleted){{/buf_depleted}}, {{dmg}}-${healthDamage}{{/dmg}} HP {{hp}}(${healthBefore} → ${healthAfter}){{/hp}}`);
-        } else if (bufferDamage > 0) {
-            // All damage went to buffer
-            this.logger.combat(`    → {{char:${defender.name}}}: {{dmg}}-${bufferDamage}{{/dmg}} {{buf}}buffer (${bufferBefore} → ${bufferAfter}){{/buf}}`);
-        } else if (healthDamage > 0) {
-            // Buffer already depleted, all damage to HP
-            this.logger.combat(`    → {{char:${defender.name}}}: {{dmg}}-${healthDamage}{{/dmg}} HP {{hp}}(${healthBefore} → ${healthAfter}){{/hp}}`);
-        }
+        this.logDamageApplication(defender, attacker, damageResult);
 
         const defeated = defender.health <= 0;
 
@@ -351,6 +332,49 @@ export class CombatSystem {
         if (crit) breakdown += ` -> Crit: x2 = {{dmg}}${finalDamage}{{/dmg}}`;
 
         return breakdown;
+    }
+
+    /**
+     * Build the array of combat log lines for a hit
+     * Pure string building — no side effects
+     * Returns array of log strings: header (with tags), optional CSC line, damage breakdown line
+     */
+    buildCombatLogLines(attacker, defender, attackTypeName, thcPercent, rollPercent, crit, flanking, friendlyFire, cscPercent, cscRollPercent, damageBreakdown) {
+        let logParts = [];
+        logParts.push(`{{char:${attacker.name}}}: ${attackTypeName} {{char:${defender.name}}} (THC= {{thc}}${thcPercent}%{{/thc}}, Roll= {{roll}}${rollPercent}{{/roll}}, {{hit}})`);
+        if (crit) logParts.push("{{critical}}");
+        if (flanking) logParts.push("{{flanking}}");
+        if (friendlyFire) logParts.push("{{friendlyFire}}");
+
+        const lines = [];
+        lines.push(logParts.join(" "));
+        if (crit) lines.push(`  CSC= {{csc}}${cscPercent}%{{/csc}}, Roll= {{roll}}${cscRollPercent}{{/roll}}, CRIT`);
+        lines.push(`  {{hitPrefix}} ${damageBreakdown}`);
+
+        return lines;
+    }
+
+    /**
+     * Log where damage was applied (buffer, HP, or both)
+     * Side-effect method — calls this.logger.combat() directly
+     * Handles 4 conditional branches: bypassed, overflow, buffer-only, health-only
+     */
+    logDamageApplication(defender, attacker, damageResult) {
+        const { bufferDamage, healthDamage, bufferBefore, bufferAfter, healthBefore, healthAfter, bypassed } = damageResult;
+
+        if (bypassed && healthDamage > 0) {
+            // Buffer bypassed - damage went directly to HP
+            this.logger.combat(`    → {{char:${defender.name}}}: {{dmg}}-${healthDamage}{{/dmg}} HP {{hp}}(${healthBefore} → ${healthAfter}){{/hp}} {{buf_bypassed}}[buffer bypassed]{{/buf_bypassed}}`);
+        } else if (bufferDamage > 0 && healthDamage > 0) {
+            // Damage overflowed buffer into HP
+            this.logger.combat(`    → {{char:${defender.name}}}: {{dmg}}-${bufferDamage}{{/dmg}} {{buf_depleted}}buffer (depleted){{/buf_depleted}}, {{dmg}}-${healthDamage}{{/dmg}} HP {{hp}}(${healthBefore} → ${healthAfter}){{/hp}}`);
+        } else if (bufferDamage > 0) {
+            // All damage went to buffer
+            this.logger.combat(`    → {{char:${defender.name}}}: {{dmg}}-${bufferDamage}{{/dmg}} {{buf}}buffer (${bufferBefore} → ${bufferAfter}){{/buf}}`);
+        } else if (healthDamage > 0) {
+            // Buffer already depleted, all damage to HP
+            this.logger.combat(`    → {{char:${defender.name}}}: {{dmg}}-${healthDamage}{{/dmg}} HP {{hp}}(${healthBefore} → ${healthAfter}){{/hp}}`);
+        }
     }
 
     /**
