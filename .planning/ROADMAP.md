@@ -55,7 +55,7 @@ Plans:
 
 Plans:
 - [x] 03-01: Extract combat execution logic into dedicated module (2 tasks)
-- [ ] 03-02: Extract state transition logic and consolidate engagement tracking
+- [x] 03-02: Extract state transition logic and consolidate engagement tracking (2 tasks)
 - [ ] 03-03: Derive animation timing from frameCount instead of hardcoded values
 
 ### Phase 4: Renderer Refactor
@@ -109,7 +109,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 |-------|----------------|--------|-----------|
 | 1. Constants & Utilities | 2/2 | Complete | 2026-02-16 |
 | 2. CombatSystem Pipeline | 3/3 | Complete | 2026-02-16 |
-| 3. GameStateManager Split | 1/3 | In progress | - |
+| 3. GameStateManager Split | 2/3 | In progress | - |
 | 4. Renderer Refactor | 0/3 | Not started | - |
 | 5. Supporting File Splits | 0/2 | Not started | - |
 | 6. Bug Fixes & Validation | 0/3 | Not started | - |
