@@ -6,10 +6,30 @@ import { createDefaultSkills, calculateMaxHP, calculateHPBuffer, calculateEngage
  * IMPORTANT: Characters created here are FULLY INITIALIZED - no partial state.
  * All Sets, Maps, and calculated properties are ready immediately.
  * This prevents race conditions where game systems access uninitialized properties.
+ *
+ * Build priority: CharacterFactory defaults < NPC_TEMPLATES/config < localStorage saved template
+ * localStorage only overrides stats, skills, equipment (the "build").
+ * Game properties (faction, spriteSet, mode, position) always come from config.
  */
 export class CharacterFactory {
 	/**
-	 * Create a character with default properties merged with config
+	 * Load saved character build (stats/skills/equipment) from localStorage.
+	 * @param {string} name - Character name to look up
+	 * @returns {Object|null} Saved build or null if not found
+	 */
+	static loadSavedBuild(name) {
+		try {
+			const saved = localStorage.getItem(`charTemplate_${name}`);
+			if (saved) return JSON.parse(saved);
+		} catch (e) {
+			console.warn(`[CharacterFactory] Failed to load saved build for "${name}":`, e);
+		}
+		return null;
+	}
+
+	/**
+	 * Create a character with default properties merged with config.
+	 * Automatically checks localStorage for a saved build matching config.name.
 	 * @param {Object} config - Character configuration overrides
 	 * @returns {Object} Character object with all required properties (fully initialized)
 	 */
@@ -63,20 +83,27 @@ export class CharacterFactory {
 			lastAttackedBy: null,
 		};
 
-		// Merge config with defaults
+		// Check localStorage for saved build (stats/skills/equipment only)
+		const savedBuild = config.name ? CharacterFactory.loadSavedBuild(config.name) : null;
+
+		// Merge: defaults < config < savedBuild (for build properties only)
 		const character = {
 			...defaults,
 			...config,
-			// Deep merge stats if provided
 			stats: {
 				...defaults.stats,
-				...(config.stats || {})
+				...(config.stats || {}),
+				...(savedBuild?.stats || {}),
 			},
-			// Deep merge equipment if provided
 			equipment: {
 				...defaults.equipment,
-				...(config.equipment || {})
-			}
+				...(config.equipment || {}),
+				...(savedBuild?.equipment || {}),
+			},
+			skills: {
+				...(config.skills || defaults.skills),
+				...(savedBuild?.skills || {}),
+			},
 		};
 
 		// Initialize Sets and Maps (NEVER null - always ready)

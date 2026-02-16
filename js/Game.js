@@ -50,7 +50,7 @@ export class Game {
                     con: 7, will: 5,
                     beauty: 5, cha: 5,
                     instinct: 6, wis: 7
-                }, // Total: 60 - Jack of all trades
+                },
                 equipment: {
                     mainHand: 'unarmed',
                     offHand: null,

@@ -315,7 +315,7 @@
             "animationTimer": 75
         },
         {
-            "templateId": "guard_veteran",
+            "templateId": "guard_novice",
             "hexQ": 9,
             "hexR": -5,
             "facing": "dir3",
@@ -331,7 +331,7 @@
             "animationTimer": 25
         },
         {
-            "templateId": "bandit_thief",
+            "templateId": "bandit_leader",
             "hexQ": 2,
             "hexR": -2,
             "facing": "dir2",

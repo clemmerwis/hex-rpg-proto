@@ -71,6 +71,23 @@
 			width: 200px;
 		}
 
+		#cycleTemplateBtn {
+			background: var(--bg-section);
+			border: 1px solid var(--border-color);
+			color: var(--text-header);
+			width: 28px;
+			height: 28px;
+			font-size: 14px;
+			cursor: pointer;
+			padding: 0;
+			line-height: 1;
+		}
+
+		#cycleTemplateBtn:hover {
+			border-color: var(--border-highlight);
+			color: var(--text-value);
+		}
+
 		/* Main Grid */
 		main {
 			flex: 1;
@@ -434,6 +451,7 @@
 	<header>
 		<h1>Character Creation</h1>
 		<input type="text" name="name" placeholder="Character Name" value="Hero">
+		<button id="cycleTemplateBtn" title="Cycle saved templates">&gt;</button>
 	</header>
 
 	<main>

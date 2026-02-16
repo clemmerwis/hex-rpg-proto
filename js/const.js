@@ -545,8 +545,8 @@ export const NPC_TEMPLATES = {
 		mode: 'neutral',
 	},
 
-	guard_veteran: {
-		name: 'Guard Veteran',
+	guard_novice: {
+		name: 'Guard Novice',
 		stats: {
 			str: 6, int: 6,
 			dex: 6, per: 7,
@@ -584,8 +584,8 @@ export const NPC_TEMPLATES = {
 		mode: 'aggressive',
 	},
 
-	bandit_thief: {
-		name: 'Bandit Thief',
+	bandit_leader: {
+		name: 'Bandit Leader',
 		stats: {
 			str: 4, int: 5,
 			dex: 10, per: 8,

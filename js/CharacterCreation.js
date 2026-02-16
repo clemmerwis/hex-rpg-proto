@@ -54,6 +54,7 @@ class CharacterCreator {
 		this.bindFooterEvents();
 		this.updateOffHandAvailability();
 		this.updateAllDisplays();
+		this.autoLoadTemplate();
 	}
 
 	cacheElements() {
@@ -143,6 +144,9 @@ class CharacterCreator {
 		this.elements.nameInput?.addEventListener('input', (e) => {
 			this.character.name = e.target.value;
 		});
+
+		// Cycle template button
+		document.getElementById('cycleTemplateBtn')?.addEventListener('click', () => this.cycleTemplate());
 	}
 
 	// --- State Modification ---
@@ -507,8 +511,15 @@ class CharacterCreator {
 			e.weaponDamage.value = weapon.base;
 		}
 		if (e.weaponType && weapon) {
-			// Capitalize first letter
-			const typeName = weapon.type.charAt(0).toUpperCase() + weapon.type.slice(1);
+			const weaponKey = this.character.equipment.mainHand;
+			const typeCapitalized = weapon.type.charAt(0).toUpperCase() + weapon.type.slice(1);
+			let typeName;
+			if (weaponKey === 'unarmed') {
+				typeName = 'Concussive';
+			} else {
+				const sizePrefix = weaponKey.startsWith('short') ? 'Short' : weaponKey.startsWith('long') ? 'Long' : '';
+				typeName = sizePrefix ? `${sizePrefix} ${typeCapitalized}` : typeCapitalized;
+			}
 			e.weaponType.textContent = typeName;
 			e.weaponType.value = weapon.type;
 		}
@@ -549,6 +560,36 @@ class CharacterCreator {
 			}
 			e.evasionBonus.value = evasion;
 		}
+	}
+
+	// --- Template Auto-load & Cycling ---
+
+	autoLoadTemplate() {
+		const heroData = localStorage.getItem('charTemplate_Hero');
+		if (heroData) {
+			this.loadCharacterData(JSON.parse(heroData));
+		}
+	}
+
+	getSavedTemplateNames() {
+		const names = [];
+		for (let i = 0; i < localStorage.length; i++) {
+			const key = localStorage.key(i);
+			if (key.startsWith('charTemplate_')) {
+				names.push(key.replace('charTemplate_', ''));
+			}
+		}
+		return names.sort();
+	}
+
+	cycleTemplate() {
+		const names = this.getSavedTemplateNames();
+		if (names.length === 0) return;
+
+		const currentName = this.character.name;
+		const currentIdx = names.indexOf(currentName);
+		const nextIdx = (currentIdx + 1) % names.length;
+		this.selectTemplate(names[nextIdx]);
 	}
 
 	// --- Footer Button Events ---
