@@ -17,6 +17,8 @@ export const GAME_CONSTANTS = {
 	ISO_RATIO: 0.5, // Vertical compression for isometric projection (0.5 = classic 2:1 iso)
 	WORLD_WIDTH: 3220,
 	WORLD_HEIGHT: 2240,
+	VIEWPORT_WIDTH: 1280,
+	VIEWPORT_HEIGHT: 720,
 	ZOOM_LEVEL: 0.5,
 
 	// Camera and scrolling
@@ -492,6 +494,40 @@ export const FACTIONS = {
 		tintColor: "#FF9800",
 		nameplateColor: "#ffaa44",
 	},
+};
+
+/**
+ * Semantic tokens used by CombatSystem - replaced with formatted HTML
+ * This keeps game logic separate from presentation
+ */
+export const COMBAT_TAGS = {
+	'{{critical}}': '<span style="color: #001F3F;">[critical]</span>',
+	'{{flanking}}': '<span style="color: #001F3F;">[flanking]</span>',
+	'{{friendlyFire}}': '<span class="log-condition-bracket">[</span><span class="log-condition">friendly fire</span><span class="log-condition-bracket">]</span>',
+	'{{blocked}}': '<span class="log-condition-bracket">(</span><span style="color: #001F3F;">Blocked</span><span class="log-condition-bracket">)</span>',
+	'{{hit}}': '<span class="log-hit">HIT</span>',
+	'{{miss}}': '<span class="log-miss">MISS</span>',
+	'{{whiff}}': '<span class="log-miss">WHIFF</span>',
+	'{{hitPrefix}}': '<span class="log-hit">HIT:</span>',
+};
+
+/**
+ * Wrapper tokens that mark semantic regions
+ * Format: {{tag}}content{{/tag}} -> styled content
+ */
+export const WRAPPER_TAGS = {
+	'buf': (content) => `<span style="color: #9932CC;">${content}</span>`,
+	'buf_depleted': (content) => `<span style="color: #9932CC;">${content}</span>`,
+	'buf_bypassed': (content) => `<span class="log-buf-bypassed" data-tooltip="Unarmed attacks bypass Instinct HP buffer">${content}</span>`,
+	'hp': (content) => `<span class="log-hp">${content}</span>`,
+	'dmg': (content) => `<span class="log-damage">${content}</span>`,
+	'thc': (content) => `<span class="log-thc">${content}</span>`,
+	'csc': (content) => `<span class="log-csc">${content}</span>`,
+	'roll': (content) => `<span class="log-thc">${content}</span>`,
+	'dr': (content) => `<span style="color: #1a1a1a;">${content}</span>`,
+	'vuln': (content) => `<span style="color: #9932CC;">${content}</span>`,
+	'resist': (content) => `<span style="color: #505050;">${content}</span>`,
+	'heavy': (content) => `<span class="log-heavy">${content}</span>`,
 };
 
 /**

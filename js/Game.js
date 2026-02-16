@@ -23,8 +23,8 @@ export class Game {
                 height: GAME_CONSTANTS.WORLD_HEIGHT
             },
             viewport: {
-                width: 1280,
-                height: 720
+                width: GAME_CONSTANTS.VIEWPORT_WIDTH,
+                height: GAME_CONSTANTS.VIEWPORT_HEIGHT
             },
             zoom: GAME_CONSTANTS.ZOOM_LEVEL,
             hexSize: GAME_CONSTANTS.HEX_SIZE
