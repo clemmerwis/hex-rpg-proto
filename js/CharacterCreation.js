@@ -8,7 +8,7 @@ import {
 	calculateMaxHP, calculateHPBuffer, calculateCerebralPresence,
 	calculateEngagedMax, calculateMoveSpeed, calculateActionSpeed,
 	calculateDamage, calculateAttackRating, calculateDefenseRating,
-	calculateCSA_R, calculateCSD_R, getEquipmentBonus, createDefaultSkills
+	calculateCSA_R, calculateCSD_R, getEquipmentBonus, getWeaponSynergy, createDefaultSkills
 } from './const.js';
 
 class CharacterCreator {
@@ -319,8 +319,21 @@ class CharacterCreator {
 		this.elements.skillRows.forEach(row => {
 			const skill = row.dataset.skill;
 			const valueEl = row.querySelector('.value');
+			const labelEl = row.querySelector('label');
 			if (valueEl) {
 				valueEl.textContent = this.character.skills[skill];
+			}
+			if (labelEl) {
+				// Store original label text on first call
+				if (!labelEl.dataset.baseLabel) {
+					labelEl.dataset.baseLabel = labelEl.textContent;
+				}
+				const synergy = getWeaponSynergy(this.character, skill);
+				if (synergy > 0) {
+					labelEl.innerHTML = `${labelEl.dataset.baseLabel} <span class="value" style="font-size:inherit">(+${synergy})</span>`;
+				} else {
+					labelEl.textContent = labelEl.dataset.baseLabel;
+				}
 			}
 		});
 	}
@@ -446,10 +459,13 @@ class CharacterCreator {
 
 		// Attack Rating
 		if (t.attackRating) {
-			const weaponSkill = this.character.skills[this.character.equipment.mainHand] || 1;
+			const weaponKey = this.character.equipment.mainHand;
+			const weaponSkill = this.character.skills[weaponKey] || 1;
+			const synergy = getWeaponSynergy(this.character, weaponKey);
 			const attackR = this.calculateFullAttackRating();
 			t.attackRating.textContent = attackR;
-			getLabel(t.attackRating).dataset.formula = `(${weapon.name} skill(${weaponSkill}) × 5) + (Str(${stats.str}) × 3) + (Dex(${stats.dex}) × 2)`;
+			const synergyPart = synergy > 0 ? ` + synergy(${synergy})` : '';
+			getLabel(t.attackRating).dataset.formula = `(${weapon.name} skill(${weaponSkill})${synergyPart} × 5) + (Str(${stats.str}) × 3) + (Dex(${stats.dex}) × 2)`;
 		}
 
 		// Defense Rating

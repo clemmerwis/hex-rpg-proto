@@ -248,10 +248,10 @@ export const WEAPONS = {
 	unarmed: { name: 'Unarmed', base: 2, type: 'concussive', force: 1, speed: 16, grip: 'two', critPenalty: -25, passives: { evasionBonus: 5 }, effects: ['rockedOnHit'] },
 	shortSpear: { name: 'Short Spear', base: 3, type: 'piercing', force: 1, speed: 19, grip: 'one', passives: {}, effects: ['vulnerableEnhancementLight'] },
 	shortSword: { name: 'Short Sword', base: 4, type: 'slash', force: 2, speed: 18, grip: 'one', passives: {}, effects: ['bleedingLight'] },
-	shortBlunt: { name: 'Short Blunt', base: 6, type: 'blunt', force: 3, speed: 20, grip: 'one', passives: {}, effects: ['armorDamageEnhancementLight'] },
+	shortHammer: { name: 'Short Hammer', base: 6, type: 'blunt', force: 3, speed: 20, grip: 'one', passives: {}, effects: ['armorDamageEnhancementLight'] },
 	longSword: { name: 'Long Sword', base: 8, type: 'slash', force: 4, speed: 20, grip: 'two', passives: {}, effects: ['bleedingHeavy'] },
 	longSpear: { name: 'Long Spear', base: 6, type: 'piercing', force: 4, speed: 20, grip: 'two', passives: {}, effects: ['vulnerableEnhancementHeavy'] },
-	longBlunt: { name: 'Long Blunt', base: 10, type: 'blunt', force: 6, speed: 21, grip: 'two', passives: {}, effects: ['armorDamageEnhancementHeavy'] },
+	longHammer: { name: 'Long Hammer', base: 10, type: 'blunt', force: 6, speed: 21, grip: 'two', passives: {}, effects: ['armorDamageEnhancementHeavy'] },
 	smallShield: { name: 'Small Shield', base: 1, type: 'blunt', force: 2, speed: 17, grip: 'off', passives: { defenseR: 4 }, effects: [] },
 	largeShield: { name: 'Large Shield', base: 1, type: 'blunt', force: 3, speed: 20, grip: 'off', passives: { defenseR: 8 }, effects: [] },
 };
@@ -373,7 +373,7 @@ export function calculateCSC(attacker, defender) {
 // Weapon skills use the weapon key directly (e.g., skills.shortSword)
 export const SKILLS = {
 	defense: ['block', 'dodge'],
-	weapons: ['unarmed', 'shortSword', 'longSword', 'shortSpear', 'longSpear', 'shortBlunt', 'longBlunt'],
+	weapons: ['unarmed', 'shortSword', 'longSword', 'shortSpear', 'longSpear', 'shortHammer', 'longHammer'],
 	critical: ['criticalStrike', 'criticalDefense'],
 };
 
@@ -389,8 +389,8 @@ export function createDefaultSkills() {
 		longSword: 1,
 		shortSpear: 1,
 		longSpear: 1,
-		shortBlunt: 1,
-		longBlunt: 1,
+		shortHammer: 1,
+		longHammer: 1,
 		// Critical
 		criticalStrike: 1,
 		criticalDefense: 1,
@@ -398,15 +398,37 @@ export function createDefaultSkills() {
 }
 
 /**
+ * Calculate weapon skill synergy bonus
+ * Weapons with the same damage type give synergy: floor(partnerSkill / 3)
+ * e.g., Long Slash at 6 gives +2 to Short Slash
+ */
+export function getWeaponSynergy(character, weaponKey) {
+	const weapon = WEAPONS[weaponKey];
+	if (!weapon) return 0;
+
+	let maxSynergy = 0;
+	for (const otherKey of SKILLS.weapons) {
+		if (otherKey === weaponKey) continue;
+		const otherWeapon = WEAPONS[otherKey];
+		if (otherWeapon && otherWeapon.type === weapon.type) {
+			const otherSkill = character.skills[otherKey] || 1;
+			maxSynergy = Math.max(maxSynergy, Math.floor(otherSkill / 3));
+		}
+	}
+	return maxSynergy;
+}
+
+/**
  * Calculate Attack Rating
- * Formula: (skill * 5) + (Str * 3) + (Dex * 2) + weapon.attackR
+ * Formula: ((skill + synergy) * 5) + (Str * 3) + (Dex * 2) + weapon.attackR
  */
 export function calculateAttackRating(character) {
 	const weaponKey = character.equipment.mainHand;
 	const weapon = WEAPONS[weaponKey];
 	const skillLevel = character.skills[weaponKey] || 1;
+	const synergy = getWeaponSynergy(character, weaponKey);
 	const attrBonus = weapon.attackR || 0;
-	return (skillLevel * 5) + (character.stats.str * 3) + (character.stats.dex * 2) + attrBonus;
+	return ((skillLevel + synergy) * 5) + (character.stats.str * 3) + (character.stats.dex * 2) + attrBonus;
 }
 
 /**
@@ -494,7 +516,7 @@ export const NPC_TEMPLATES = {
 			instinct: 9, wis: 4
 		},
 		equipment: {
-			mainHand: 'shortBlunt',
+			mainHand: 'shortHammer',
 			offHand: 'smallShield',
 			armor: 'brigandine',
 		},

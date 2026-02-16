@@ -42,7 +42,7 @@ All characters (PC and NPCs) share this structure:
     // Skills (all range 1-10)
     skills: {
         block, dodge,              // Defense skills
-        unarmed, shortSword, longSword, shortSpear, longSpear, shortBlunt, longBlunt,  // Weapon skills
+        unarmed, shortSword, longSword, shortSpear, longSpear, shortHammer, longHammer,  // Weapon skills
         criticalStrike, criticalDefense  // Critical skills
     },
 
@@ -115,7 +115,8 @@ engagedMax = floor((per + wis + int) / 6)  // Cerebral Presence
 
 **Attack Rating:**
 ```
-attackR = (weaponSkill * 5) + (str * 3) + (dex * 2) + weapon.attackR
+synergy = floor(partnerSkill / 3)  // partner = same damage type, different size
+attackR = ((weaponSkill + synergy) * 5) + (str * 3) + (dex * 2) + weapon.attackR
 ```
 
 **Defense Rating:**
@@ -183,10 +184,10 @@ Each attacker must deplete a character's buffer individually before dealing real
 | Unarmed | 2 | concussive | 1 | 16 | two | evasionBonus: 5, bypasses buffer |
 | Short Spear | 3 | piercing | 1 | 19 | one | vulnerableEnhancementLight |
 | Short Sword | 4 | slash | 2 | 18 | one | bleedingLight |
-| Short Blunt | 6 | blunt | 3 | 20 | one | armorDamageEnhancementLight |
+| Short Hammer | 6 | blunt | 3 | 20 | one | armorDamageEnhancementLight |
 | Long Sword | 8 | slash | 4 | 20 | two | bleedingHeavy |
 | Long Spear | 6 | piercing | 4 | 20 | two | vulnerableEnhancementHeavy |
-| Long Blunt | 10 | blunt | 6 | 21 | two | armorDamageEnhancementHeavy |
+| Long Hammer | 10 | blunt | 6 | 21 | two | armorDamageEnhancementHeavy |
 | Small Shield | 1 | blunt | 2 | 17 | off | defenseR: 4 |
 | Large Shield | 1 | blunt | 3 | 20 | off | defenseR: 8 |
 

@@ -287,6 +287,73 @@ body {
     visibility: visible;
 }
 
+/* Armor name with HTML tooltip */
+.log-armor {
+    position: relative;
+    cursor: help;
+    border-bottom: 1px dotted rgba(0, 31, 63, 0.4);
+}
+
+.armor-tooltip {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 4px);
+    left: 0;
+    background: #1a1a1a;
+    padding: 6px 10px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: normal;
+    width: max-content;
+    z-index: 1100;
+    border: 1px solid #555;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+    pointer-events: none;
+    text-align: left;
+}
+
+.log-armor:hover .armor-tooltip {
+    display: block;
+}
+
+.armor-tip-resist {
+    color: #6B9BD2;
+}
+
+.armor-tip-vuln {
+    color: #D25B5B;
+}
+
+/* Weapon name with HTML tooltip */
+.log-weapon {
+    position: relative;
+    cursor: help;
+    border-bottom: 1px dotted rgba(0, 31, 63, 0.4);
+}
+
+.weapon-tooltip {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 4px);
+    left: 0;
+    background: #1a1a1a;
+    color: #e0e0e0;
+    padding: 6px 10px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: normal;
+    width: max-content;
+    z-index: 1100;
+    border: 1px solid #555;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+    pointer-events: none;
+    text-align: left;
+}
+
+.log-weapon:hover .weapon-tooltip {
+    display: block;
+}
+
 .log-condition {
     color: #FF8C00; /* Orange for conditions like [critical] */
 }

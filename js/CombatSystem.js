@@ -27,15 +27,14 @@ export class CombatSystem {
         // Check if there's a character at the target hex
         const defender = this.getCharacterAtHex(targetHex.q, targetHex.r);
 
-        // Format attack type name with styling tags
-        let attackTypeName = ATTACK_TYPES[attackType]?.name || 'Attack';
-        if (attackType === 'heavy') {
-            attackTypeName = '{{heavy}}heavy{{/heavy}} Attack';
-        }
+        // Format attack name: "weapon Attack" or "heavy weapon Attack"
+        const weaponKey = attacker.equipment.mainHand;
+        const heavyPrefix = attackType === 'heavy' ? '{{heavy}}heavy{{/heavy}} ' : '';
+        const attackTypeName = `${heavyPrefix}{{weapon:${weaponKey}}} Attack`;
 
         if (!defender) {
             // Empty hex - attack whiffs
-            const whiffAttackName = attackType === 'heavy' ? '{{heavy}}heavy{{/heavy}} attacks' : `${attackType} attacks`;
+            const whiffAttackName = `${heavyPrefix}{{weapon:${weaponKey}}} attacks`;
             this.logger.combat(`{{char:${attacker.name}}}: ${whiffAttackName} at empty hex (${targetHex.q}, ${targetHex.r}) - {{whiff}}`);
             // Animation already set by GameStateManager - don't reset here
             return { hit: false, damage: 0, crit: false, defenderDefeated: false, whiff: true };
@@ -170,7 +169,8 @@ export class CombatSystem {
 
         // DR modifier with armor name
         if (effectiveDR > 0) {
-            damageBreakdown += ` -> ${armor.name} DR({{dr}}-${effectiveDR}{{/dr}})`;
+            const armorKey = defender.equipment.armor || 'none';
+            damageBreakdown += ` -> {{armor:${armorKey}}} DR({{dr}}-${effectiveDR}{{/dr}})`;
             if (flanking) damageBreakdown += ` (flanked ${Math.round(armor.flankingDefense * 100)}%)`;
             damageBreakdown += ` = {{dmg}}${damageAfterDR}{{/dmg}}`;
         }

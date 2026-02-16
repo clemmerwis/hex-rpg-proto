@@ -1,4 +1,4 @@
-import { FACTIONS, GAME_CONSTANTS } from './const.js';
+import { FACTIONS, GAME_CONSTANTS, ARMOR_TYPES, WEAPONS } from './const.js';
 
 /**
  * Semantic tokens used by CombatSystem - replaced with formatted HTML
@@ -422,6 +422,82 @@ export class CombatUILog {
 	}
 
 	/**
+	 * Replace armor tokens with hoverable armor name + styled tooltip
+	 * Format: {{armor:key}} -> <span class="log-armor">Name<span class="armor-tooltip">...</span></span>
+	 */
+	replaceArmorTokens(text) {
+		const pattern = '{{armor:';
+		const closeToken = '}}';
+
+		while (text.includes(pattern)) {
+			const startIdx = text.indexOf(pattern);
+			const endIdx = text.indexOf(closeToken, startIdx + pattern.length);
+			if (endIdx === -1) break;
+
+			const armorKey = text.substring(startIdx + pattern.length, endIdx);
+			const armor = ARMOR_TYPES[armorKey];
+
+			if (!armor) {
+				text = text.substring(0, startIdx) + armorKey + text.substring(endIdx + closeToken.length);
+				continue;
+			}
+
+			// Build tooltip lines
+			let tooltipLines = [];
+			if (armor.resistantAgainst.length > 0) {
+				for (const type of armor.resistantAgainst) {
+					tooltipLines.push(`<div class="armor-tip-resist">Resist: ${type}</div>`);
+				}
+			}
+			if (armor.vulnerableAgainst.length > 0) {
+				for (const type of armor.vulnerableAgainst) {
+					tooltipLines.push(`<div class="armor-tip-vuln">Vuln: ${type}</div>`);
+				}
+			}
+
+			const tooltipHTML = tooltipLines.length > 0
+				? `<span class="armor-tooltip">${tooltipLines.join('')}</span>`
+				: '';
+			const formatted = `<span class="log-armor">${armor.name}${tooltipHTML}</span>`;
+
+			text = text.substring(0, startIdx) + formatted + text.substring(endIdx + closeToken.length);
+		}
+		return text;
+	}
+
+	/**
+	 * Replace weapon tokens with hoverable weapon name + styled tooltip
+	 * Format: {{weapon:key}} -> <span class="log-weapon">short-sword<span class="weapon-tooltip">...</span></span>
+	 */
+	replaceWeaponTokens(text) {
+		const pattern = '{{weapon:';
+		const closeToken = '}}';
+
+		while (text.includes(pattern)) {
+			const startIdx = text.indexOf(pattern);
+			const endIdx = text.indexOf(closeToken, startIdx + pattern.length);
+			if (endIdx === -1) break;
+
+			const weaponKey = text.substring(startIdx + pattern.length, endIdx);
+			const weapon = WEAPONS[weaponKey];
+
+			if (!weapon) {
+				text = text.substring(0, startIdx) + weaponKey + text.substring(endIdx + closeToken.length);
+				continue;
+			}
+
+			// Hyphenated lowercase display name: "shortSword" → "short-sword"
+			const displayName = weaponKey.replace(/([A-Z])/g, '-$1').toLowerCase();
+
+			const tooltipHTML = `<span class="weapon-tooltip">Base: ${weapon.base} | Speed: ${weapon.speed}</span>`;
+			const formatted = `<span class="log-weapon">${displayName}${tooltipHTML}</span>`;
+
+			text = text.substring(0, startIdx) + formatted + text.substring(endIdx + closeToken.length);
+		}
+		return text;
+	}
+
+	/**
 	 * Format a single log entry with color coding and styling
 	 */
 	formatLogEntry(entry) {
@@ -435,7 +511,13 @@ export class CombatUILog {
 		// 1. Replace tooltip tokens ({{tip:text}}content{{/tip}}) - must be first
 		html = this.replaceTooltipTags(html);
 
-		// 2. Replace simple semantic tokens ({{critical}}, {{hit}}, etc.)
+		// 2. Replace armor tokens ({{armor:key}}) - before other tags so tooltip HTML isn't mangled
+		html = this.replaceArmorTokens(html);
+
+		// 3. Replace weapon tokens ({{weapon:key}}) - before other tags so tooltip HTML isn't mangled
+		html = this.replaceWeaponTokens(html);
+
+		// 4. Replace simple semantic tokens ({{critical}}, {{hit}}, etc.)
 		html = this.replaceCombatTags(html);
 
 		// 3. Replace wrapper tokens ({{buf}}...{{/buf}}, {{dmg}}...{{/dmg}}, etc.)
