@@ -245,7 +245,7 @@ export const DAMAGE_TYPE_PROPERTIES = {
 // passives: { defenseR, attackR, critMultiplier, evasionBonus, ... } - gathered via getEquipmentBonus()
 // effects: triggered effects referencing WEAPON_EFFECTS keys
 export const WEAPONS = {
-	unarmed: { name: 'Unarmed', base: 2, type: 'concussive', force: 1, speed: 16, grip: 'two', passives: { evasionBonus: 5 }, effects: ['rockedOnHit'] },
+	unarmed: { name: 'Unarmed', base: 2, type: 'concussive', force: 1, speed: 16, grip: 'two', critPenalty: -25, passives: { evasionBonus: 5 }, effects: ['rockedOnHit'] },
 	shortSpear: { name: 'Short Spear', base: 3, type: 'piercing', force: 1, speed: 19, grip: 'one', passives: {}, effects: ['vulnerableEnhancementLight'] },
 	shortSword: { name: 'Short Sword', base: 4, type: 'slash', force: 2, speed: 18, grip: 'one', passives: {}, effects: ['bleedingLight'] },
 	shortBlunt: { name: 'Short Blunt', base: 6, type: 'blunt', force: 3, speed: 20, grip: 'one', passives: {}, effects: ['armorDamageEnhancementLight'] },
@@ -358,12 +358,15 @@ export function calculateCSD_R(character) {
 
 /**
  * Calculate Critical Strike Chance as integer percentage (0-100%)
- * Formula: (CSA_R - CSD_R) + 50, clamped to 0-100
+ * Formula: (CSA_R - CSD_R) + 50 + weapon.critPenalty, clamped to 0-100
+ * critPenalty is a flat modifier on the weapon (negative = penalty, positive = bonus)
  */
 export function calculateCSC(attacker, defender) {
 	const csaR = calculateCSA_R(attacker);
 	const csdR = calculateCSD_R(defender);
-	return Math.max(0, Math.min(100, (csaR - csdR) + 50));
+	const weapon = WEAPONS[attacker.equipment.mainHand];
+	const critMod = weapon?.critPenalty || 0;
+	return Math.max(0, Math.min(100, (csaR - csdR) + 50 + critMod));
 }
 
 // Skill definitions (all range 1-10)

@@ -135,7 +135,8 @@ THC = ((attackR - defenseR) + (50 - evasionBonus)) / 100
 ```
 CSA_R = (criticalStrike * 5) + (int * 3) + (str * 2)
 CSD_R = (criticalDefense * 5) + (dex * 3) + (per * 2) + instinct
-CSC = ((CSA_R - CSD_R) + 50) / 100
+CSC = ((CSA_R - CSD_R) + 50 + weapon.critPenalty) / 100
+// critPenalty: flat modifier on weapon (e.g., unarmed: -25)
 ```
 
 **Damage Calculation (base → vuln/resist → DR → crit):**
