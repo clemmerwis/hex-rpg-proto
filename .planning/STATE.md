@@ -5,33 +5,33 @@
 See: .planning/PROJECT.md (updated 2026-02-15)
 
 **Core value:** Code quality — split large files, reduce method sizes, and improve maintainability so the codebase stays workable as features grow.
-**Current focus:** Phase 1 — Constants & Utilities
+**Current focus:** Phase 2 — CombatSystem Pipeline
 
 ## Current Position
 
 Phase: 1 of 7 (Constants & Utilities)
-Plan: 1 of 2 complete
-Status: In progress
-Last activity: 2026-02-16 — Plan 01-01 complete (COMBAT_TAGS, WRAPPER_TAGS, viewport dims to const.js)
+Plan: 2 of 2 complete
+Status: Phase complete
+Last activity: 2026-02-16 — Completed 01-02-PLAN.md (hexKey utility)
 
-Progress: █░░░░░░░░░ 5%
+Progress: █░░░░░░░░░ 11%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 0
-- Average duration: —
-- Total execution time: 0 hours
+- Total plans completed: 2
+- Average duration: 4min
+- Total execution time: 0.1 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| — | — | — | — |
+| 1. Constants & Utilities | 2 | 8min | 4min |
 
 **Recent Trend:**
-- Last 5 plans: —
-- Trend: —
+- Last 5 plans: 5min, 3min
+- Trend: stable
 
 ## Accumulated Context
 
@@ -52,6 +52,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-15
-Stopped at: Project initialization complete
+Last session: 2026-02-16
+Stopped at: Completed 01-02-PLAN.md — Phase 1 complete
 Resume file: None

@@ -16,7 +16,7 @@ None
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Constants & Utilities** - Consolidate magic numbers and create shared utility functions
+- [x] **Phase 1: Constants & Utilities** - Consolidate magic numbers and create shared utility functions
 - [ ] **Phase 2: CombatSystem Pipeline** - Decompose executeAttack() into discrete pipeline stages
 - [ ] **Phase 3: GameStateManager Split** - Break up monolithic GSM into focused modules
 - [ ] **Phase 4: Renderer Refactor** - Split Renderer and add visibility/flood-fill caching
@@ -34,7 +34,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 Plans:
 - [x] 01-01: Move COMBAT_TAGS/WRAPPER_TAGS and viewport dimensions to const.js (2 tasks)
-- [ ] 01-02: Create hexKey() utility, replace ad-hoc `${q},${r}` across 5 files (2 tasks)
+- [x] 01-02: Create hexKey() utility, replace ad-hoc `${q},${r}` across 5 files (2 tasks)
 
 ### Phase 2: CombatSystem Pipeline
 **Goal**: executeAttack() decomposed from ~200-line monolith into discrete, testable pipeline stages
@@ -107,7 +107,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Constants & Utilities | 1/2 | In progress | - |
+| 1. Constants & Utilities | 2/2 | Complete | 2026-02-16 |
 | 2. CombatSystem Pipeline | 0/3 | Not started | - |
 | 3. GameStateManager Split | 0/3 | Not started | - |
 | 4. Renderer Refactor | 0/3 | Not started | - |
