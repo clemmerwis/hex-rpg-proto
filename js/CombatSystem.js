@@ -32,11 +32,7 @@ export class CombatSystem {
         const attackTypeName = this.formatAttackTypeName(weaponKey, attackType);
 
         if (!defender) {
-            // Empty hex - attack whiffs
-            const whiffAttackName = this.formatAttackTypeName(weaponKey, attackType, 'attacks');
-            this.logger.combat(`{{char:${attacker.name}}}: ${whiffAttackName} at empty hex (${targetHex.q}, ${targetHex.r}) - {{whiff}}`);
-            // Animation already set by GameStateManager - don't reset here
-            return { hit: false, damage: 0, crit: false, defenderDefeated: false, whiff: true };
+            return this.handleWhiff(attacker, targetHex, weaponKey, attackType);
         }
 
         // Check if attacking ally (friendly fire warning)
@@ -49,9 +45,7 @@ export class CombatSystem {
         const { hit, thc, thcRoll, thcPercent, rollPercent } = this.resolveHitRoll(attacker, defender);
 
         if (!hit) {
-            this.logger.combat(`{{char:${attacker.name}}}: ${attackTypeName} {{char:${defender.name}}} (THC= {{thc}}${thcPercent}%{{/thc}}, Roll= {{roll}}${rollPercent}{{/roll}}, {{miss}})`);
-            // Animation already set by GameStateManager - don't reset here
-            return { hit: false, damage: 0, crit: false, defenderDefeated: false };
+            return this.handleMiss(attacker, defender, attackTypeName, { thcPercent, rollPercent });
         }
 
         // Get weapon and armor info
@@ -98,22 +92,7 @@ export class CombatSystem {
         // Log where the damage actually went (context-sensitive)
         this.logDamageApplication(defender, attacker, damageResult);
 
-        const defeated = defender.health <= 0;
-
-        // Mark defender as recently hit for health bar display
-        this.gameStateManager.markCharacterHit(defender);
-
-        if (defeated) {
-            this.logger.combat(`{{char:${defender.name}}} has been defeated!`);
-            // Die animation will be set by GameStateManager.handleCharacterDefeat()
-        } else if (finalDamage > 0) {
-            // Play impact animation when hit but not defeated
-            defender.currentAnimation = 'impact';
-            defender.animationFrame = 0;
-        }
-
-        // Attacker animation already set by GameStateManager - don't reset here
-        return { hit: true, damage: finalDamage, crit: crit, defenderDefeated: defeated, flanking: flanking };
+        return this.handleHitResult(attacker, defender, finalDamage, crit, flanking);
     }
 
     /**
@@ -375,6 +354,51 @@ export class CombatSystem {
             // Buffer already depleted, all damage to HP
             this.logger.combat(`    → {{char:${defender.name}}}: {{dmg}}-${healthDamage}{{/dmg}} HP {{hp}}(${healthBefore} → ${healthAfter}){{/hp}}`);
         }
+    }
+
+    /**
+     * Handle attack on empty hex (whiff)
+     * Logs the whiff message and returns the whiff result object
+     * Returns { hit: false, damage: 0, crit: false, defenderDefeated: false, whiff: true }
+     */
+    handleWhiff(attacker, targetHex, weaponKey, attackType) {
+        const whiffAttackName = this.formatAttackTypeName(weaponKey, attackType, "attacks");
+        this.logger.combat(`{{char:${attacker.name}}}: ${whiffAttackName} at empty hex (${targetHex.q}, ${targetHex.r}) - {{whiff}}`);
+        return { hit: false, damage: 0, crit: false, defenderDefeated: false, whiff: true };
+    }
+
+    /**
+     * Handle a missed attack (THC roll failed)
+     * Logs the miss message with THC/roll data and returns the miss result object
+     * Returns { hit: false, damage: 0, crit: false, defenderDefeated: false }
+     */
+    handleMiss(attacker, defender, attackTypeName, hitResult) {
+        const { thcPercent, rollPercent } = hitResult;
+        this.logger.combat(`{{char:${attacker.name}}}: ${attackTypeName} {{char:${defender.name}}} (THC= {{thc}}${thcPercent}%{{/thc}}, Roll= {{roll}}${rollPercent}{{/roll}}, {{miss}})`);
+        return { hit: false, damage: 0, crit: false, defenderDefeated: false };
+    }
+
+    /**
+     * Handle a successful hit result (defeat check, animations, return)
+     * Marks defender as hit, triggers defeat/impact animation, returns hit result object
+     * Returns { hit: true, damage: finalDamage, crit, defenderDefeated: defeated, flanking }
+     */
+    handleHitResult(attacker, defender, finalDamage, crit, flanking) {
+        const defeated = defender.health <= 0;
+
+        // Mark defender as recently hit for health bar display
+        this.gameStateManager.markCharacterHit(defender);
+
+        if (defeated) {
+            this.logger.combat(`{{char:${defender.name}}} has been defeated!`);
+            // Die animation will be set by GameStateManager.handleCharacterDefeat()
+        } else if (finalDamage > 0) {
+            // Play impact animation when hit but not defeated
+            defender.currentAnimation = 'impact';
+            defender.animationFrame = 0;
+        }
+
+        return { hit: true, damage: finalDamage, crit, defenderDefeated: defeated, flanking };
     }
 
     /**
