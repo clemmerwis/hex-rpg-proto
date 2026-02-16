@@ -9,89 +9,64 @@ export class CombatSystem {
     }
 
     /**
-     * Execute attack on a target hex
-     * Attacks target the HEX, not the character - if hex is empty, attack misses
-     * THC = ((Attack_R - Defense_R) + (50 - evasionBonus)) / 100
-     * CSC = ((CSA_R - CSD_R) + 50) / 100
-     * Damage pipeline: base → vuln/resist → flat DR → crit(x2)
-     * Crit = 2x damage, critMultiplier from passives stacks multiplicatively if present
+     * Execute attack on a target hex — pipeline orchestrator
+     *
+     * Pipeline stages:
+     *  1. Face target (getFacingFromDelta)
+     *  2. Lookup defender → handleWhiff() if empty
+     *  3. Format attack name (formatAttackTypeName)
+     *  4. Check friendly fire
+     *  5. Resolve hit roll (resolveHitRoll) → handleMiss() if miss
+     *  6. Get weapon/armor
+     *  7. Calculate base damage (calculateDamage)
+     *  8. Apply resistance modifier (applyResistanceModifier)
+     *  9. Calculate flanking and DR (calculateFlankingAndDR)
+     * 10. Apply crit modifier (applyCritModifier)
+     * 11. Build and emit combat log (buildDamageBreakdown, buildCombatLogLines)
+     * 12. Apply damage through buffer (applyDamage)
+     * 13. Log damage application (logDamageApplication)
+     * 14. Return hit result (handleHitResult)
      */
     executeAttack(attacker, targetHex, attackType = 'light') {
-        // Face the target hex before attacking
-        const targetPixel = this.hexGrid.hexToPixel(targetHex.q, targetHex.r);
-        const attackerPixel = this.hexGrid.hexToPixel(attacker.hexQ, attacker.hexR);
-        const dx = targetPixel.x - attackerPixel.x;
-        const dy = targetPixel.y - attackerPixel.y;
-        attacker.facing = getFacingFromDelta(dx, dy);
-
-        // Check if there's a character at the target hex
+        // 1. Face target
+        const tPx = this.hexGrid.hexToPixel(targetHex.q, targetHex.r);
+        const aPx = this.hexGrid.hexToPixel(attacker.hexQ, attacker.hexR);
+        attacker.facing = getFacingFromDelta(tPx.x - aPx.x, tPx.y - aPx.y);
+        // 2. Lookup defender → whiff if empty
         const defender = this.getCharacterAtHex(targetHex.q, targetHex.r);
-
-        // Format attack name: "weapon Attack" or "heavy weapon Attack"
         const weaponKey = attacker.equipment.mainHand;
+        if (!defender) return this.handleWhiff(attacker, targetHex, weaponKey, attackType);
+        // 3. Format attack name  4. Check friendly fire
         const attackTypeName = this.formatAttackTypeName(weaponKey, attackType);
-
-        if (!defender) {
-            return this.handleWhiff(attacker, targetHex, weaponKey, attackType);
-        }
-
-        // Check if attacking ally (friendly fire warning)
         const friendlyFire = defender.faction === attacker.faction;
-        if (friendlyFire) {
-            this.logger.warn(`[FRIENDLY FIRE WARNING] ${attacker.name} attacks ally ${defender.name}!`);
-        }
-
-        // Resolve hit roll (attack/defense ratings, THC, d100)
-        const { hit, thc, thcRoll, thcPercent, rollPercent } = this.resolveHitRoll(attacker, defender);
-
-        if (!hit) {
-            return this.handleMiss(attacker, defender, attackTypeName, { thcPercent, rollPercent });
-        }
-
-        // Get weapon and armor info
-        const weapon = WEAPONS[attacker.equipment.mainHand];
-        const armor = ARMOR_TYPES[defender.equipment.armor || 'none'];
-
-        // Calculate base damage from stats, weapon, and attack type
-        let damage = calculateDamage(attacker.stats, attacker.equipment.mainHand, attackType);
+        if (friendlyFire) this.logger.warn(`[FRIENDLY FIRE WARNING] ${attacker.name} attacks ally ${defender.name}!`);
+        // 5. Resolve hit roll → miss if failed
+        const { hit, thcPercent, rollPercent } = this.resolveHitRoll(attacker, defender);
+        if (!hit) return this.handleMiss(attacker, defender, attackTypeName, { thcPercent, rollPercent });
+        // 6. Get weapon and armor  7. Calculate base damage
+        const weapon = WEAPONS[weaponKey];
+        const armor = ARMOR_TYPES[defender.equipment.armor || "none"];
+        let damage = calculateDamage(attacker.stats, weaponKey, attackType);
         const baseDamage = damage;
-
-        // Apply resistance/vulnerability (multipliers amplify raw damage before DR)
+        // 8. Apply resistance/vulnerability
         let resistMod;
         ({ damage, resistMod } = this.applyResistanceModifier(damage, weapon, armor, attackType));
-
         const damageAfterResist = damage;
-
-        // Calculate flanking status and apply DR
+        // 9. Calculate flanking and DR
         let flanking, effectiveDR, drAbsorbed;
         ({ flanking, effectiveDR, drAbsorbed, damage } = this.calculateFlankingAndDR(attacker, defender, damage, armor));
-
         const damageAfterDR = damage;
-
-        // Roll for critical hit and apply crit multiplier
+        // 10. Apply crit modifier
         let crit, cscPercent, cscRollPercent;
         ({ crit, cscPercent, cscRollPercent, damage } = this.applyCritModifier(attacker, defender, damage));
-
         const finalDamage = damage;
-
-        // Build and emit combat log lines (before applying damage)
-        const damageBreakdown = this.buildDamageBreakdown(
-            attacker, attackType, weapon, armor, baseDamage,
-            damageAfterResist, resistMod, effectiveDR, flanking,
-            drAbsorbed, damageAfterDR, crit, finalDamage, defender
-        );
-        const logLines = this.buildCombatLogLines(
-            attacker, defender, attackTypeName, thcPercent, rollPercent,
-            crit, flanking, friendlyFire, cscPercent, cscRollPercent, damageBreakdown
-        );
-        logLines.forEach(line => this.logger.combat(line));
-
-        // NOW apply damage through buffer (per-attacker temp HP) - logs appear after damage calc
+        // 11. Build and emit combat log
+        const breakdown = this.buildDamageBreakdown(attacker, attackType, weapon, armor, baseDamage, damageAfterResist, resistMod, effectiveDR, flanking, drAbsorbed, damageAfterDR, crit, finalDamage, defender);
+        this.buildCombatLogLines(attacker, defender, attackTypeName, thcPercent, rollPercent, crit, flanking, friendlyFire, cscPercent, cscRollPercent, breakdown).forEach(line => this.logger.combat(line));
+        // 12. Apply damage through buffer  13. Log damage application
         const damageResult = this.applyDamage(attacker, defender, damage);
-
-        // Log where the damage actually went (context-sensitive)
         this.logDamageApplication(defender, attacker, damageResult);
-
+        // 14. Return hit result
         return this.handleHitResult(attacker, defender, finalDamage, crit, flanking);
     }
 
