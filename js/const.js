@@ -5,8 +5,8 @@ export const GAME_CONSTANTS = {
 
 	// Combat timing
 	COMBAT_PHASE_TRANSITION: 100, // ms delay between move and action phases
-	COMBAT_ATTACK_WINDUP: 100, // ms delay before attack resolves (for animation)
-	COMBAT_ATTACK_RECOVERY: 500, // ms delay after attack before next character
+	COMBAT_ATTACK_WINDUP: 100, // fallback — prefer calculateAttackTiming()
+	COMBAT_ATTACK_RECOVERY: 500, // fallback — prefer calculateAttackTiming()
 	COMBAT_MOVE_BLOCKED_DELAY: 50, // ms delay when move is blocked before next
 
 	// Animation
@@ -125,6 +125,30 @@ export const SPRITE_SETS = {
  */
 export function getAnimationConfig(spriteSet, animName) {
 	return SPRITE_SETS[spriteSet]?.animations[animName] || DEFAULT_ANIM_CONFIG;
+}
+
+/**
+ * Calculate attack animation timing from sprite frameCount and speed.
+ * Returns { windupMs, recoveryMs } derived from actual animation data.
+ *
+ * windupMs = time for attack animation to reach "impact" frame (~40% through)
+ * recoveryMs = time for remaining attack frames + impact animation to complete
+ */
+export function calculateAttackTiming(spriteSet) {
+	const attackAnim = spriteSet.animations.attack;
+	const impactAnim = spriteSet.animations.impact;
+	const attackSpeed = attackAnim.speed || GAME_CONSTANTS.ANIMATION_SPEED;
+	const impactSpeed = impactAnim.speed || GAME_CONSTANTS.ANIMATION_SPEED;
+
+	// Windup: ~40% of attack animation (wind-up before strike connects)
+	const windupFrames = Math.ceil(attackAnim.frameCount * 0.4);
+	const windupMs = windupFrames * attackSpeed;
+
+	// Recovery: remaining attack frames + full impact animation
+	const remainingAttackFrames = attackAnim.frameCount - windupFrames;
+	const recoveryMs = (remainingAttackFrames * attackSpeed) + (impactAnim.frameCount * impactSpeed);
+
+	return { windupMs, recoveryMs };
 }
 
 // Character stat system
