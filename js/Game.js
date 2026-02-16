@@ -10,6 +10,7 @@ import { CombatSystem } from './CombatSystem.js';
 import { CombatExecutor } from './CombatExecutor.js';
 import { EngagementManager } from './EngagementManager.js';
 import { HexGridRenderer } from './HexGridRenderer.js';
+import { CharacterRenderer } from './CharacterRenderer.js';
 import { Logger } from './Logger.js';
 import { CombatUILog } from './CombatUILog.js';
 import { CharacterFactory } from './CharacterFactory.js';
@@ -112,6 +113,7 @@ export class Game {
         );
 
         this.hexGridRenderer = new HexGridRenderer(this.hexGrid, GAME_CONSTANTS.HEX_SIZE);
+        this.characterRenderer = new CharacterRenderer(this.hexGrid, GAME_CONSTANTS.ZOOM_LEVEL);
 
         this.pathfinding = new Pathfinding(this.hexGrid);
 
@@ -182,7 +184,6 @@ export class Game {
             worldWidth: this.config.world.width,
             worldHeight: this.config.world.height,
             zoomLevel: this.config.zoom,
-            hexSize: this.config.hexSize
         });
 
         this.inputHandler = new InputHandler(this.canvas, {
@@ -209,16 +210,19 @@ export class Game {
             engagementManager: this.engagementManager,
         });
 
+        // CharacterRenderer dependencies
+        this.characterRenderer.setDependencies({
+            game: this.state,
+            gameStateManager: this.gameStateManager,
+            inputHandler: this.inputHandler,
+        });
+
         // Renderer dependencies
         this.renderer.setDependencies({
             game: this.state,
-            hexGrid: this.hexGrid,
-            gameStateManager: this.gameStateManager,
-            getCharacterAtHex: this.getCharacterAtHex.bind(this),
-            inputHandler: this.inputHandler,
             areaManager: this.areaManager,
-            pathfinding: this.pathfinding,
             hexGridRenderer: this.hexGridRenderer,
+            characterRenderer: this.characterRenderer,
         });
 
         // InputHandler dependencies and callbacks
