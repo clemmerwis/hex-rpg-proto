@@ -138,13 +138,13 @@ CSD_R = (criticalDefense * 5) + (dex * 3) + (per * 2) + instinct
 CSC = ((CSA_R - CSD_R) + 50) / 100
 ```
 
-**Damage Calculation:**
+**Damage Calculation (base → vuln/resist → DR → crit):**
 1. Base: `weapon.base + ceil(weapon.force * MULTIPLIER[str]) + attackType.damageMod`
-2. Critical Hit: Multiply by 2, then by weapon.critMultiplier if present
+2. Resistance/Vulnerability: Multiply by 0.5 (resistant) or 1.5 (vulnerable). Weapon enhancements can increase vulnerable multiplier (see Weapon Effects below)
 3. Flanking Check: Attacker behind defender OR defender over-engaged (at max capacity)
 4. Armor Defense: `effectiveDR = flanking ? floor(armor.defense * armor.flankingDefense) : armor.defense`
 5. Subtract DR: `damage = max(0, damage - effectiveDR)`
-6. Resistance/Vulnerability: If damage > 0, multiply by 0.5 (resistant) or 1.5 (vulnerable). Weapon enhancements can increase vulnerable multiplier (see Weapon Effects below)
+6. Critical Hit: Multiply by 2, then by weapon.critMultiplier if present
 
 ### Speed & Turn Order
 

@@ -13,7 +13,7 @@ export class CombatSystem {
      * Attacks target the HEX, not the character - if hex is empty, attack misses
      * THC = ((Attack_R - Defense_R) + (50 - evasionBonus)) / 100
      * CSC = ((CSA_R - CSD_R) + 50) / 100
-     * Damage pipeline: base → crit(x2) → vuln/resist → flat DR
+     * Damage pipeline: base → vuln/resist → flat DR → crit(x2)
      * Crit = 2x damage, critMultiplier from passives stacks multiplicatively if present
      */
     executeAttack(attacker, targetHex, attackType = 'light') {
@@ -36,7 +36,7 @@ export class CombatSystem {
         if (!defender) {
             // Empty hex - attack whiffs
             const whiffAttackName = attackType === 'heavy' ? '{{heavy}}heavy{{/heavy}} attacks' : `${attackType} attacks`;
-            this.logger.combat(`{{char:${attacker.name}}} ${whiffAttackName} at empty hex (${targetHex.q}, ${targetHex.r}) - {{whiff}}`);
+            this.logger.combat(`{{char:${attacker.name}}}: ${whiffAttackName} at empty hex (${targetHex.q}, ${targetHex.r}) - {{whiff}}`);
             // Animation already set by GameStateManager - don't reset here
             return { hit: false, damage: 0, crit: false, defenderDefeated: false, whiff: true };
         }
@@ -63,7 +63,7 @@ export class CombatSystem {
         const hit = thcRoll <= thc;
 
         if (!hit) {
-            this.logger.combat(`{{char:${attacker.name}}} ${attackTypeName} {{char:${defender.name}}} (THC= {{thc}}${thcPercent}%{{/thc}}, Roll= {{roll}}${rollPercent}{{/roll}}, {{miss}})`);
+            this.logger.combat(`{{char:${attacker.name}}}: ${attackTypeName} {{char:${defender.name}}} (THC= {{thc}}${thcPercent}%{{/thc}}, Roll= {{roll}}${rollPercent}{{/roll}}, {{miss}})`);
             // Animation already set by GameStateManager - don't reset here
             return { hit: false, damage: 0, crit: false, defenderDefeated: false };
         }
@@ -76,28 +76,7 @@ export class CombatSystem {
         let damage = calculateDamage(attacker.stats, attacker.equipment.mainHand, attackType);
         const baseDamage = damage;
 
-        // Roll d100 for critical hit (CSC is integer percentage 0-100%)
-        const csc = calculateCSC(attacker, defender);
-        const cscRoll = Math.floor(Math.random() * 100) + 1;
-        const crit = cscRoll <= csc;
-        // Display inverted so "roll high = good" for player readability (same as THC)
-        const cscPercent = 100 - csc;
-        const cscRollPercent = 101 - cscRoll;
-
-        if (crit) {
-            // Critical hit: double damage
-            damage *= 2;
-
-            // Apply crit multiplier from equipment passives (if any)
-            const critMult = getEquipmentBonus(attacker, 'critMultiplier');
-            if (critMult > 0) {
-                damage *= critMult;
-            }
-        }
-
-        const damageAfterCrit = damage;
-
-        // Apply resistance/vulnerability (before DR - multipliers amplify raw damage)
+        // Apply resistance/vulnerability (multipliers amplify raw damage before DR)
         let resistMod = null;
         if (armor.resistantAgainst.includes(weapon.type)) {
             damage = Math.floor(damage * 0.5);
@@ -132,15 +111,36 @@ export class CombatSystem {
             effectiveDR = Math.floor(armor.defense * armor.flankingDefense);
         }
 
-        // Apply DR (flat reduction, final step)
+        // Apply DR (flat reduction, before crit)
         const drAbsorbed = Math.min(damage, effectiveDR);
         damage = Math.max(0, damage - effectiveDR);
+
+        const damageAfterDR = damage;
+
+        // Roll d100 for critical hit (CSC is integer percentage 0-100%)
+        const csc = calculateCSC(attacker, defender);
+        const cscRoll = Math.floor(Math.random() * 100) + 1;
+        const crit = cscRoll <= csc;
+        // Display inverted so "roll high = good" for player readability (same as THC)
+        const cscPercent = 100 - csc;
+        const cscRollPercent = 101 - cscRoll;
+
+        if (crit) {
+            // Critical hit: double damage (applied last in pipeline)
+            damage *= 2;
+
+            // Apply crit multiplier from equipment passives (if any)
+            const critMult = getEquipmentBonus(attacker, 'critMultiplier');
+            if (critMult > 0) {
+                damage *= critMult;
+            }
+        }
 
         const finalDamage = damage;
 
         // Build detailed combat log FIRST (before applying damage)
         let logParts = [];
-        logParts.push(`{{char:${attacker.name}}} ${attackTypeName} {{char:${defender.name}}} (THC= {{thc}}${thcPercent}%{{/thc}}, Roll= {{roll}}${rollPercent}{{/roll}}, {{hit}})`);
+        logParts.push(`{{char:${attacker.name}}}: ${attackTypeName} {{char:${defender.name}}} (THC= {{thc}}${thcPercent}%{{/thc}}, Roll= {{roll}}${rollPercent}{{/roll}}, {{hit}})`);
         if (crit) logParts.push('{{critical}}');
         if (flanking) logParts.push('{{flanking}}');
         if (friendlyFire) logParts.push('{{friendlyFire}}');
@@ -159,9 +159,6 @@ export class CombatSystem {
         baseFormula += ` + (str_multiplier: ${strMult} x ${weaponName}_force: ${weapon.force})`;
         let damageBreakdown = `{{tip:${baseFormula}}}{{dmg}}${baseDamage}{{/dmg}}{{/tip}}`;
 
-        // Crit modifier
-        if (crit) damageBreakdown += ` -> Crit: x2 = {{dmg}}${damageAfterCrit}{{/dmg}}`;
-
         // Resist/Vuln modifier (applied before DR)
         if (resistMod === 'resistant') {
             damageBreakdown += ` -> Resist: {{resist}}x0.5{{/resist}} = {{dmg}}${damageAfterResist}{{/dmg}}`;
@@ -171,12 +168,15 @@ export class CombatSystem {
             damageBreakdown += ` -> Vuln+: {{vuln}}x${attackType === 'heavy' ? '2.5' : '2.0'}{{/vuln}} = {{dmg}}${damageAfterResist}{{/dmg}}`;
         }
 
-        // DR modifier with armor name (flat reduction, final step)
+        // DR modifier with armor name
         if (effectiveDR > 0) {
             damageBreakdown += ` -> ${armor.name} DR({{dr}}-${effectiveDR}{{/dr}})`;
             if (flanking) damageBreakdown += ` (flanked ${Math.round(armor.flankingDefense * 100)}%)`;
-            damageBreakdown += ` = {{dmg}}${finalDamage}{{/dmg}}`;
+            damageBreakdown += ` = {{dmg}}${damageAfterDR}{{/dmg}}`;
         }
+
+        // Crit modifier (applied last, after DR)
+        if (crit) damageBreakdown += ` -> Crit: x2 = {{dmg}}${finalDamage}{{/dmg}}`;
 
         // Log attack result and damage breakdown on separate lines
         this.logger.combat(logParts.join(' '));
