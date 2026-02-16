@@ -44,7 +44,7 @@ Plans:
 
 Plans:
 - [x] 02-01: Extract pure calculation helpers (hit roll, resistance, flanking/DR, crit) (2 tasks)
-- [ ] 02-02: Extract presentation helpers (attack name, damage breakdown, combat log, buffer log) (2 tasks)
+- [x] 02-02: Extract presentation helpers (attack name, damage breakdown, combat log, buffer log) (2 tasks)
 - [ ] 02-03: Extract result handlers and rewrite orchestrator (2 tasks)
 
 ### Phase 3: GameStateManager Split
@@ -108,7 +108,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Constants & Utilities | 2/2 | Complete | 2026-02-16 |
-| 2. CombatSystem Pipeline | 1/3 | In Progress | - |
+| 2. CombatSystem Pipeline | 2/3 | In Progress | - |
 | 3. GameStateManager Split | 0/3 | Not started | - |
 | 4. Renderer Refactor | 0/3 | Not started | - |
 | 5. Supporting File Splits | 0/2 | Not started | - |
