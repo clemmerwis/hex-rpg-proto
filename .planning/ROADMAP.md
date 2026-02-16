@@ -40,12 +40,12 @@ Plans:
 **Goal**: executeAttack() decomposed from ~200-line monolith into discrete, testable pipeline stages
 **Depends on**: Phase 1
 **Research**: Unlikely (existing refactoring plan at mdplans/current/combatsystem-refactoring-plan.md)
-**Plans**: TBD
+**Plans**: 3 plans (6 tasks)
 
 Plans:
-- [ ] 02-01: Extract damage pipeline stages (base, vuln/resist, DR, crit)
-- [ ] 02-02: Extract combat resolution logic (hit/miss, engagement, HP buffer)
-- [ ] 02-03: Extract combat log and animation triggers
+- [ ] 02-01: Extract pure calculation helpers (hit roll, resistance, flanking/DR, crit) (2 tasks)
+- [ ] 02-02: Extract presentation helpers (attack name, damage breakdown, combat log, buffer log) (2 tasks)
+- [ ] 02-03: Extract result handlers and rewrite orchestrator (2 tasks)
 
 ### Phase 3: GameStateManager Split
 **Goal**: 722-line GameStateManager broken into focused modules; engagement tracking consolidated; animation timing derived from frameCount
@@ -108,7 +108,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Constants & Utilities | 2/2 | Complete | 2026-02-16 |
-| 2. CombatSystem Pipeline | 0/3 | Not started | - |
+| 2. CombatSystem Pipeline | 0/3 | Planned | - |
 | 3. GameStateManager Split | 0/3 | Not started | - |
 | 4. Renderer Refactor | 0/3 | Not started | - |
 | 5. Supporting File Splits | 0/2 | Not started | - |
