@@ -94,10 +94,10 @@ Plans:
 **Goal**: Pathfinding results cached with invalidation; AI distance calculations memoized per turn
 **Depends on**: Phase 4
 **Research**: Unlikely (standard memoization/caching patterns)
-**Plans**: TBD
+**Plans**: 2 plans (4 tasks)
 
 Plans:
-- [ ] 07-01: Cache pathfinding results with obstacle-change invalidation
+- [x] 07-01: Cache pathfinding results with obstacle-change invalidation
 - [ ] 07-02: Memoize AI distance calculations per turn
 
 ## Progress
@@ -113,4 +113,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 4. Renderer Refactor | 3/3 | Complete | 2026-02-16 |
 | 5. Supporting File Splits | 2/2 | Complete | 2026-02-17 |
 | 6. Bug Fixes & Validation | 3/3 | Complete | 2026-02-17 |
-| 7. Performance Optimization | 0/2 | Not started | - |
+| 7. Performance Optimization | 1/2 | In progress | - |
