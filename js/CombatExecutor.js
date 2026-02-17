@@ -3,6 +3,10 @@ import { makeEnemies } from './utils.js';
 
 export class CombatExecutor {
     constructor(hexGrid, getCharacterAtHex, movementSystem, combatSystem, logger) {
+        const params = { hexGrid, getCharacterAtHex, movementSystem, combatSystem, logger };
+        for (const [name, param] of Object.entries(params)) {
+            if (!param) throw new Error(`CombatExecutor: missing required '${name}'`);
+        }
         this.hexGrid = hexGrid;
         this.getCharacterAtHex = getCharacterAtHex;
         this.movementSystem = movementSystem;

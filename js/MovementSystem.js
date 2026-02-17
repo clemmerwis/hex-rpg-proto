@@ -3,6 +3,8 @@ import { GAME_CONSTANTS, getAnimationConfig, getFacingFromDelta } from './const.
 
 export class MovementSystem {
     constructor(config) {
+        if (!config.hexGrid) throw new Error("MovementSystem: missing required 'hexGrid'");
+        if (!config.game) throw new Error("MovementSystem: missing required 'game'");
         this.hexGrid = config.hexGrid;
         this.game = config.game;
         this.gameStateManager = config.gameStateManager;

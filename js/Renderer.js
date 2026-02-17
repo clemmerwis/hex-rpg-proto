@@ -18,7 +18,7 @@ export class Renderer {
     }
 
     setDependencies(deps) {
-        const required = ["game", "hexGridRenderer", "characterRenderer"];
+        const required = ["game", "hexGridRenderer", "characterRenderer", "areaManager"];
         for (const dep of required) {
             if (!deps[dep]) throw new Error(`Renderer: missing required dependency '${dep}'`);
         }

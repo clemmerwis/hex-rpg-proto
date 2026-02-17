@@ -1,5 +1,9 @@
 export class EngagementManager {
     constructor(hexGrid, getCharacterAtHex, logger) {
+        const params = { hexGrid, getCharacterAtHex, logger };
+        for (const [name, param] of Object.entries(params)) {
+            if (!param) throw new Error(`EngagementManager: missing required '${name}'`);
+        }
         this.hexGrid = hexGrid;
         this.getCharacterAtHex = getCharacterAtHex;
         this.logger = logger;

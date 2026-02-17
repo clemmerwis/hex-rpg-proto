@@ -24,7 +24,7 @@ export class HexGridRenderer {
     }
 
     setDependencies(deps) {
-        const required = ["game", "getCharacterAtHex", "gameStateManager", "inputHandler", "pathfinding"];
+        const required = ["game", "getCharacterAtHex", "gameStateManager", "inputHandler", "pathfinding", "engagementManager"];
         for (const dep of required) {
             if (!deps[dep]) throw new Error(`HexGridRenderer: missing required dependency '${dep}'`);
         }

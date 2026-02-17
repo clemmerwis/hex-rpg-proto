@@ -28,6 +28,10 @@ export class AreaManager {
     }
 
     setDependencies({ hexGrid, pathfinding, game }) {
+        const required = { hexGrid, pathfinding, game };
+        for (const [name, dep] of Object.entries(required)) {
+            if (!dep) throw new Error(`AreaManager: missing required dependency '${name}'`);
+        }
         this.hexGrid = hexGrid;
         this.pathfinding = pathfinding;
         this.game = game;
