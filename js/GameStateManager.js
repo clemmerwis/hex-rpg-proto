@@ -131,6 +131,9 @@ export class GameStateManager {
     }
 
     processAITurns() {
+        // Build distance matrix once for all AI characters this turn
+        this.aiSystem.beginTurn(this.combatCharacters);
+
         // Get all non-player characters
         const npcs = this.combatCharacters.filter(char => char !== this.game.pc);
 
