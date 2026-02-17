@@ -22,7 +22,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 4: Renderer Refactor** - Split Renderer and add visibility/flood-fill caching
 - [x] **Phase 5: Supporting File Splits** - Split CombatUILog and InputHandler
 - [x] **Phase 6: Bug Fixes & Validation** - Fix race condition, add validation, improve error handling
-- [ ] **Phase 7: Performance Optimization** - Cache pathfinding and memoize AI calculations
+- [x] **Phase 7: Performance Optimization** - Cache pathfinding and memoize AI calculations
 
 ## Phase Details
 
@@ -98,7 +98,7 @@ Plans:
 
 Plans:
 - [x] 07-01: Cache pathfinding results with obstacle-change invalidation
-- [ ] 07-02: Memoize AI distance calculations per turn
+- [x] 07-02: Memoize AI distance calculations per turn
 
 ## Progress
 
@@ -113,4 +113,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 4. Renderer Refactor | 3/3 | Complete | 2026-02-16 |
 | 5. Supporting File Splits | 2/2 | Complete | 2026-02-17 |
 | 6. Bug Fixes & Validation | 3/3 | Complete | 2026-02-17 |
-| 7. Performance Optimization | 1/2 | In progress | - |
+| 7. Performance Optimization | 2/2 | Complete | 2026-02-17 |
