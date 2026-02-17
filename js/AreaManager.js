@@ -34,6 +34,90 @@ export class AreaManager {
     }
 
     /**
+     * Validate an area definition against the expected schema.
+     * Throws on missing/invalid required fields; warns on optional field issues.
+     * @param {Object} areaDef - The parsed area.json object
+     * @param {string} areaId - The area identifier (for error messages)
+     */
+    validateAreaDefinition(areaDef, areaId) {
+        // Required fields — throw on failure
+        const requiredStrings = ["id", "name", "background"];
+        for (const field of requiredStrings) {
+            if (typeof areaDef[field] !== "string" || areaDef[field].length === 0) {
+                throw new Error(`[AreaManager] Area '${areaId}': missing or invalid '${field}' (expected non-empty string, got ${typeof areaDef[field]})`);
+            }
+        }
+        const requiredNumbers = ["width", "height"];
+        for (const field of requiredNumbers) {
+            if (typeof areaDef[field] !== "number" || areaDef[field] <= 0) {
+                throw new Error(`[AreaManager] Area '${areaId}': missing or invalid '${field}' (expected positive number, got ${typeof areaDef[field]})`);
+            }
+        }
+
+        // Optional fields — warn on issues
+
+        if (areaDef.blocked !== undefined) {
+            if (!Array.isArray(areaDef.blocked)) {
+                console.warn(`[AreaManager] Area '${areaId}': 'blocked' should be an array, got ${typeof areaDef.blocked}`);
+            } else {
+                areaDef.blocked.forEach((entry, i) => {
+                    if (typeof entry.q !== "number" || typeof entry.r !== "number") {
+                        console.warn(`[AreaManager] Area '${areaId}': blocked[${i}] missing numeric q/r`);
+                    }
+                });
+            }
+        }
+
+        if (areaDef.spawns !== undefined) {
+            if (typeof areaDef.spawns !== "object" || Array.isArray(areaDef.spawns)) {
+                console.warn(`[AreaManager] Area '${areaId}': 'spawns' should be an object, got ${Array.isArray(areaDef.spawns) ? "array" : typeof areaDef.spawns}`);
+            } else {
+                for (const [key, val] of Object.entries(areaDef.spawns)) {
+                    if (!val || typeof val.q !== "number" || typeof val.r !== "number") {
+                        console.warn(`[AreaManager] Area '${areaId}': spawns['${key}'] missing numeric q/r`);
+                    }
+                }
+            }
+        }
+
+        if (areaDef.npcs !== undefined) {
+            if (!Array.isArray(areaDef.npcs)) {
+                console.warn(`[AreaManager] Area '${areaId}': 'npcs' should be an array, got ${typeof areaDef.npcs}`);
+            } else {
+                areaDef.npcs.forEach((entry, i) => {
+                    if (typeof entry.templateId !== "string") {
+                        console.warn(`[AreaManager] Area '${areaId}': npcs[${i}] missing string 'templateId'`);
+                    }
+                    if (typeof entry.hexQ !== "number" || typeof entry.hexR !== "number") {
+                        console.warn(`[AreaManager] Area '${areaId}': npcs[${i}] missing numeric hexQ/hexR`);
+                    }
+                });
+            }
+        }
+
+        if (areaDef.exits !== undefined) {
+            if (!Array.isArray(areaDef.exits)) {
+                console.warn(`[AreaManager] Area '${areaId}': 'exits' should be an array, got ${typeof areaDef.exits}`);
+            } else {
+                areaDef.exits.forEach((entry, i) => {
+                    if (typeof entry.id !== "string") {
+                        console.warn(`[AreaManager] Area '${areaId}': exits[${i}] missing string 'id'`);
+                    }
+                    if (!Array.isArray(entry.hexes)) {
+                        console.warn(`[AreaManager] Area '${areaId}': exits[${i}] missing array 'hexes'`);
+                    }
+                    if (typeof entry.target !== "string") {
+                        console.warn(`[AreaManager] Area '${areaId}': exits[${i}] missing string 'target'`);
+                    }
+                    if (typeof entry.spawn !== "string") {
+                        console.warn(`[AreaManager] Area '${areaId}': exits[${i}] missing string 'spawn'`);
+                    }
+                });
+            }
+        }
+    }
+
+    /**
      * Load an area definition from JSON
      * @param {string} areaId - The area identifier (e.g., 'bridge_crossing')
      * @returns {Promise<Object>} The area definition
@@ -50,6 +134,10 @@ export class AreaManager {
                 throw new Error(`Failed to load area: ${areaId}`);
             }
             const areaDef = await response.json();
+            if (!areaDef || typeof areaDef !== "object") {
+                throw new Error(`[AreaManager] Area '${areaId}': area.json is empty or not a valid JSON object`);
+            }
+            this.validateAreaDefinition(areaDef, areaId);
             this.areaCache.set(areaId, areaDef);
             return areaDef;
         } catch (error) {
@@ -176,14 +264,14 @@ export class AreaManager {
             return [];
         }
 
-        return areaDef.npcs.map(npcSpec => {
+        return areaDef.npcs.map((npcSpec, index) => {
             const templateId = npcSpec.templateId;
 
             // Repository Pattern: Lookup template (NOW: const.js, FUTURE: API fetch)
             const template = NPC_TEMPLATES[templateId];
 
             if (!template) {
-                console.warn(`[AreaManager] Unknown NPC template: ${templateId}`);
+                console.warn(`[AreaManager] Area '${this.currentArea?.id}': npcs[${index}] references unknown template '${templateId}'`);
                 return null;
             }
 
