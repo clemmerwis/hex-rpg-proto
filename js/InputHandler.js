@@ -1,5 +1,5 @@
-import { GAME_STATES, COMBAT_ACTIONS } from './GameStateManager.js';
-import { GAME_CONSTANTS, rotateFacing, hexKey } from './const.js';
+import { GAME_STATES } from './GameStateManager.js';
+import { GAME_CONSTANTS, hexKey } from './const.js';
 
 export class InputHandler {
     constructor(canvas, config) {
@@ -18,9 +18,6 @@ export class InputHandler {
         // Hex marker mode (for map editing)
         this.hexMarkerMode = false;
         this.markedHexes = new Map(); // Key: "q,r", Value: {q, r}
-
-        // Combat attack mode (when player presses 1 or 2 for light/heavy attack)
-        this.attackModeActive = false;
 
         // Keyboard state
         this.keys = {};
@@ -55,13 +52,14 @@ export class InputHandler {
     }
 
     setDependencies(deps) {
-        const required = ['game', 'hexGrid', 'gameStateManager', 'findPath', 'getCharacterAtHex'];
+        const required = ['game', 'hexGrid', 'gameStateManager', 'combatInputHandler', 'findPath', 'getCharacterAtHex'];
         for (const dep of required) {
             if (!deps[dep]) throw new Error(`InputHandler: missing required dependency '${dep}'`);
         }
         this.game = deps.game;
         this.hexGrid = deps.hexGrid;
         this.gameStateManager = deps.gameStateManager;
+        this.combatInputHandler = deps.combatInputHandler;
         this.findPath = deps.findPath;
         this.getCharacterAtHex = deps.getCharacterAtHex;
     }
@@ -121,16 +119,7 @@ export class InputHandler {
 
         // Handle combat input phase
         if (this.gameStateManager.currentState === GAME_STATES.COMBAT_INPUT) {
-            if (this.attackModeActive) {
-                // Attack mode: click adjacent hex to attack it
-                const success = this.gameStateManager.selectPlayerAttackTarget(targetHex.q, targetHex.r);
-                if (success) {
-                    this.attackModeActive = false;  // Reset after successful attack selection
-                }
-            } else {
-                // Move mode: click adjacent hex to move to it
-                this.gameStateManager.selectPlayerMoveTarget(targetHex.q, targetHex.r);
-            }
+            this.combatInputHandler.handleCombatClick(targetHex);
             return;
         }
 
@@ -174,64 +163,16 @@ export class InputHandler {
             return;
         }
 
-        // Handle Shift+Space for combat toggle
+        // Handle Shift+Space for combat toggle (works from any state)
         if (e.key === ' ' && e.shiftKey) {
             e.preventDefault();
             this.gameStateManager.toggleCombat();
             return;
         }
 
-        // Handle just Space for skipping turn in combat
-        if (e.key === ' ' && !e.shiftKey) {
-            e.preventDefault();
-            // Skip turn in combat input phase
-            if (this.gameStateManager.currentState === GAME_STATES.COMBAT_INPUT &&
-                !this.gameStateManager.characterActions.has(this.game.pc)) {
-                // Player chooses to wait
-                this.gameStateManager.skipPlayerTurn();
-            }
-            return;
-        }
-
-        // Handle facing rotation during combat input (ArrowLeft/ArrowRight)
-        // Ctrl+Arrow rotates 2 steps for faster direction change
+        // Delegate combat-specific keys to CombatInputHandler
         if (this.gameStateManager.currentState === GAME_STATES.COMBAT_INPUT) {
-            if (e.key === 'ArrowLeft') {
-                e.preventDefault();
-                const steps = e.ctrlKey ? 2 : 1;
-                this.game.pc.facing = rotateFacing(this.game.pc.facing, false, steps);
-                return;
-            }
-            if (e.key === 'ArrowRight') {
-                e.preventDefault();
-                const steps = e.ctrlKey ? 2 : 1;
-                this.game.pc.facing = rotateFacing(this.game.pc.facing, true, steps);
-                return;
-            }
-
-            // Attack type selection during combat input
-            if (e.key === '1') {
-                e.preventDefault();
-                this.gameStateManager.setPlayerAttackType('light');
-                this.attackModeActive = true;
-                return;
-            }
-            if (e.key === '2') {
-                e.preventDefault();
-                this.gameStateManager.setPlayerAttackType('heavy');
-                this.attackModeActive = true;
-                return;
-            }
-
-            // Enter key repeats last attack action
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                const success = this.gameStateManager.repeatLastAttack();
-                if (success) {
-                    this.attackModeActive = false;
-                }
-                return;
-            }
+            if (this.combatInputHandler.handleCombatKeyDown(e)) return;
         }
 
         // Non-combat key bindings

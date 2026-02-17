@@ -14,6 +14,7 @@ import { CharacterRenderer } from './CharacterRenderer.js';
 import { Logger } from './Logger.js';
 import { CombatUILog } from './CombatUILog.js';
 import { CombatLogFormatter } from './CombatLogFormatter.js';
+import { CombatInputHandler } from './CombatInputHandler.js';
 import { CharacterFactory } from './CharacterFactory.js';
 import { UIManager } from './UIManager.js';
 import { GAME_CONSTANTS, FACTIONS, SPRITE_SETS, calculateMaxHP, calculateHPBuffer, calculateEngagedMax } from './const.js';
@@ -195,6 +196,8 @@ export class Game {
             viewportHeight: this.config.viewport.height
         });
 
+        this.combatInputHandler = new CombatInputHandler();
+
         this.assetManager = new AssetManager();
     }
 
@@ -229,11 +232,18 @@ export class Game {
             characterRenderer: this.characterRenderer,
         });
 
+        // CombatInputHandler dependencies
+        this.combatInputHandler.setDependencies({
+            game: this.state,
+            gameStateManager: this.gameStateManager
+        });
+
         // InputHandler dependencies and callbacks
         this.inputHandler.setDependencies({
             game: this.state,
             hexGrid: this.hexGrid,
             gameStateManager: this.gameStateManager,
+            combatInputHandler: this.combatInputHandler,
             findPath: (start, goal, obstacles) => this.pathfinding.findPath(start, goal, obstacles),
             getCharacterAtHex: this.getCharacterAtHex.bind(this)
         });
