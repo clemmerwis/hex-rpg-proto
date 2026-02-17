@@ -6,6 +6,50 @@ export class AISystem {
         this.getCharacterAtHex = getCharacterAtHex;
         this.pathfinding = pathfinding;
         this.logger = logger;
+        this._distanceMatrix = new Map();
+    }
+
+    /**
+     * Precompute pairwise distances for all living characters.
+     * Called once per turn before AI decisions.
+     * Builds symmetric matrix in N*(N-1)/2 computations.
+     * @param {Array} allCharacters - All characters in combat
+     */
+    beginTurn(allCharacters) {
+        this._distanceMatrix.clear();
+        const living = allCharacters.filter(c => !c.isDefeated);
+        for (let i = 0; i < living.length; i++) {
+            for (let j = i + 1; j < living.length; j++) {
+                const dist = this.hexGrid.hexDistance(
+                    { q: living[i].hexQ, r: living[i].hexR },
+                    { q: living[j].hexQ, r: living[j].hexR }
+                );
+                const keyAB = `${hexKey(living[i].hexQ, living[i].hexR)}-${hexKey(living[j].hexQ, living[j].hexR)}`;
+                const keyBA = `${hexKey(living[j].hexQ, living[j].hexR)}-${hexKey(living[i].hexQ, living[i].hexR)}`;
+                this._distanceMatrix.set(keyAB, dist);
+                this._distanceMatrix.set(keyBA, dist);
+            }
+        }
+    }
+
+    /**
+     * Get distance between two characters using precomputed matrix.
+     * Falls back to direct computation if matrix miss.
+     * @param {Object} charA - First character
+     * @param {Object} charB - Second character
+     * @returns {number} Hex distance between characters
+     */
+    _getDistance(charA, charB) {
+        const key = `${hexKey(charA.hexQ, charA.hexR)}-${hexKey(charB.hexQ, charB.hexR)}`;
+        const cached = this._distanceMatrix.get(key);
+        if (cached !== undefined) {
+            return cached;
+        }
+        // Fallback: compute directly (defensive — handles characters not in matrix)
+        return this.hexGrid.hexDistance(
+            { q: charA.hexQ, r: charA.hexR },
+            { q: charB.hexQ, r: charB.hexR }
+        );
     }
 
     /**
@@ -54,10 +98,7 @@ export class AISystem {
         // NEUTRAL: cluster with faction allies or wait
         const clusterTarget = this.findClusterTarget(character, livingChars);
         if (clusterTarget) {
-            const dist = this.hexGrid.hexDistance(
-                { q: character.hexQ, r: character.hexR },
-                { q: clusterTarget.hexQ, r: clusterTarget.hexR }
-            );
+            const dist = this._getDistance(character, clusterTarget);
             if (dist > 1) {
                 this.logger.debug(`[AI] ${character.name} (neutral) - clustering toward ${clusterTarget.name}`);
                 return this.getMoveTowardAction(character, clusterTarget, allCharacters);
@@ -135,10 +176,7 @@ export class AISystem {
         for (const other of livingChars) {
             if (other.faction !== character.faction) continue;
 
-            const dist = this.hexGrid.hexDistance(
-                { q: character.hexQ, r: character.hexR },
-                { q: other.hexQ, r: other.hexR }
-            );
+            const dist = this._getDistance(character, other);
             if (dist < minDist) {
                 minDist = dist;
                 nearest = other;
@@ -171,10 +209,7 @@ export class AISystem {
         for (const enemy of enemies) {
             if (enemy.isDefeated) continue;  // Skip defeated enemies
 
-            const dist = this.hexGrid.hexDistance(
-                { q: character.hexQ, r: character.hexR },
-                { q: enemy.hexQ, r: enemy.hexR }
-            );
+            const dist = this._getDistance(character, enemy);
             if (dist < minDist || (dist === minDist && enemy === character.lastAttackedBy)) {
                 minDist = dist;
                 closest = enemy;
@@ -191,10 +226,7 @@ export class AISystem {
         let minDist = Infinity;
 
         for (const other of livingChars) {
-            const dist = this.hexGrid.hexDistance(
-                { q: character.hexQ, r: character.hexR },
-                { q: other.hexQ, r: other.hexR }
-            );
+            const dist = this._getDistance(character, other);
             if (dist < minDist) {
                 minDist = dist;
                 nearest = other;
@@ -208,7 +240,7 @@ export class AISystem {
         const targetHex = { q: target.hexQ, r: target.hexR };
 
         // Already adjacent to target? No need to move
-        const distToTarget = this.hexGrid.hexDistance(currentHex, targetHex);
+        const distToTarget = this._getDistance(character, target);
         if (distToTarget <= 1) {
             return { action: 'wait', target: null };
         }
