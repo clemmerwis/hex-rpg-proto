@@ -20,7 +20,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: CombatSystem Pipeline** - Decompose executeAttack() into discrete pipeline stages
 - [x] **Phase 3: GameStateManager Split** - Break up monolithic GSM into focused modules
 - [x] **Phase 4: Renderer Refactor** - Split Renderer and add visibility/flood-fill caching
-- [ ] **Phase 5: Supporting File Splits** - Split CombatUILog and InputHandler
+- [x] **Phase 5: Supporting File Splits** - Split CombatUILog and InputHandler
 - [ ] **Phase 6: Bug Fixes & Validation** - Fix race condition, add validation, improve error handling
 - [ ] **Phase 7: Performance Optimization** - Cache pathfinding and memoize AI calculations
 
@@ -73,11 +73,11 @@ Plans:
 **Goal**: CombatUILog (453 lines) and InputHandler (419 lines) split into focused, single-responsibility modules
 **Depends on**: Phase 1
 **Research**: Unlikely (internal refactoring)
-**Plans**: TBD
+**Plans**: 2 plans (4 tasks)
 
 Plans:
 - [x] 05-01: Split CombatUILog into log engine and formatting/tag system
-- [ ] 05-02: Split InputHandler into exploration input and combat input handlers
+- [x] 05-02: Split InputHandler into exploration input and combat input handlers
 
 ### Phase 6: Bug Fixes & Validation
 **Goal**: Race condition fixed, area.json validated on load, consistent error handling, DI wiring validated
@@ -111,6 +111,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 2. CombatSystem Pipeline | 3/3 | Complete | 2026-02-16 |
 | 3. GameStateManager Split | 3/3 | Complete | 2026-02-16 |
 | 4. Renderer Refactor | 3/3 | Complete | 2026-02-16 |
-| 5. Supporting File Splits | 1/2 | In progress | - |
+| 5. Supporting File Splits | 2/2 | Complete | 2026-02-17 |
 | 6. Bug Fixes & Validation | 0/3 | Not started | - |
 | 7. Performance Optimization | 0/2 | Not started | - |

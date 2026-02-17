@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-15)
 
 **Core value:** Code quality — split large files, reduce method sizes, and improve maintainability so the codebase stays workable as features grow.
-**Current focus:** Phase 5 in progress — Supporting File Splits
+**Current focus:** Phase 5 complete — Supporting File Splits
 
 ## Current Position
 
-Phase: 5 of 7 (Supporting File Splits) — In progress
-Plan: 1 of 2 in current phase
-Status: In progress
-Last activity: 2026-02-17 — Completed 05-01-PLAN.md (split CombatUILog into log engine and formatting module)
+Phase: 5 of 7 (Supporting File Splits) — Phase complete
+Plan: 2 of 2 in current phase
+Status: Phase complete
+Last activity: 2026-02-17 — Completed 05-02-PLAN.md (split InputHandler into exploration and combat input)
 
-Progress: ███████░░░ 67%
+Progress: ████████░░ 72%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 12
+- Total plans completed: 13
 - Average duration: 4min
-- Total execution time: 0.73 hours
+- Total execution time: 0.78 hours
 
 **By Phase:**
 
@@ -31,10 +31,10 @@ Progress: ███████░░░ 67%
 | 2. CombatSystem Pipeline | 3 | 10min | 3min |
 | 3. GameStateManager Split | 3/3 | 11min | 4min |
 | 4. Renderer Refactor | 3/3 | 11min | 4min |
-| 5. Supporting File Splits | 1/2 | 3min | 3min |
+| 5. Supporting File Splits | 2/2 | 6min | 3min |
 
 **Recent Trend:**
-- Last 5 plans: 3min, 4min, 3min, 4min, 3min
+- Last 5 plans: 4min, 3min, 4min, 3min, 3min
 - Trend: stable
 
 ## Accumulated Context
@@ -57,5 +57,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed 05-01-PLAN.md — CombatUILog split into UI engine + CombatLogFormatter.
+Stopped at: Completed 05-02-PLAN.md — InputHandler split into exploration + CombatInputHandler. Phase 5 complete.
 Resume file: None
