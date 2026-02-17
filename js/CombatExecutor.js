@@ -1,4 +1,4 @@
-import { GAME_CONSTANTS, calculateMoveSpeed, calculateActionSpeed, getSpeedTier, calculateInitiative, getFacingFromDelta, calculateAttackTiming } from './const.js';
+import { GAME_CONSTANTS, calculateMoveSpeed, calculateActionSpeed, getSpeedTier, calculateInitiative, getFacingFromDelta, calculateAttackTiming, ARMOR_TYPES } from './const.js';
 import { makeEnemies } from './utils.js';
 
 export class CombatExecutor {
@@ -154,8 +154,13 @@ export class CombatExecutor {
         // Check if target hex is occupied (collision detection)
         const characterAtTarget = this.getCharacterAtHex(action.target.q, action.target.r);
         if (characterAtTarget) {
-            // Log blocked move
-            this.logger.combat(`{{char:${character.name}}}: Move {{blocked}}`);
+            // Log blocked move with speed score + tooltip
+            const blockedSpeed = calculateMoveSpeed(character);
+            const bArmorKey = character.equipment.armor || 'none';
+            const bArmor = ARMOR_TYPES[bArmorKey];
+            const bTier = getSpeedTier(blockedSpeed).tier;
+            const bTip = `${bArmor.name} mobility(${bArmor.mobility}) - Str(${character.stats.str})`;
+            this.logger.combat(`{{char:${character.name}}}: Move {{blocked}} {{tip:${bTip}}}{{spd}}[${blockedSpeed} T${bTier}]{{/spd}}{{/tip}}`);
             this.currentMoveIndex++;
             this.executeNextMove();
             return;
@@ -164,8 +169,13 @@ export class CombatExecutor {
         // Clear player selection highlight when player starts moving
         if (this.onClearPlayerSelection) this.onClearPlayerSelection(character);
 
-        // Log move action
-        this.logger.combat(`{{char:${character.name}}}: Move`);
+        // Log move action with speed score + tooltip
+        const moveSpeed = calculateMoveSpeed(character);
+        const mArmorKey = character.equipment.armor || 'none';
+        const mArmor = ARMOR_TYPES[mArmorKey];
+        const mTier = getSpeedTier(moveSpeed).tier;
+        const mTip = `${mArmor.name} mobility(${mArmor.mobility}) - Str(${character.stats.str})`;
+        this.logger.combat(`{{char:${character.name}}}: Move {{tip:${mTip}}}{{spd}}[${moveSpeed} T${mTier}]{{/spd}}{{/tip}}`);
 
         // Execute move with callback
         character.movementQueue = [action.target];

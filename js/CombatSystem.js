@@ -1,4 +1,4 @@
-import { calculateDamage, calculateAttackRating, calculateDefenseRating, calculateCSC, getEquipmentBonus, WEAPONS, ARMOR_TYPES, ATTACK_TYPES, STAT_BONUSES, DAMAGE_TYPE_PROPERTIES, isFlanking, getFacingFromDelta } from './const.js';
+import { calculateDamage, calculateAttackRating, calculateDefenseRating, calculateCSC, getEquipmentBonus, calculateActionSpeed, getSpeedTier, WEAPONS, ARMOR_TYPES, ATTACK_TYPES, STAT_BONUSES, DAMAGE_TYPE_PROPERTIES, isFlanking, getFacingFromDelta } from './const.js';
 
 export class CombatSystem {
     constructor(hexGrid, getCharacterAtHex, gameStateManager, logger) {
@@ -42,7 +42,7 @@ export class CombatSystem {
         if (friendlyFire) this.logger.warn(`[FRIENDLY FIRE WARNING] ${attacker.name} attacks ally ${defender.name}!`);
         // 5. Resolve hit roll → miss if failed
         const { hit, thcPercent, rollPercent } = this.resolveHitRoll(attacker, defender);
-        if (!hit) return this.handleMiss(attacker, defender, attackTypeName, { thcPercent, rollPercent });
+        if (!hit) return this.handleMiss(attacker, defender, attackTypeName, { thcPercent, rollPercent }, attackType);
         // 6. Get weapon and armor  7. Calculate base damage
         const weapon = WEAPONS[weaponKey];
         const armor = ARMOR_TYPES[defender.equipment.armor || "none"];
@@ -62,7 +62,9 @@ export class CombatSystem {
         const finalDamage = damage;
         // 11. Build and emit combat log
         const breakdown = this.buildDamageBreakdown(attacker, attackType, weapon, armor, baseDamage, damageAfterResist, resistMod, effectiveDR, flanking, drAbsorbed, damageAfterDR, crit, finalDamage, defender);
-        this.buildCombatLogLines(attacker, defender, attackTypeName, thcPercent, rollPercent, crit, flanking, friendlyFire, cscPercent, cscRollPercent, breakdown).forEach(line => this.logger.combat(line));
+        const actionSpeed = calculateActionSpeed(attacker, attackType);
+        const spdTip = this.buildActionSpeedTip(attacker, attackType);
+        this.buildCombatLogLines(attacker, defender, attackTypeName, thcPercent, rollPercent, crit, flanking, friendlyFire, cscPercent, cscRollPercent, breakdown, actionSpeed, spdTip).forEach(line => this.logger.combat(line));
         // 12. Apply damage through buffer  13. Log damage application
         const damageResult = this.applyDamage(attacker, defender, damage);
         this.logDamageApplication(defender, attacker, damageResult);
@@ -237,6 +239,26 @@ export class CombatSystem {
     }
 
     /**
+     * Build action speed tooltip string showing formula breakdown
+     */
+    buildActionSpeedTip(attacker, attackType) {
+        const weaponKey = attacker.equipment.mainHand;
+        const weapon = WEAPONS[weaponKey];
+        const offHandKey = attacker.equipment.offHand;
+        const offHand = offHandKey ? WEAPONS[offHandKey] : null;
+        const attackMod = ATTACK_TYPES[attackType]?.speedMod || 10;
+        const weaponName = weaponKey.replace(/([A-Z])/g, '-$1').toLowerCase();
+
+        let tip = `${weaponName} speed(${weapon.speed})`;
+        if (weapon.grip !== 'two' && offHand) {
+            const offName = offHandKey.replace(/([A-Z])/g, '-$1').toLowerCase();
+            tip += ` + ${offName} speed(${offHand.speed})`;
+        }
+        tip += ` + ${attackType}(${attackMod}) - Dex(${attacker.stats.dex})`;
+        return tip;
+    }
+
+    /**
      * Format the attack type name for combat log display
      * Pure string building — no side effects
      * Returns e.g. "{{weapon:longSword}} Attack" or "{{heavy}}heavy{{/heavy}} {{weapon:longSword}} attacks"
@@ -293,9 +315,10 @@ export class CombatSystem {
      * Pure string building — no side effects
      * Returns array of log strings: header (with tags), optional CSC line, damage breakdown line
      */
-    buildCombatLogLines(attacker, defender, attackTypeName, thcPercent, rollPercent, crit, flanking, friendlyFire, cscPercent, cscRollPercent, damageBreakdown) {
+    buildCombatLogLines(attacker, defender, attackTypeName, thcPercent, rollPercent, crit, flanking, friendlyFire, cscPercent, cscRollPercent, damageBreakdown, actionSpeed, spdTip) {
         let logParts = [];
-        logParts.push(`{{char:${attacker.name}}}: ${attackTypeName} {{char:${defender.name}}} (THC= {{thc}}${thcPercent}%{{/thc}}, Roll= {{roll}}${rollPercent}{{/roll}}, {{hit}})`);
+        const spdTier = getSpeedTier(actionSpeed).tier;
+        logParts.push(`{{char:${attacker.name}}}: ${attackTypeName} {{char:${defender.name}}} (THC= {{thc}}${thcPercent}%{{/thc}}, Roll= {{roll}}${rollPercent}{{/roll}}, {{hit}}) {{tip:${spdTip}}}{{spd}}[${actionSpeed} T${spdTier}]{{/spd}}{{/tip}}`);
         if (crit) logParts.push("{{critical}}");
         if (flanking) logParts.push("{{flanking}}");
         if (friendlyFire) logParts.push("{{friendlyFire}}");
@@ -338,7 +361,10 @@ export class CombatSystem {
      */
     handleWhiff(attacker, targetHex, weaponKey, attackType) {
         const whiffAttackName = this.formatAttackTypeName(weaponKey, attackType, "attacks");
-        this.logger.combat(`{{char:${attacker.name}}}: ${whiffAttackName} at empty hex (${targetHex.q}, ${targetHex.r}) - {{whiff}}`);
+        const actionSpeed = calculateActionSpeed(attacker, attackType);
+        const spdTip = this.buildActionSpeedTip(attacker, attackType);
+        const spdTier = getSpeedTier(actionSpeed).tier;
+        this.logger.combat(`{{char:${attacker.name}}}: ${whiffAttackName} at empty hex (${targetHex.q}, ${targetHex.r}) - {{whiff}} {{tip:${spdTip}}}{{spd}}[${actionSpeed} T${spdTier}]{{/spd}}{{/tip}}`);
         return { hit: false, damage: 0, crit: false, defenderDefeated: false, whiff: true };
     }
 
@@ -347,9 +373,12 @@ export class CombatSystem {
      * Logs the miss message with THC/roll data and returns the miss result object
      * Returns { hit: false, damage: 0, crit: false, defenderDefeated: false }
      */
-    handleMiss(attacker, defender, attackTypeName, hitResult) {
+    handleMiss(attacker, defender, attackTypeName, hitResult, attackType = 'light') {
         const { thcPercent, rollPercent } = hitResult;
-        this.logger.combat(`{{char:${attacker.name}}}: ${attackTypeName} {{char:${defender.name}}} (THC= {{thc}}${thcPercent}%{{/thc}}, Roll= {{roll}}${rollPercent}{{/roll}}, {{miss}})`);
+        const actionSpeed = calculateActionSpeed(attacker, attackType);
+        const spdTip = this.buildActionSpeedTip(attacker, attackType);
+        const spdTier = getSpeedTier(actionSpeed).tier;
+        this.logger.combat(`{{char:${attacker.name}}}: ${attackTypeName} {{char:${defender.name}}} (THC= {{thc}}${thcPercent}%{{/thc}}, Roll= {{roll}}${rollPercent}{{/roll}}, {{miss}}) {{tip:${spdTip}}}{{spd}}[${actionSpeed} T${spdTier}]{{/spd}}{{/tip}}`);
         return { hit: false, damage: 0, crit: false, defenderDefeated: false };
     }
 

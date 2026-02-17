@@ -279,13 +279,13 @@ export const DAMAGE_TYPE_PROPERTIES = {
 // passives: { defenseR, attackR, critMultiplier, evasionBonus, ... } - gathered via getEquipmentBonus()
 // effects: triggered effects referencing WEAPON_EFFECTS keys
 export const WEAPONS = {
-	unarmed: { name: 'Unarmed', base: 2, type: 'concussive', force: 1, speed: 16, grip: 'two', critPenalty: -25, passives: { evasionBonus: 5 }, effects: ['rockedOnHit'] },
+	unarmed: { name: 'Unarmed', base: 2, type: 'concussive', force: 1, speed: 16, grip: 'two', passives: { evasionBonus: 5, critMod: -25 }, effects: ['rockedOnHit'] },
 	shortSpear: { name: 'Short Spear', base: 3, type: 'piercing', force: 1, speed: 19, grip: 'one', passives: {}, effects: ['vulnerableEnhancementLight'] },
 	shortSword: { name: 'Short Sword', base: 4, type: 'slash', force: 2, speed: 18, grip: 'one', passives: {}, effects: ['bleedingLight'] },
-	shortHammer: { name: 'Short Hammer', base: 6, type: 'blunt', force: 3, speed: 26, grip: 'one', passives: {}, effects: ['armorDamageEnhancementLight'] },
+	shortHammer: { name: 'Short Hammer', base: 6, type: 'blunt', force: 3, speed: 26, grip: 'one', passives: { critMod: -15 }, effects: ['armorDamageEnhancementLight'] },
 	longSword: { name: 'Long Sword', base: 8, type: 'slash', force: 4, speed: 20, grip: 'two', passives: {}, effects: ['bleedingHeavy'] },
 	longSpear: { name: 'Long Spear', base: 6, type: 'piercing', force: 4, speed: 20, grip: 'two', passives: {}, effects: ['vulnerableEnhancementHeavy'] },
-	longHammer: { name: 'Long Hammer', base: 10, type: 'blunt', force: 6, speed: 31, grip: 'two', passives: {}, effects: ['armorDamageEnhancementHeavy'] },
+	longHammer: { name: 'Long Hammer', base: 10, type: 'blunt', force: 6, speed: 31, grip: 'two', passives: { critMod: -15 }, effects: ['armorDamageEnhancementHeavy'] },
 	smallShield: { name: 'Small Shield', base: 1, type: 'blunt', force: 2, speed: 17, grip: 'off', passives: { defenseR: 4 }, effects: [] },
 	largeShield: { name: 'Large Shield', base: 1, type: 'blunt', force: 3, speed: 20, grip: 'off', passives: { defenseR: 8 }, effects: [] },
 };
@@ -311,8 +311,8 @@ export const ARMOR_TYPES = {
 // Turn speed tiers - lower total speed = faster tier
 // Move phase uses armor.mobility, Action phase uses weapon+shield speed + attackType - Dex
 export const TURN_SPEED_TIERS = [
-	{ tier: 1, min: 0, max: 20, name: '1/4' },
-	{ tier: 2, min: 21, max: 40, name: '2/4' },
+	{ tier: 1, min: 0, max: 25, name: '1/4' },
+	{ tier: 2, min: 26, max: 40, name: '2/4' },
 	{ tier: 3, min: 41, max: 55, name: '3/4' },
 	{ tier: 4, min: 56, max: Infinity, name: '4/4' },
 ];
@@ -392,14 +392,13 @@ export function calculateCSD_R(character) {
 
 /**
  * Calculate Critical Strike Chance as integer percentage (0-100%)
- * Formula: (CSA_R - CSD_R) + 50 + weapon.critPenalty, clamped to 0-100
- * critPenalty is a flat modifier on the weapon (negative = penalty, positive = bonus)
+ * Formula: (CSA_R - CSD_R) + 50 + critMod (from passives), clamped to 0-100
+ * critMod is a flat modifier from equipment passives (negative = penalty, positive = bonus)
  */
 export function calculateCSC(attacker, defender) {
 	const csaR = calculateCSA_R(attacker);
 	const csdR = calculateCSD_R(defender);
-	const weapon = WEAPONS[attacker.equipment.mainHand];
-	const critMod = weapon?.critPenalty || 0;
+	const critMod = getEquipmentBonus(attacker, 'critMod');
 	return Math.max(0, Math.min(100, (csaR - csdR) + 50 + critMod));
 }
 
@@ -560,6 +559,7 @@ export const WRAPPER_TAGS = {
 	'vuln': (content) => `<span style="color: #9932CC;">${content}</span>`,
 	'resist': (content) => `<span style="color: #505050;">${content}</span>`,
 	'heavy': (content) => `<span class="log-heavy">${content}</span>`,
+	'spd': (content) => `<span style="color: #1565C0;">${content}</span>`,
 };
 
 /**
