@@ -180,12 +180,14 @@ export class Game {
 
         // Set the gameStateManager reference in dependent systems (circular dependency)
         this.movementSystem.gameStateManager = this.gameStateManager;
+        this.movementSystem.pathfinding = this.pathfinding;
         this.combatSystem.gameStateManager = this.gameStateManager;
         this.combatSystem.engagementManager = this.engagementManager;
 
         // Validate deferred dependencies are set (catches wiring omissions)
         const deferredChecks = [
             [this.movementSystem, "gameStateManager", "MovementSystem"],
+            [this.movementSystem, "pathfinding", "MovementSystem"],
             [this.combatSystem, "gameStateManager", "CombatSystem"],
             [this.combatSystem, "engagementManager", "CombatSystem"],
         ];

@@ -9,6 +9,9 @@ export class MovementSystem {
         this.game = config.game;
         this.gameStateManager = config.gameStateManager;
 
+        // Dependencies (set via deferred assignment)
+        this.pathfinding = null;
+
         // Callbacks
         this.onAnimationChange = null;
         this.onDirectionChange = null;
@@ -49,6 +52,11 @@ export class MovementSystem {
                 } catch (error) {
                     console.error("MovementSystem: Callback error", error);
                 }
+            }
+
+            // Invalidate pathfinding cache — character positions changed so obstacle landscape is different
+            if (this.pathfinding) {
+                this.pathfinding.invalidateCache();
             }
         }
     }
