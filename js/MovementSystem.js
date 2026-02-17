@@ -13,6 +13,7 @@ export class MovementSystem {
 
         // Movement completion callback registry
         this.movementCompleteCallbacks = new Map(); // character -> callback
+        this._pendingCallbacks = []; // Deferred callbacks to drain after movement loop
     }
 
     // Get the animation config for a character (uses centralized helper)
@@ -33,6 +34,21 @@ export class MovementSystem {
             // Call the existing method
             this.updateCharacterMovement(character, deltaTime);
         });
+
+        // Drain deferred callbacks (fire after all movement updates, not mid-loop)
+        if (this._pendingCallbacks.length > 0) {
+            // Copy and clear before draining — callbacks may trigger new movements
+            // whose completions should queue for the NEXT updateMovement cycle
+            const callbacks = this._pendingCallbacks;
+            this._pendingCallbacks = [];
+            for (const cb of callbacks) {
+                try {
+                    cb(true);
+                } catch (error) {
+                    console.error("MovementSystem: Callback error", error);
+                }
+            }
+        }
     }
 
     updateCharacterMovement(character, deltaTime) {
@@ -101,19 +117,11 @@ export class MovementSystem {
                 this.onAnimationChange(character.currentAnimation);
             }
 
-            // Fire movement complete callback if registered
+            // Queue movement complete callback for deferred drain (after movement loop)
             if (this.movementCompleteCallbacks.has(character)) {
                 const callback = this.movementCompleteCallbacks.get(character);
                 this.movementCompleteCallbacks.delete(character); // One-time callback
-
-                // Call asynchronously to avoid blocking movement update
-                setTimeout(() => {
-                    try {
-                        callback(true); // true = success
-                    } catch (error) {
-                        console.error('MovementSystem: Callback error', error);
-                    }
-                }, 0);
+                this._pendingCallbacks.push(callback);
             }
         }
     }
@@ -242,5 +250,6 @@ export class MovementSystem {
      */
     clearAllCallbacks() {
         this.movementCompleteCallbacks.clear();
+        this._pendingCallbacks = [];
     }
 }
