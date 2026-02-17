@@ -13,6 +13,7 @@ import { HexGridRenderer } from './HexGridRenderer.js';
 import { CharacterRenderer } from './CharacterRenderer.js';
 import { Logger } from './Logger.js';
 import { CombatUILog } from './CombatUILog.js';
+import { CombatLogFormatter } from './CombatLogFormatter.js';
 import { CharacterFactory } from './CharacterFactory.js';
 import { UIManager } from './UIManager.js';
 import { GAME_CONSTANTS, FACTIONS, SPRITE_SETS, calculateMaxHP, calculateHPBuffer, calculateEngagedMax } from './const.js';
@@ -102,8 +103,11 @@ export class Game {
         // Create logger first - it's a foundational dependency for all systems
         this.logger = new Logger();
 
-        // Create combat UI log with logger and game references
-        this.combatUILog = new CombatUILog(this.logger, this);
+        // Create combat log formatter (pure text transformation, needs game state for character colors)
+        this.combatLogFormatter = new CombatLogFormatter(this.state);
+
+        // Create combat UI log with logger and formatter
+        this.combatUILog = new CombatUILog(this.logger, this.combatLogFormatter);
 
         // Core modules
         this.hexGrid = new HexGrid(
