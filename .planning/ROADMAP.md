@@ -21,7 +21,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: GameStateManager Split** - Break up monolithic GSM into focused modules
 - [x] **Phase 4: Renderer Refactor** - Split Renderer and add visibility/flood-fill caching
 - [x] **Phase 5: Supporting File Splits** - Split CombatUILog and InputHandler
-- [ ] **Phase 6: Bug Fixes & Validation** - Fix race condition, add validation, improve error handling
+- [x] **Phase 6: Bug Fixes & Validation** - Fix race condition, add validation, improve error handling
 - [ ] **Phase 7: Performance Optimization** - Cache pathfinding and memoize AI calculations
 
 ## Phase Details
@@ -88,7 +88,7 @@ Plans:
 Plans:
 - [x] 06-01: Fix MovementSystem setTimeout race condition
 - [x] 06-02: Add area.json schema validation in AreaManager
-- [ ] 06-03: Add DI validation and consistent error handling strategy
+- [x] 06-03: Add DI validation and consistent error handling strategy
 
 ### Phase 7: Performance Optimization
 **Goal**: Pathfinding results cached with invalidation; AI distance calculations memoized per turn
@@ -112,5 +112,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 3. GameStateManager Split | 3/3 | Complete | 2026-02-16 |
 | 4. Renderer Refactor | 3/3 | Complete | 2026-02-16 |
 | 5. Supporting File Splits | 2/2 | Complete | 2026-02-17 |
-| 6. Bug Fixes & Validation | 2/3 | In progress | - |
+| 6. Bug Fixes & Validation | 3/3 | Complete | 2026-02-17 |
 | 7. Performance Optimization | 0/2 | Not started | - |
