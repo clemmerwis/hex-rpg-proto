@@ -199,8 +199,8 @@ export class CombatSystem {
         const cscRollPercent = 101 - cscRoll;
 
         if (crit) {
-            // Critical hit: double damage (applied last in pipeline)
-            damage *= 2;
+            // Critical hit: 1.5x damage (applied last in pipeline)
+            damage = Math.floor(damage * 1.5);
 
             // Apply crit multiplier from equipment passives (if any)
             const critMult = getEquipmentBonus(attacker, 'critMultiplier');
@@ -283,7 +283,7 @@ export class CombatSystem {
         }
 
         // Crit modifier (applied last, after DR)
-        if (crit) breakdown += ` -> Crit: x2 = {{dmg}}${finalDamage}{{/dmg}}`;
+        if (crit) breakdown += ` -> Crit: x1.5 = {{dmg}}${finalDamage}{{/dmg}}`;
 
         return breakdown;
     }

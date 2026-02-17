@@ -246,7 +246,7 @@ export function validateStats(stats) {
 export const PASSIVE_BONUSES = {
 	defenseR: 'Applied to Defense Rating via calculateDefenseRating()',
 	attackR: 'Applied to Attack Rating via calculateAttackRating()',
-	critMultiplier: 'Multiplies critical hit damage (stacks with base 2x crit)',
+	critMultiplier: 'Multiplies critical hit damage (stacks with base 1.5x crit)',
 };
 
 // Triggered effect definitions (stubbed for future implementation)
