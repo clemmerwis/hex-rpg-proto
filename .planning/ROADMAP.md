@@ -1,116 +1,34 @@
 # Roadmap: Hex RPG Proto — Codebase Health
 
-## Overview
+## Milestones
 
-A systematic code quality pass transforming the hex-grid RPG prototype from a working-but-messy state into a well-structured, maintainable codebase. Starting with foundational cleanup (constants, utilities), progressing through major file decompositions (CombatSystem, GameStateManager, Renderer), then smaller file splits, bug fixes, and finally performance optimizations.
-
-## Domain Expertise
-
-None
+- ✅ **v1.0 Codebase Health** — Phases 1-7 (shipped 2026-02-17)
 
 ## Phases
 
-**Phase Numbering:**
-- Integer phases (1, 2, 3): Planned milestone work
-- Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
+<details>
+<summary>✅ v1.0 Codebase Health (Phases 1-7) — SHIPPED 2026-02-17</summary>
 
-Decimal phases appear between their surrounding integers in numeric order.
+See [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md) for full details.
 
-- [x] **Phase 1: Constants & Utilities** - Consolidate magic numbers and create shared utility functions
-- [x] **Phase 2: CombatSystem Pipeline** - Decompose executeAttack() into discrete pipeline stages
-- [x] **Phase 3: GameStateManager Split** - Break up monolithic GSM into focused modules
-- [x] **Phase 4: Renderer Refactor** - Split Renderer and add visibility/flood-fill caching
-- [x] **Phase 5: Supporting File Splits** - Split CombatUILog and InputHandler
-- [x] **Phase 6: Bug Fixes & Validation** - Fix race condition, add validation, improve error handling
-- [x] **Phase 7: Performance Optimization** - Cache pathfinding and memoize AI calculations
+- [x] Phase 1: Constants & Utilities (2/2 plans) — completed 2026-02-16
+- [x] Phase 2: CombatSystem Pipeline (3/3 plans) — completed 2026-02-16
+- [x] Phase 3: GameStateManager Split (3/3 plans) — completed 2026-02-16
+- [x] Phase 4: Renderer Refactor (3/3 plans) — completed 2026-02-16
+- [x] Phase 5: Supporting File Splits (2/2 plans) — completed 2026-02-17
+- [x] Phase 6: Bug Fixes & Validation (3/3 plans) — completed 2026-02-17
+- [x] Phase 7: Performance Optimization (2/2 plans) — completed 2026-02-17
 
-## Phase Details
-
-### Phase 1: Constants & Utilities
-**Goal**: All magic numbers consolidated in const.js; shared hex key function eliminates string convention fragility
-**Depends on**: Nothing (first phase)
-**Research**: Unlikely (internal cleanup, established patterns)
-**Plans**: 2 plans (4 tasks)
-
-Plans:
-- [x] 01-01: Move COMBAT_TAGS/WRAPPER_TAGS and viewport dimensions to const.js (2 tasks)
-- [x] 01-02: Create hexKey() utility, replace ad-hoc `${q},${r}` across 5 files (2 tasks)
-
-### Phase 2: CombatSystem Pipeline
-**Goal**: executeAttack() decomposed from ~200-line monolith into discrete, testable pipeline stages
-**Depends on**: Phase 1
-**Research**: Unlikely (existing refactoring plan at mdplans/current/combatsystem-refactoring-plan.md)
-**Plans**: 3 plans (6 tasks)
-
-Plans:
-- [x] 02-01: Extract pure calculation helpers (hit roll, resistance, flanking/DR, crit) (2 tasks)
-- [x] 02-02: Extract presentation helpers (attack name, damage breakdown, combat log, buffer log) (2 tasks)
-- [x] 02-03: Extract result handlers and rewrite orchestrator (2 tasks)
-
-### Phase 3: GameStateManager Split
-**Goal**: 722-line GameStateManager broken into focused modules; engagement tracking consolidated; animation timing derived from frameCount
-**Depends on**: Phase 2
-**Research**: Unlikely (internal refactoring)
-**Plans**: 3 plans (6 tasks)
-
-Plans:
-- [x] 03-01: Extract combat execution logic into dedicated module (2 tasks)
-- [x] 03-02: Extract state transition logic and consolidate engagement tracking (2 tasks)
-- [x] 03-03: Derive animation timing from frameCount instead of hardcoded values (2 tasks)
-
-### Phase 4: Renderer Refactor
-**Goal**: 663-line Renderer split into focused modules; hex visibility cached; flood-fill regions pre-computed on area load
-**Depends on**: Phase 1
-**Research**: Unlikely (internal refactoring, standard caching patterns)
-**Plans**: 3 plans (6 tasks)
-
-Plans:
-- [x] 04-01: Extract hex grid rendering into dedicated module
-- [x] 04-02: Extract character renderer
-- [x] 04-03: Add hex visibility caching and pre-compute flood-fill regions
-
-### Phase 5: Supporting File Splits
-**Goal**: CombatUILog (453 lines) and InputHandler (419 lines) split into focused, single-responsibility modules
-**Depends on**: Phase 1
-**Research**: Unlikely (internal refactoring)
-**Plans**: 2 plans (4 tasks)
-
-Plans:
-- [x] 05-01: Split CombatUILog into log engine and formatting/tag system
-- [x] 05-02: Split InputHandler into exploration input and combat input handlers
-
-### Phase 6: Bug Fixes & Validation
-**Goal**: Race condition fixed, area.json validated on load, consistent error handling, DI wiring validated
-**Depends on**: Phase 3
-**Research**: Unlikely (internal bug fixes, standard validation patterns)
-**Plans**: 3 plans (6 tasks)
-
-Plans:
-- [x] 06-01: Fix MovementSystem setTimeout race condition
-- [x] 06-02: Add area.json schema validation in AreaManager
-- [x] 06-03: Add DI validation and consistent error handling strategy
-
-### Phase 7: Performance Optimization
-**Goal**: Pathfinding results cached with invalidation; AI distance calculations memoized per turn
-**Depends on**: Phase 4
-**Research**: Unlikely (standard memoization/caching patterns)
-**Plans**: 2 plans (4 tasks)
-
-Plans:
-- [x] 07-01: Cache pathfinding results with obstacle-change invalidation
-- [x] 07-02: Memoize AI distance calculations per turn
+</details>
 
 ## Progress
 
-**Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
-
-| Phase | Plans Complete | Status | Completed |
-|-------|----------------|--------|-----------|
-| 1. Constants & Utilities | 2/2 | Complete | 2026-02-16 |
-| 2. CombatSystem Pipeline | 3/3 | Complete | 2026-02-16 |
-| 3. GameStateManager Split | 3/3 | Complete | 2026-02-16 |
-| 4. Renderer Refactor | 3/3 | Complete | 2026-02-16 |
-| 5. Supporting File Splits | 2/2 | Complete | 2026-02-17 |
-| 6. Bug Fixes & Validation | 3/3 | Complete | 2026-02-17 |
-| 7. Performance Optimization | 2/2 | Complete | 2026-02-17 |
+| Phase | Milestone | Plans Complete | Status | Completed |
+|-------|-----------|----------------|--------|-----------|
+| 1. Constants & Utilities | v1.0 | 2/2 | Complete | 2026-02-16 |
+| 2. CombatSystem Pipeline | v1.0 | 3/3 | Complete | 2026-02-16 |
+| 3. GameStateManager Split | v1.0 | 3/3 | Complete | 2026-02-16 |
+| 4. Renderer Refactor | v1.0 | 3/3 | Complete | 2026-02-16 |
+| 5. Supporting File Splits | v1.0 | 2/2 | Complete | 2026-02-17 |
+| 6. Bug Fixes & Validation | v1.0 | 3/3 | Complete | 2026-02-17 |
+| 7. Performance Optimization | v1.0 | 2/2 | Complete | 2026-02-17 |

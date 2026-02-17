@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A technical quality pass on the hex-grid RPG prototype. The game works but has accumulated tech debt — large monolithic files, scattered magic numbers, missing validation, race conditions, and per-frame performance waste. This project addresses the concerns identified in `.planning/codebase/CONCERNS.md`.
+A hex-grid RPG prototype with well-structured, modular codebase after a systematic quality pass. Monolithic files decomposed into focused modules, magic numbers consolidated, race conditions fixed, validation added, and per-frame calculations cached.
 
 ## Core Value
 
@@ -21,19 +21,20 @@ Code quality — split large files, reduce method sizes, and improve maintainabi
 - ✓ Semantic token combat log with rich formatting — existing
 - ✓ Per-attacker HP buffer system — existing
 - ✓ Canvas-based rendering with sprite animations — existing
+- ✓ Split large monolithic files (GSM, Renderer, CombatUILog, InputHandler) — v1.0
+- ✓ Reduce CombatSystem.executeAttack() to 42-line pipeline orchestrator — v1.0
+- ✓ Consolidate scattered magic numbers into const.js — v1.0
+- ✓ Fix race condition in MovementSystem callbacks — v1.0
+- ✓ Add area.json schema validation in AreaManager — v1.0
+- ✓ Consistent error handling and DI validation across modules — v1.0
+- ✓ Cache hex visibility calculations — v1.0
+- ✓ Cache pathfinding results with version-based invalidation — v1.0
+- ✓ Pre-compute connected blocked hex regions — v1.0
+- ✓ Memoize AI distance calculations per turn — v1.0
 
 ### Active
 
-- [ ] Split large monolithic files (GameStateManager 722 lines, Renderer 663 lines, CombatUILog 453 lines, InputHandler 419 lines)
-- [ ] Reduce CombatSystem.executeAttack() from ~200 lines / 18+ responsibilities
-- [ ] Consolidate scattered magic numbers into const.js
-- [ ] Fix race condition in MovementSystem callbacks (setTimeout 0 ordering)
-- [ ] Add area.json schema validation in AreaManager
-- [ ] Consistent error handling strategy across modules
-- [ ] Cache hex visibility calculations (recalculated every frame)
-- [ ] Cache pathfinding results (A* recomputed for identical paths)
-- [ ] Pre-compute connected blocked hex regions (flood-fill on every hover)
-- [ ] Memoize AI distance calculations per turn
+(None — v1.0 milestone complete)
 
 ### Out of Scope
 
@@ -44,12 +45,12 @@ Code quality — split large files, reduce method sizes, and improve maintainabi
 
 ## Context
 
-- Codebase is ~5,895 lines of vanilla JavaScript (ES6 modules), 18 files in `js/`
+- Codebase is ~6,788 lines of vanilla JavaScript (ES6 modules), 24 files in `js/`
 - No build step, no package manager, no external dependencies
 - Runs in browser via Docker + nginx static file serving
-- Existing detailed analysis in `.planning/codebase/CONCERNS.md`
+- Codebase analysis in `.planning/codebase/CONCERNS.md` (most concerns now addressed)
 - Separate combat development roadmap exists at `mdplans/current/` (not GSD-managed)
-- Game is functional — all changes must preserve existing behavior
+- Game is functional — all v1.0 changes preserved existing behavior
 
 ## Constraints
 
@@ -61,9 +62,13 @@ Code quality — split large files, reduce method sizes, and improve maintainabi
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Focus on code quality over features | Codebase growing harder to maintain; invest now to unblock future work | — Pending |
-| No test infrastructure in scope | Keep focused on refactoring; tests are a separate milestone | — Pending |
-| Preserve all existing behavior | Refactoring must be safe; no functional changes | — Pending |
+| Focus on code quality over features | Codebase growing harder to maintain; invest now to unblock future work | ✓ Good — all targets met |
+| No test infrastructure in scope | Keep focused on refactoring; tests are a separate milestone | ✓ Good — stayed focused |
+| Preserve all existing behavior | Refactoring must be safe; no functional changes | ✓ Good — game plays identically |
+| hexKey() as canonical key function | Eliminate fragile string convention across files | ✓ Good — 20 inline patterns replaced |
+| Direct DI for cross-cutting concerns | EngagementManager injected directly instead of routing through GSM | ✓ Good — eliminated split-tracking fragility |
+| Cache invalidation by world dimensions | Simpler than camera-based; covers all cases | ✓ Good — no stale results |
+| Deferred callback queue for movement | Deterministic ordering replaces setTimeout(0) | ✓ Good — race condition eliminated |
 
 ---
-*Last updated: 2026-02-15 after initialization*
+*Last updated: 2026-02-17 after v1.0 milestone*
