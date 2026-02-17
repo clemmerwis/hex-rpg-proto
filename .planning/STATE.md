@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-15)
 
 **Core value:** Code quality — split large files, reduce method sizes, and improve maintainability so the codebase stays workable as features grow.
-**Current focus:** Phase 5 complete — Supporting File Splits
+**Current focus:** Phase 6 in progress — Bug Fixes & Validation
 
 ## Current Position
 
-Phase: 5 of 7 (Supporting File Splits) — Phase complete
-Plan: 2 of 2 in current phase
-Status: Phase complete
-Last activity: 2026-02-17 — Completed 05-02-PLAN.md (split InputHandler into exploration and combat input)
+Phase: 6 of 7 (Bug Fixes & Validation) — In progress
+Plan: 1 of 3 in current phase
+Status: In progress
+Last activity: 2026-02-17 — Completed 06-01-PLAN.md (fix MovementSystem setTimeout race condition)
 
-Progress: ████████░░ 72%
+Progress: ████████░░ 78%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 13
-- Average duration: 4min
-- Total execution time: 0.78 hours
+- Total plans completed: 14
+- Average duration: 3min
+- Total execution time: 0.83 hours
 
 **By Phase:**
 
@@ -32,9 +32,10 @@ Progress: ████████░░ 72%
 | 3. GameStateManager Split | 3/3 | 11min | 4min |
 | 4. Renderer Refactor | 3/3 | 11min | 4min |
 | 5. Supporting File Splits | 2/2 | 6min | 3min |
+| 6. Bug Fixes & Validation | 1/3 | 3min | 3min |
 
 **Recent Trend:**
-- Last 5 plans: 4min, 3min, 4min, 3min, 3min
+- Last 5 plans: 3min, 4min, 3min, 3min, 3min
 - Trend: stable
 
 ## Accumulated Context
@@ -57,5 +58,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed 05-02-PLAN.md — InputHandler split into exploration + CombatInputHandler. Phase 5 complete.
+Stopped at: Completed 06-01-PLAN.md — MovementSystem setTimeout race condition fixed with deferred callback queue.
 Resume file: None

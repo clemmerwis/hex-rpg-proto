@@ -83,10 +83,10 @@ Plans:
 **Goal**: Race condition fixed, area.json validated on load, consistent error handling, DI wiring validated
 **Depends on**: Phase 3
 **Research**: Unlikely (internal bug fixes, standard validation patterns)
-**Plans**: TBD
+**Plans**: 3 plans (6 tasks)
 
 Plans:
-- [ ] 06-01: Fix MovementSystem setTimeout race condition
+- [x] 06-01: Fix MovementSystem setTimeout race condition
 - [ ] 06-02: Add area.json schema validation in AreaManager
 - [ ] 06-03: Add DI validation and consistent error handling strategy
 
@@ -112,5 +112,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 3. GameStateManager Split | 3/3 | Complete | 2026-02-16 |
 | 4. Renderer Refactor | 3/3 | Complete | 2026-02-16 |
 | 5. Supporting File Splits | 2/2 | Complete | 2026-02-17 |
-| 6. Bug Fixes & Validation | 0/3 | Not started | - |
+| 6. Bug Fixes & Validation | 1/3 | In progress | - |
 | 7. Performance Optimization | 0/2 | Not started | - |
