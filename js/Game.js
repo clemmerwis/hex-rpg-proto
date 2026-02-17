@@ -183,6 +183,18 @@ export class Game {
         this.combatSystem.gameStateManager = this.gameStateManager;
         this.combatSystem.engagementManager = this.engagementManager;
 
+        // Validate deferred dependencies are set (catches wiring omissions)
+        const deferredChecks = [
+            [this.movementSystem, "gameStateManager", "MovementSystem"],
+            [this.combatSystem, "gameStateManager", "CombatSystem"],
+            [this.combatSystem, "engagementManager", "CombatSystem"],
+        ];
+        for (const [module, prop, name] of deferredChecks) {
+            if (!module[prop]) {
+                throw new Error(`${name}: deferred dependency '${prop}' was not set after construction`);
+            }
+        }
+
         this.renderer = new Renderer(this.canvas, this.ctx, {
             viewportWidth: this.config.viewport.width,
             viewportHeight: this.config.viewport.height,
