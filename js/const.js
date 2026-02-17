@@ -165,7 +165,7 @@ export const STATS = {
 	all: ['str', 'int', 'dex', 'per', 'con', 'will', 'beauty', 'cha', 'instinct', 'wis'],
 	MIN: 3,
 	MAX: 10,
-	TOTAL_POINTS: 60
+	TOTAL_POINTS: 63
 };
 
 // Stat bonus/multiplier tables for derived calculations
@@ -282,10 +282,10 @@ export const WEAPONS = {
 	unarmed: { name: 'Unarmed', base: 2, type: 'concussive', force: 1, speed: 16, grip: 'two', critPenalty: -25, passives: { evasionBonus: 5 }, effects: ['rockedOnHit'] },
 	shortSpear: { name: 'Short Spear', base: 3, type: 'piercing', force: 1, speed: 19, grip: 'one', passives: {}, effects: ['vulnerableEnhancementLight'] },
 	shortSword: { name: 'Short Sword', base: 4, type: 'slash', force: 2, speed: 18, grip: 'one', passives: {}, effects: ['bleedingLight'] },
-	shortHammer: { name: 'Short Hammer', base: 6, type: 'blunt', force: 3, speed: 20, grip: 'one', passives: {}, effects: ['armorDamageEnhancementLight'] },
+	shortHammer: { name: 'Short Hammer', base: 6, type: 'blunt', force: 3, speed: 26, grip: 'one', passives: {}, effects: ['armorDamageEnhancementLight'] },
 	longSword: { name: 'Long Sword', base: 8, type: 'slash', force: 4, speed: 20, grip: 'two', passives: {}, effects: ['bleedingHeavy'] },
 	longSpear: { name: 'Long Spear', base: 6, type: 'piercing', force: 4, speed: 20, grip: 'two', passives: {}, effects: ['vulnerableEnhancementHeavy'] },
-	longHammer: { name: 'Long Hammer', base: 10, type: 'blunt', force: 6, speed: 21, grip: 'two', passives: {}, effects: ['armorDamageEnhancementHeavy'] },
+	longHammer: { name: 'Long Hammer', base: 10, type: 'blunt', force: 6, speed: 31, grip: 'two', passives: {}, effects: ['armorDamageEnhancementHeavy'] },
 	smallShield: { name: 'Small Shield', base: 1, type: 'blunt', force: 2, speed: 17, grip: 'off', passives: { defenseR: 4 }, effects: [] },
 	largeShield: { name: 'Large Shield', base: 1, type: 'blunt', force: 3, speed: 20, grip: 'off', passives: { defenseR: 8 }, effects: [] },
 };
@@ -293,7 +293,7 @@ export const WEAPONS = {
 // Attack types - affect action speed and damage
 export const ATTACK_TYPES = {
 	light: { name: 'light Attack', speedMod: 12, damageMod: 0 },
-	heavy: { name: 'heavy Attack', speedMod: 22, damageMod: 10 },
+	heavy: { name: 'heavy Attack', speedMod: 22, damageMod: 6 },
 };
 
 // Armor definitions
@@ -577,19 +577,24 @@ export const NPC_TEMPLATES = {
 	companion: {
 		name: 'Companion',
 		stats: {
-			str: 4, int: 5,
-			dex: 9, per: 6,
-			con: 5, will: 7,
-			beauty: 6, cha: 5,
-			instinct: 9, wis: 4
+			str: 6, int: 6,
+			dex: 8, per: 6,
+			con: 6, will: 6,
+			beauty: 6, cha: 6,
+			instinct: 7, wis: 6
+		},
+		skills: {
+			...createDefaultSkills(),
+			dodge: 3,
+			shortSword: 3,
 		},
 		equipment: {
-			mainHand: 'shortHammer',
-			offHand: 'smallShield',
-			armor: 'brigandine',
+			mainHand: 'shortSword',
+			offHand: null,
+			armor: 'leather',
 		},
 		faction: 'pc',
-		spriteSet: 'swordShieldKnight',
+		spriteSet: 'swordKnight',
 		mode: 'aggressive',
 	},
 
@@ -597,30 +602,16 @@ export const NPC_TEMPLATES = {
 	guard_captain: {
 		name: 'Guard Captain',
 		stats: {
-			str: 7, int: 5,
+			str: 6, int: 5,
 			dex: 6, per: 6,
 			con: 7, will: 6,
-			beauty: 5, cha: 5,
-			instinct: 6, wis: 7
+			beauty: 6, cha: 7,
+			instinct: 9, wis: 5
 		},
-		equipment: {
-			mainHand: 'shortSpear',
-			offHand: 'largeShield',
-			armor: 'plate',
-		},
-		faction: 'guard',
-		spriteSet: 'swordShieldKnight',
-		mode: 'neutral',
-	},
-
-	guard_novice: {
-		name: 'Guard Novice',
-		stats: {
-			str: 6, int: 6,
-			dex: 6, per: 7,
-			con: 6, will: 6,
-			beauty: 5, cha: 5,
-			instinct: 7, wis: 6
+		skills: {
+			...createDefaultSkills(),
+			block: 4,
+			shortSpear: 2,
 		},
 		equipment: {
 			mainHand: 'shortSpear',
@@ -632,20 +623,51 @@ export const NPC_TEMPLATES = {
 		mode: 'neutral',
 	},
 
+	guard_novice: {
+		name: 'Guard Novice',
+		stats: {
+			str: 6, int: 5,
+			dex: 6, per: 6,
+			con: 7, will: 6,
+			beauty: 6, cha: 7,
+			instinct: 9, wis: 5
+		},
+		skills: {
+			...createDefaultSkills(),
+			dodge: 2,
+			longSpear: 2,
+			criticalStrike: 2,
+			criticalDefense: 2,
+		},
+		equipment: {
+			mainHand: 'longSpear',
+			offHand: null,
+			armor: 'chain',
+		},
+		faction: 'guard',
+		spriteSet: 'swordKnight',
+		mode: 'neutral',
+	},
+
 	// Bandit Templates
 	bandit_brute: {
 		name: 'Bandit Brute',
 		stats: {
-			str: 10, int: 3,
-			dex: 5, per: 4,
-			con: 8, will: 4,
-			beauty: 3, cha: 5,
-			instinct: 8, wis: 10
+			str: 9, int: 4,
+			dex: 6, per: 5,
+			con: 8, will: 6,
+			beauty: 7, cha: 5,
+			instinct: 8, wis: 5
+		},
+		skills: {
+			...createDefaultSkills(),
+			criticalStrike: 3,
+			longHammer: 3,
 		},
 		equipment: {
-			mainHand: 'shortSword',
+			mainHand: 'longHammer',
 			offHand: null,
-			armor: 'leather',
+			armor: 'brigandine',
 		},
 		faction: 'bandit',
 		spriteSet: 'swordKnight',
@@ -655,16 +677,21 @@ export const NPC_TEMPLATES = {
 	bandit_leader: {
 		name: 'Bandit Leader',
 		stats: {
-			str: 4, int: 5,
-			dex: 10, per: 8,
-			con: 5, will: 4,
-			beauty: 5, cha: 6,
-			instinct: 7, wis: 6
+			str: 4, int: 9,
+			dex: 8, per: 8,
+			con: 4, will: 4,
+			beauty: 6, cha: 6,
+			instinct: 8, wis: 6
+		},
+		skills: {
+			...createDefaultSkills(),
+			dodge: 4,
+			longSword: 2,
 		},
 		equipment: {
-			mainHand: 'shortSword',
+			mainHand: 'longSword',
 			offHand: null,
-			armor: 'leather',
+			armor: 'brigandine',
 		},
 		faction: 'bandit',
 		spriteSet: 'swordKnight',

@@ -301,8 +301,8 @@ export class CombatSystem {
         if (friendlyFire) logParts.push("{{friendlyFire}}");
 
         const lines = [];
+        if (crit) logParts.push(`CSC= {{csc}}${cscPercent}%{{/csc}}, Roll= {{roll}}${cscRollPercent}{{/roll}}`);
         lines.push(logParts.join(" "));
-        if (crit) lines.push(`  CSC= {{csc}}${cscPercent}%{{/csc}}, Roll= {{roll}}${cscRollPercent}{{/roll}}, CRIT`);
         lines.push(`  {{hitPrefix}} ${damageBreakdown}`);
 
         return lines;
