@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-15)
 
 **Core value:** Code quality — split large files, reduce method sizes, and improve maintainability so the codebase stays workable as features grow.
-**Current focus:** Phase 4 complete — moving to Phase 5 (Supporting File Splits)
+**Current focus:** Phase 5 in progress — Supporting File Splits
 
 ## Current Position
 
-Phase: 4 of 7 (Renderer Refactor) — Phase complete
-Plan: 3 of 3 in current phase
-Status: Phase complete
-Last activity: 2026-02-16 — Completed 04-03-PLAN.md (hex visibility caching & pre-computed flood-fill)
+Phase: 5 of 7 (Supporting File Splits) — In progress
+Plan: 1 of 2 in current phase
+Status: In progress
+Last activity: 2026-02-17 — Completed 05-01-PLAN.md (split CombatUILog into log engine and formatting module)
 
-Progress: ██████░░░░ 56%
+Progress: ███████░░░ 67%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 11
+- Total plans completed: 12
 - Average duration: 4min
-- Total execution time: 0.68 hours
+- Total execution time: 0.73 hours
 
 **By Phase:**
 
@@ -31,9 +31,10 @@ Progress: ██████░░░░ 56%
 | 2. CombatSystem Pipeline | 3 | 10min | 3min |
 | 3. GameStateManager Split | 3/3 | 11min | 4min |
 | 4. Renderer Refactor | 3/3 | 11min | 4min |
+| 5. Supporting File Splits | 1/2 | 3min | 3min |
 
 **Recent Trend:**
-- Last 5 plans: 3min, 3min, 4min, 3min, 4min
+- Last 5 plans: 3min, 4min, 3min, 4min, 3min
 - Trend: stable
 
 ## Accumulated Context
@@ -55,6 +56,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-16
-Stopped at: Completed 04-03-PLAN.md — Phase 4 complete. Hex visibility cached, blocked regions pre-computed.
+Last session: 2026-02-17
+Stopped at: Completed 05-01-PLAN.md — CombatUILog split into UI engine + CombatLogFormatter.
 Resume file: None

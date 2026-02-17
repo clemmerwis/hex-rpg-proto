@@ -76,7 +76,7 @@ Plans:
 **Plans**: TBD
 
 Plans:
-- [ ] 05-01: Split CombatUILog into log engine and formatting/tag system
+- [x] 05-01: Split CombatUILog into log engine and formatting/tag system
 - [ ] 05-02: Split InputHandler into exploration input and combat input handlers
 
 ### Phase 6: Bug Fixes & Validation
@@ -111,6 +111,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 2. CombatSystem Pipeline | 3/3 | Complete | 2026-02-16 |
 | 3. GameStateManager Split | 3/3 | Complete | 2026-02-16 |
 | 4. Renderer Refactor | 3/3 | Complete | 2026-02-16 |
-| 5. Supporting File Splits | 0/2 | Not started | - |
+| 5. Supporting File Splits | 1/2 | In progress | - |
 | 6. Bug Fixes & Validation | 0/3 | Not started | - |
 | 7. Performance Optimization | 0/2 | Not started | - |
