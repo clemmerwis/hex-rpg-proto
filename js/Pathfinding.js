@@ -8,6 +8,19 @@ export class Pathfinding {
         this.maxIterations = GAME_CONSTANTS.PATHFINDING_MAX_ITERATIONS;
         this.maxOpenSetSize = GAME_CONSTANTS.PATHFINDING_MAX_OPEN_SET;
         this.blockedHexes = new Set(); // Persistent blocked hexes from area definition
+
+        // Path result cache with version-based invalidation
+        this._pathCache = new Map();
+        this._cacheVersion = 0;
+    }
+
+    /**
+     * Invalidate the path result cache.
+     * Call when obstacle landscape changes (character movement, area load, etc.)
+     */
+    invalidateCache() {
+        this._cacheVersion++;
+        this._pathCache.clear();
     }
 
     findPath(start, goal, obstacles = []) {
@@ -15,6 +28,14 @@ export class Pathfinding {
         const distance = this.hexGrid.hexDistance(start, goal);
         if (distance > this.maxDistance) {
             return [];
+        }
+
+        // Check path cache (keyed on version + start + goal)
+        const cacheKey = `${this._cacheVersion}:${hexKey(start.q, start.r)}-${hexKey(goal.q, goal.r)}`;
+        const cached = this._pathCache.get(cacheKey);
+        if (cached !== undefined) {
+            // Return a fresh copy so caller mutations don't corrupt cache
+            return cached.slice();
         }
 
         // Convert obstacles to a Set for faster lookups
@@ -38,6 +59,7 @@ export class Pathfinding {
 
             // Safety check - if openSet gets too big, abort
             if (openSet.length > this.maxOpenSetSize) {
+                this._pathCache.set(cacheKey, []);
                 return [];
             }
 
@@ -52,13 +74,17 @@ export class Pathfinding {
 
             // Check if we reached the goal
             if (current.q === goal.q && current.r === goal.r) {
-                return this.reconstructPath(cameFrom, current, iterations);
+                const result = this.reconstructPath(cameFrom, current, iterations);
+                this._pathCache.set(cacheKey, result);
+                return result.slice();
             }
 
             // Check all neighbors
             this.processNeighbors(current, goal, openSet, closedSet, cameFrom, gScore, fScore, obstacleSet);
         }
 
+        // Cache failed paths too — prevents redundant A* for unreachable destinations
+        this._pathCache.set(cacheKey, []);
         return [];
     }
 
@@ -136,5 +162,6 @@ export class Pathfinding {
 
     setBlockedHexes(hexes) {
         this.blockedHexes = new Set(hexes.map(h => hexKey(h.q, h.r)));
+        this.invalidateCache();
     }
 }
