@@ -14,6 +14,7 @@
 # Local Claude config (ignore even though .md is allowed)
 .claude-config.md
 .claude/settings.local.json
+.claude-marked/
 
 # Claude Code temporary working directory files (auto-ignored by *, but explicit for clarity)
 # These are created during Claude Code sessions and should be cleaned up automatically
