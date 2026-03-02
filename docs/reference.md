@@ -23,7 +23,7 @@ All characters (PC and NPCs) share this structure:
     faction,                       // Faction key: 'pc', 'pc_ally', 'bandit', 'guard'
     spriteSet,                     // Sprite set key: 'baseKnight', 'swordShieldKnight', 'swordKnight'
 
-    // Stats (10 stats, 60 total points, min 3 / max 10 per stat)
+    // Stats (10 stats, 63 total points, min 3 / max 10 per stat)
     stats: {
         str, int,                  // Power (Physical/Cerebral)
         dex, per,                  // Prowess (Physical/Cerebral)
@@ -90,7 +90,7 @@ Factions define visual styling and hostility. Defined in `const.js`:
 ### Stat System
 - 10 stats in 5 categories (Physical/Cerebral pairs)
 - Each stat: min 3, max 10
-- Total points per character: 60
+- Total points per character: 63
 
 ### Stat Bonuses
 
@@ -126,18 +126,20 @@ defenseR = (skill * 5) + (dex * 3) + (instinct * 2) + equipment.defenseR + 5
 // +5 base defense bonus makes hitting slightly harder
 ```
 
-**To-Hit Chance:**
+**To-Hit Chance (integer percentage, 0-100%):**
 ```
-THC = ((attackR - defenseR) + (50 - evasionBonus)) / 100
+THC = clamp(0, 100, (attackR - defenseR) + (50 - evasionBonus))
 // evasionBonus reduces base hit chance (from equipment passives)
+// Roll d100 (1-100), hit if roll <= THC
 ```
 
-**Critical Strike Ratings:**
+**Critical Strike Ratings (integer percentage, 0-100%):**
 ```
 CSA_R = (criticalStrike * 5) + (int * 3) + (str * 2)
 CSD_R = (criticalDefense * 5) + (dex * 3) + (per * 2) + instinct
-CSC = ((CSA_R - CSD_R) + 50 + weapon.critPenalty) / 100
-// critPenalty: flat modifier on weapon (e.g., unarmed: -25)
+CSC = clamp(0, 100, (CSA_R - CSD_R) + 50 + critMod)
+// critMod: flat modifier from equipment passives (e.g., unarmed: -25, hammers: -15)
+// Roll d100 (1-100), crit if roll <= CSC
 ```
 
 **Damage Calculation (base → vuln/resist → DR → crit):**
@@ -146,7 +148,7 @@ CSC = ((CSA_R - CSD_R) + 50 + weapon.critPenalty) / 100
 3. Flanking Check: Attacker behind defender OR defender over-engaged (at max capacity)
 4. Armor Defense: `effectiveDR = flanking ? floor(armor.defense * armor.flankingDefense) : armor.defense`
 5. Subtract DR: `damage = max(0, damage - effectiveDR)`
-6. Critical Hit: Multiply by 2, then by weapon.critMultiplier if present
+6. Critical Hit: Multiply by 1.5, then by weapon.critMultiplier if present
 
 ### Speed & Turn Order
 
@@ -163,8 +165,8 @@ actionSpeed = weapon.speed + shield.speed (if not 2h) + attackType.speedMod - de
 **Speed Tiers:**
 | Tier | Speed Range | Name |
 |------|-------------|------|
-| 1 | 0-20 | 1/4 (fastest) |
-| 2 | 21-40 | 2/4 |
+| 1 | 0-25 | 1/4 (fastest) |
+| 2 | 26-40 | 2/4 |
 | 3 | 41-55 | 3/4 |
 | 4 | 56+ | 4/4 (slowest) |
 
@@ -184,10 +186,10 @@ Each attacker must deplete a character's buffer individually before dealing real
 | Unarmed | 2 | concussive | 1 | 16 | two | evasionBonus: 5, bypasses buffer |
 | Short Spear | 3 | piercing | 1 | 19 | one | vulnerableEnhancementLight |
 | Short Sword | 4 | slash | 2 | 18 | one | bleedingLight |
-| Short Hammer | 6 | blunt | 3 | 20 | one | armorDamageEnhancementLight |
+| Short Hammer | 6 | blunt | 3 | 26 | one | critMod: -15, armorDamageEnhancementLight |
 | Long Sword | 8 | slash | 4 | 20 | two | bleedingHeavy |
 | Long Spear | 6 | piercing | 4 | 20 | two | vulnerableEnhancementHeavy |
-| Long Hammer | 10 | blunt | 6 | 21 | two | armorDamageEnhancementHeavy |
+| Long Hammer | 10 | blunt | 6 | 31 | two | critMod: -15, armorDamageEnhancementHeavy |
 | Small Shield | 1 | blunt | 2 | 17 | off | defenseR: 4 |
 | Large Shield | 1 | blunt | 3 | 20 | off | defenseR: 8 |
 
@@ -210,7 +212,7 @@ Each attacker must deplete a character's buffer individually before dealing real
 | Type | Speed Mod | Damage Mod |
 |------|-----------|------------|
 | Light | +12 | +0 |
-| Heavy | +22 | +10 |
+| Heavy | +22 | +6 |
 
 ### Armor
 | Armor | Defense | Mobility | Resistant | Vulnerable | Flank Def |
@@ -315,7 +317,7 @@ Set `DEV_LOG = true` in GameStateManager.js or AISystem.js for detailed combat l
 ## Sprite System
 
 ### Sprite Sets
-Three sprite sets available, each with 8-directional variants:
+Three sprite sets available, each with 8-directional sprite sheets (only 6 used by hex grid):
 
 | Set Key | Folder | Used By |
 |---------|--------|---------|
@@ -331,13 +333,13 @@ Three sprite sets available, each with 8-directional variants:
 | run | 8 | default | Looping |
 | attack | 15 | default | oneShot |
 | jump | 9-11 | default | Looping |
-| die | 16-27 | 60ms | oneShot, holds final |
+| die | 16-27 | 60ms | Plays once, holds final frame (special-cased in MovementSystem) |
 | impact | 9 | default | oneShot |
 | idle2 | 25 | 142ms | oneShot |
 
 - Default speed: 17ms per frame (ANIMATION_SPEED)
 - Frame size: 256x256 pixels
-- Directions: dir1, dir2, dir3, dir5, dir6, dir7 (6 hex directions)
+- Sprite sheets have 8 directions; hex grid uses 6: dir1, dir2, dir3, dir5, dir6, dir7 (dir4, dir8 unused)
 
 ## Coordinate Systems
 

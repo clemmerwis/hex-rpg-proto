@@ -4,15 +4,29 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 For detailed reference (controls, data structures, debug features): see [docs/reference.md](docs/reference.md).
 
-**Note**: Local machine-specific configuration (API tokens, etc.) is stored in `.claude-config.md` (gitignored).
+## GitHub API Access
+**IMPORTANT**: When accessing GitHub repositories, use the GitHub REST API directly with the personal access token.
+- **DO NOT** use GitHub MCP or `gh` CLI
+- **DO** use curl or WebFetch with API endpoints
 
-## Planning System (GSD)
+**Access Token Location**: `~/.claude/github_token`
 
+**Usage Example**:
+```bash
+# Read token
+GITHUB_TOKEN=$(cat ~/.claude/github_token)
+
+# Use with API
+curl -H "Authorization: Bearer $GITHUB_TOKEN" https://api.github.com/user/repos
+```
+
+## Planning System (GSD) (Auto Task Runner)
 This project uses the [Get Shit Done (GSD)](https://github.com/glittercowboy/get-shit-done) planning system. Planning files are stored in `.planning/` directory.
 
 - **Read freely**: Reference `.planning/` files for context on project roadmap, current phase, and implementation plans
 - **Do not write**: Let GSD commands (`/gsd:*`) handle all writes to `.planning/` files
-- **No auto-commits**: GSD workflows must NOT commit automatically. Always let the user decide when to commit.
+
+## mdplans my personal manual planning system
 
 ## Project Overview
 
@@ -34,73 +48,27 @@ The application runs in an nginx container serving static files. No build step r
 - Check browser console for runtime errors and debug logs
 
 ## Architecture Overview
+For detailed architecture docs (data structures, code patterns, dependency trees): see `.claude-marked/hex-rpg-proto/index/`
+
 Note! Tab size 4 for most files (especially js files)
 
 ### Module System
-The codebase uses ES6 modules with dependency injection pattern. All modules are in `js/` directory:
+ES6 modules with dependency injection pattern. All modules in `js/` directory:
 
-- **Game.js** - Main orchestrator, initializes all systems and manages the game loop
-- **GameStateManager.js** - State machine handling EXPLORATION, COMBAT_INPUT, and COMBAT_EXECUTION states
-- **HexGrid.js** - Hexagonal coordinate system (axial coordinates) with pixel/hex conversions
-- **Renderer.js** - Canvas-based rendering of background, hex grid, characters, and UI elements
-- **InputHandler.js** - Mouse and keyboard input with edge scrolling and combat input handling
-- **MovementSystem.js** - Smooth interpolated movement between hexes, animation state management
-- **Pathfinding.js** - A* pathfinding for hex grids with obstacle avoidance
-- **AISystem.js** - AI decision making for enemy characters (currently greedy movement toward player)
-- **AssetManager.js** - Asynchronous sprite and image loading with progress tracking
-- **AreaManager.js** - Area loading, transitions, blocked hexes, and spawn points (BG-style discrete maps)
-- **const.js** - Centralized configuration (GAME_CONSTANTS, ANIMATION_CONFIGS, FACTIONS)
+- **Game.js** - Main orchestrator, init, DI, game loop
+- **GameStateManager.js** - State machine (EXPLORATION, COMBAT_INPUT, COMBAT_EXECUTION)
+- **HexGrid.js** - Axial hex coordinates (q, r), pixel/hex conversions
+- **Renderer.js** - Canvas rendering (bg, grid, characters, UI)
+- **InputHandler.js** - Mouse/keyboard input, edge scrolling
+- **MovementSystem.js** - Queue-based interpolated movement, animation states
+- **Pathfinding.js** - A* pathfinding on hex grid
+- **AISystem.js** - Enemy AI decision making
+- **AssetManager.js** - Async sprite/image loading
+- **AreaManager.js** - Area loading, transitions, blocked hexes, spawns
+- **const.js** - All constants, formulas, weapons, armor, factions, NPC templates
 
-### State Management Pattern
-The game uses a state machine with three core states:
-1. **EXPLORATION** - Free movement, click to move anywhere with pathfinding
-2. **COMBAT_INPUT** - Turn-based input phase, click adjacent hex to select move
-3. **COMBAT_EXECUTION** - Sequential execution of all character actions
-
-State transitions are managed by GameStateManager, which coordinates between input, movement, and AI systems.
-
-### Hexagonal Grid System
-Uses **axial coordinate system** (q, r) for hex positions. Key conversion functions:
-- `hexToPixel(q, r)` - Convert hex coords to world pixel position
-- `pixelToHex(x, y)` - Convert pixel position to hex coords
-- `hexDistance(hex1, hex2)` - Calculate distance between hexes
-- `getNeighbors(hex)` - Get 6 adjacent hexes
-
-Characters store both hex position (`hexQ`, `hexR`) and pixel position (`pixelX`, `pixelY`) for smooth interpolated movement.
-
-### Movement System
-Movement uses a queue-based interpolation system:
-1. Pathfinding generates array of hex waypoints
-2. Waypoints added to `character.movementQueue`
-3. `MovementSystem.updateMovement()` interpolates between current hex and first waypoint
-4. On completion, shifts queue and continues to next waypoint
-5. When queue empty, character returns to idle
-
-### Combat System Flow
-1. **Toggle Combat** (Shift+Space) → Enters COMBAT_INPUT state
-2. **Input Phase** - Player clicks adjacent hex, AI enemies calculate moves
-3. **Execution Phase** - Characters move sequentially, occupancy checks prevent conflicts
-4. **Turn Increment** → Returns to COMBAT_INPUT for next turn
-
-Combat actions execute in queue order with real-time occupancy validation (if target hex becomes occupied, move is cancelled).
-
-### Configuration System
-All magic numbers centralized in `const.js`:
-- **GAME_CONSTANTS** - Movement speed, animation timing, world dimensions, scroll speeds, pathfinding limits
-- **SPRITE_SETS** - Sprite sheet layouts (cols, rows, frameCount) for each animation per sprite set
-- **FACTIONS** - Faction colors and nameplate styling
-
+### Configuration Rule
 **IMPORTANT**: When adding new configurable values, add them to const.js rather than hardcoding.
-
-## Key Implementation Details
-
-### Sprite System
-- Sprites use 6-directional facing (dir1, dir2, dir3, dir5, dir6, dir7) matching hex grid directions
-- Animation frames stored in sprite sheets at `sprites/KnightBasic/`, `sprites/KnightAdvCombat/`, etc.
-- Frame size: 256x256 pixels (SPRITE_FRAME_SIZE constant)
-
-### Dependency Injection
-Modules don't import each other directly. Game.js creates all modules and injects dependencies via `setDependencies()` methods. This prevents circular dependencies and makes testing easier.
 
 ## Common Tasks
 
