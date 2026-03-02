@@ -17,7 +17,7 @@ import { CombatLogFormatter } from './CombatLogFormatter.js';
 import { CombatInputHandler } from './CombatInputHandler.js';
 import { CharacterFactory } from './CharacterFactory.js';
 import { UIManager } from './UIManager.js';
-import { GAME_CONSTANTS, FACTIONS, SPRITE_SETS, calculateMaxHP, calculateHPBuffer, calculateEngagedMax } from './const.js';
+import { GAME_CONSTANTS, FACTIONS, SPRITE_SETS, NPC_TEMPLATES, calculateMaxHP, calculateHPBuffer, calculateEngagedMax } from './const.js';
 import { makeEnemies } from './utils.js';
 
 export class Game {
@@ -45,27 +45,7 @@ export class Game {
                 background: null,
                 sprites: {}
             },
-            pc: CharacterFactory.createCharacter({
-                hexQ: 5,
-                hexR: -6,
-                facing: 'dir8',
-                name: 'Hero',
-                stats: {
-                    str: 7, int: 5,
-                    dex: 7, per: 6,
-                    con: 7, will: 5,
-                    beauty: 5, cha: 5,
-                    instinct: 6, wis: 7
-                },
-                equipment: {
-                    mainHand: 'unarmed',
-                    offHand: null,
-                    armor: 'scale',
-                },
-                faction: 'pc',
-                spriteSet: 'baseKnight',
-                mode: 'aggressive',
-            }),
+            pc: null, // Created in init() from NPC_TEMPLATES.hero + area spawn point
             // NPCs loaded from area.json via AreaManager (see init() method)
             // Architecture: NPCs come from templates (const.js) + placement data (area.json)
             // Future: Templates will be fetched from backend API instead of const.js
@@ -323,6 +303,14 @@ export class Game {
 
             // Load initial area (NPCs are instantiated inside loadArea via repository pattern)
             await this.areaManager.loadArea('bridge_crossing');
+
+            // Create PC from template + area spawn point
+            const spawn = this.areaManager.getSpawn('default');
+            this.state.pc = CharacterFactory.createCharacter({
+                ...NPC_TEMPLATES.hero,
+                hexQ: spawn.q,
+                hexR: spawn.r,
+            });
 
             // Retrieve instantiated NPCs from AreaManager (loaded from area.json + templates)
             this.state.npcs = this.areaManager.getNPCs();

@@ -153,7 +153,7 @@ export function calculateAttackTiming(spriteSet) {
 
 // Character stat system
 // 10 stats across 5 categories, Physical/Cerebral columns
-// Each character: min 3 per stat (30 base) + 30 distributable = 60 total
+// Each character: min 3 per stat (30 base) + 33 distributable = 63 total
 export const STATS = {
 	categories: {
 		power: { physical: 'str', cerebral: 'int' },
@@ -573,6 +573,32 @@ export const WRAPPER_TAGS = {
  * Everything else (Game.js, CharacterFactory, area.json format) stays the same.
  */
 export const NPC_TEMPLATES = {
+	// Player Character Template
+	hero: {
+		name: 'Hero',
+		stats: {
+			str: 7, int: 5,
+			dex: 7, per: 6,
+			con: 7, will: 5,
+			beauty: 5, cha: 5,
+			instinct: 6, wis: 7
+		},
+		skills: {
+			...createDefaultSkills(),
+			unarmed: 3,
+			dodge: 3,
+		},
+		equipment: {
+			mainHand: 'unarmed',
+			offHand: null,
+			armor: 'scale',
+		},
+		facing: 'dir8',
+		faction: 'pc',
+		spriteSet: 'baseKnight',
+		mode: 'aggressive',
+	},
+
 	// PC Faction Templates
 	companion: {
 		name: 'Companion',

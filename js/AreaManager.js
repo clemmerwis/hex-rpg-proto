@@ -301,6 +301,16 @@ export class AreaManager {
     }
 
     /**
+     * Get a spawn point from the current area by ID
+     * @param {string} spawnId - Spawn point ID (e.g. 'default', 'north')
+     * @returns {Object} Spawn point {q, r}
+     */
+    getSpawn(spawnId) {
+        if (!this.currentArea) return { q: 0, r: 0 };
+        return this.getSpawnPoint(this.currentArea, spawnId);
+    }
+
+    /**
      * Check if a character is on an exit hex and get the transition info
      * @param {number} q - Hex Q coordinate
      * @param {number} r - Hex R coordinate
