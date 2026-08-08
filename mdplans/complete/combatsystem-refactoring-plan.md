@@ -1,4 +1,27 @@
-# CombatSystem.js Refactoring Plan (Current - January 2026)
+# CombatSystem.js Refactoring Plan (January 2026)
+
+> **STATUS: COMPLETE** — verified against source 2026-08-08.
+>
+> All 6 batches shipped. `executeAttack()` is now a 43-line orchestrator
+> (`js/CombatSystem.js:30-73`) with numbered steps matching Batch 6. Every planned
+> helper exists: `resolveHitRoll`, `calculateFlankingAndDR`, `applyCritModifier`,
+> `applyResistanceModifier`, `buildDamageBreakdown`, `buildCombatLogLines`,
+> `logDamageApplication`, `handleWhiff`, `handleMiss`, `handleHitResult`.
+>
+> **Deltas from the plan as written:**
+> - **Pipeline order changed.** Plan had crit → DR → resist. Shipped order is
+>   resist → DR → crit (`CombatSystem.js:51-62`). Damage numbers differ from what
+>   this document predicts; the shipped order is authoritative.
+> - **Grouped differently.** `calculateDamageModifiers()` (Batch 3) was never built as
+>   one function. Its work is split across `applyResistanceModifier`,
+>   `calculateFlankingAndDR`, and `applyCritModifier`, called in sequence from
+>   `executeAttack()`. Same outcome, flatter structure.
+> - **Scope grew.** Added beyond this plan: `buildActionSpeedTip()`, CSC roll display
+>   in the combat log, and extraction of `CombatLogFormatter.js`, `CombatExecutor.js`,
+>   `CombatInputHandler.js`, `EngagementManager.js` into their own modules.
+> - File is 424 lines (up from 270) — more methods, each much thinner.
+>
+> Retained as a record of the refactor's reasoning. Do not re-execute.
 
 ## Executive Summary
 
