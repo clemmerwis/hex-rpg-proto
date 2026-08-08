@@ -20,12 +20,6 @@ GITHUB_TOKEN=$(cat ~/.claude/github_token)
 curl -H "Authorization: Bearer $GITHUB_TOKEN" https://api.github.com/user/repos
 ```
 
-## Planning System (GSD) (Auto Task Runner)
-This project uses the [Get Shit Done (GSD)](https://github.com/glittercowboy/get-shit-done) planning system. Planning files are stored in `.planning/` directory.
-
-- **Read freely**: Reference `.planning/` files for context on project roadmap, current phase, and implementation plans
-- **Do not write**: Let GSD commands (`/gsd:*`) handle all writes to `.planning/` files
-
 ## mdplans my personal manual planning system
 
 ## Project Overview

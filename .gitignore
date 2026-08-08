@@ -28,7 +28,6 @@ sprites/Items/**
 
 # ...even if they are in subdirectories
 !*/
-!.planning/
 
 # Re-ignore after !*/ (order matters)
 .claude-marked/
