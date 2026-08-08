@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Combat Log</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#d8c9a8; --bracket:#9a855f; --panel:#16100b;
+    --divider:rgba(255,232,190,.09); --logfs:17px;
+    --gold:#ad8a3c; --gold-bright:#ecc869;
+    --ally:#7bbb63; --enemy:#c5682d; --spell:#dca63c; --force:#db5e48;
+    --thunder:#b69ae4; --radiant:#e3c662; --crit:#c0492f; --block:#6fa3e0;
+    --death:#c0492f; --bleed:#b25360; --condition:#8f93d6;
+    --slashing:#b25360; --piercing:#8fa39e; --blunt:#c4923f; --heal:#7bbb63;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    min-height:100vh; display:flex; align-items:center; justify-content:center;
+    padding:40px 24px;
+    background:radial-gradient(120% 100% at 50% 20%,#36281b 0%,#241a11 45%,#150f0a 100%);
+    font-family:'EB Garamond',Georgia,serif;
+  }
+
+  /* OUTER frame — the good GREY gradient shows on the sides next to the gold line */
+  .frame{
+    position:relative; width:900px; max-width:100%;
+    border:1px solid #4f4334; border-radius:14px; overflow:hidden;
+    background:linear-gradient(180deg,#4a3f31 0%,#352b20 45%,#241c14 100%);
+    box-shadow:inset 0 1px 0 rgba(255,228,180,.16),inset 0 -8px 20px rgba(0,0,0,.45),0 30px 70px rgba(0,0,0,.6);
+  }
+
+  /* title header: gold rule interrupted by the inscribed title */
+  .titlebar{ display:flex; align-items:center; padding:7px 26px 8px; }
+  .titlebar .rule{ flex:1; height:2px; border-radius:2px; box-shadow:0 1px 0 rgba(0,0,0,.4); }
+  .titlebar .rule.l{ background:linear-gradient(90deg,transparent,rgba(173,138,60,.25) 20%,var(--gold) 100%); }
+  .titlebar .rule.r{ background:linear-gradient(270deg,transparent,rgba(173,138,60,.25) 20%,var(--gold) 100%); }
+  .title{
+    flex:none; margin:0 14px;
+    font-family:'Cinzel',serif; font-weight:700; font-size:16px; letter-spacing:1.4px;
+    color:var(--gold-bright); white-space:nowrap; text-shadow:0 1px 2px rgba(0,0,0,.6);
+  }
+
+  /* content: inset side rails (grey shows), gold inner line, open bottom */
+  .content{
+    position:relative; height:580px; margin:0 26px;
+    border:2px solid var(--gold); border-bottom:none; border-radius:6px 6px 0 0; overflow:hidden;
+    background:var(--panel); box-shadow:inset 0 2px 7px rgba(0,0,0,.35);
+  }
+  .scroll{
+    position:absolute; inset:0; overflow-y:auto; overflow-x:hidden; padding:12px 16px;
+    color:var(--ink); font-size:var(--logfs); line-height:1.5;
+    background:
+      linear-gradient(180deg,rgba(255,250,238,.16),rgba(60,40,16,.06)),
+      repeating-linear-gradient(0deg,rgba(120,90,40,.035) 0 2px,transparent 2px 4px),
+      var(--panel);
+    box-shadow:inset 0 3px 12px rgba(80,55,20,.28);
+  }
+  .scroll::-webkit-scrollbar{width:16px;}
+  .scroll::-webkit-scrollbar-track{background:linear-gradient(90deg,#2c1c0e,#3a2614,#2c1c0e);border-radius:8px;border:1px solid #1b1107;}
+  .scroll::-webkit-scrollbar-thumb{
+    background:linear-gradient(90deg,#6a431f,#8a5a2e,#5a3618);
+    border-radius:7px;border:1px solid #2a1709;box-shadow:inset 0 1px 0 rgba(255,205,150,.35);}
+  .scroll::-webkit-scrollbar-thumb:hover{background:linear-gradient(90deg,#7a4f25,#9a6736,#6a401c);}
+  .scroll{scrollbar-color:#7a4f25 #2c1c0e;scrollbar-width:thin;}
+
+  .entry{ display:flex; align-items:flex-start; gap:12px; padding:6px 2px; border-bottom:1px solid var(--divider); }
+  .entry .text{flex:1 1 auto; min-width:0; text-wrap:pretty;}
+  .entry.indent .text{padding-left:28px;}
+  .empty{text-align:center;padding:48px 0;color:var(--bracket);font-style:italic;opacity:.7;}
+  .r{font-weight:600;}
+
+  /* footer: full-width divider + buttons, connected to the gold line */
+  .footer{
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    padding:10px 26px; background:linear-gradient(180deg,#5a3618,#3d2410); border-top:2px solid var(--gold);
+  }
+  .clog-btn{
+    font-family:'Cinzel',serif; font-weight:600; font-size:15px; letter-spacing:.6px;
+    color:var(--gold-bright); padding:8px 22px; border-radius:6px;
+    border:1px solid #1f1206; border-top-color:#8a5a30; cursor:pointer;
+    background:linear-gradient(180deg,#6a3f1f,#492913);
+    box-shadow:inset 0 1px 0 rgba(255,205,150,.28),0 3px 6px rgba(0,0,0,.45);
+    text-shadow:0 1px 2px rgba(0,0,0,.6);
+    transition:filter .12s ease,transform .05s ease;
+  }
+  .clog-btn:hover{filter:brightness(1.16);}
+  .clog-btn:active{transform:translateY(1px);}
+  .clog-btn:focus-visible{outline:2px solid var(--gold-bright);outline-offset:2px;}
+  .clog-btn.filter{display:flex;align-items:center;gap:10px;background:linear-gradient(180deg,#5d3a1d,#3f2410);}
+  .clog-btn .caret{font-size:11px;opacity:.85;}
+
+  @media (max-width:600px){ .content{height:62vh;} }
+</style>
+</head>
+<body>
+  <div class="frame">
+    <div class="titlebar">
+      <span class="rule l"></span>
+      <span class="title">Combat Log</span>
+      <span class="rule r"></span>
+    </div>
+    <div class="content">
+      <div class="scroll" id="scroll"></div>
+    </div>
+    <div class="footer">
+      <button class="clog-btn" id="clearBtn" type="button">Clear Log</button>
+      <button class="clog-btn filter" type="button">Filter: All <span class="caret">&#9660;</span></button>
+      <button class="clog-btn" type="button">Close</button>
+    </div>
+  </div>
+
+<script>
+  const RAW_LOG = [
+    { c:'Thorne', segs:[['Thorne','ally'],[' casts '],['Eldritch Blast','spell'],[' on '],['Bandit','enemy'],['.']] },
+    { c:'', i:1, segs:[['Bandit','enemy'],[' is hit for '],['13 force damage','force'],['.']] },
+    { c:'', i:1, segs:[['Bandit','enemy'],[' is hit for '],['8 thunder damage','thunder'],['.']] },
+    { c:'', i:1, segs:[['Bandit','enemy'],[' falls to a lethal blow','death'],['.']] },
+    { c:'Kael', segs:[['Kael','ally'],[' misses '],['Goblin','enemy'],[' with heavy attack.']] },
+    { c:'Goblin', segs:[['Goblin','enemy'],[' hits '],['Kael','ally'],[' with quick attack.']] },
+    { c:'', i:1, segs:[['Critical Hit!','crit'],[' '],['Kael','ally'],[' is hit for '],['13 slashing damage','slashing'],[' '],['(condition: severe bleeding)','condition']] },
+    { c:'Mira', segs:[['Mira','ally'],[' drinks a '],['Health Potion','spell'],[' '],['(+12 HP)','heal'],['.']] },
+    { c:'Mira', segs:[['Mira','ally'],[' casts '],['Guiding Bolt','spell'],[' on '],['Hobgoblin','enemy'],['.']] },
+    { c:'', i:1, segs:[['Hobgoblin','enemy'],[' is hit for '],['12 radiant damage','radiant'],['.']] },
+    { c:'Hobgoblin', segs:[['Hobgoblin','enemy'],[' drinks a '],['Health Potion','spell'],[' '],['(+8 HP)','heal']] },
+    { c:'Hobgoblin', segs:[['Hobgoblin','enemy'],[' raises his shield.']] },
+    { c:'Thorne', segs:[['Thorne','ally'],[' heavy attacks '],['Hobgoblin','enemy'],['.']] },
+    { c:'', i:1, segs:[['Hobgoblin','enemy'],[' '],['blocks the attack','block'],['.']] },
+    { c:'Kael', segs:[['Kael','ally'],[' receives '],['6 bleeding damage','bleed'],['.']] },
+    { c:'', i:1, segs:[['Kael','ally'],[' is defeated','death'],[' '],['(condition: unconscious)','condition']] },
+    { c:'Goblin', segs:[['Goblin','enemy'],[' quick attacks '],['Mira','ally'],['.']] },
+    { c:'', i:1, segs:[['Mira','ally'],[' '],['dodges the attack','block'],['.']] },
+    { c:'Mira', segs:[['Mira','ally'],[' hits '],['Goblin','enemy'],[' with '],['Concussive Smash','spell'],['.']] },
+    { c:'', i:1, segs:[['Goblin','enemy'],[' is hit for '],['10 blunt damage','blunt'],['. '],['(condition: rocked)','condition']] },
+    { c:'', i:1, segs:[['Goblin','enemy'],[' is hit for '],['3 reverberation damage','thunder'],[' '],['(condition: stunned)','condition'],['.']] },
+    { c:'Thorne', segs:[['Thorne','ally'],[' hits '],['Goblin','enemy'],[' with heavy attack.']] },
+    { c:'', i:1, segs:[['Goblin','enemy'],[' is hit for '],['12 piercing damage','piercing'],['.']] },
+    { c:'', i:1, segs:[['Goblin','enemy'],[' falls to a lethal blow','death'],['.']] }
+  ];
+  const scroll = document.getElementById('scroll');
+  function render(entries){
+    scroll.innerHTML = '';
+    if(!entries.length){
+      const e = document.createElement('div'); e.className='empty';
+      e.textContent='\u2014 the log is empty \u2014'; scroll.appendChild(e); return;
+    }
+    for(const item of entries){
+      const row = document.createElement('div');
+      row.className = 'entry' + (item.i ? ' indent' : '');
+      const text = document.createElement('span'); text.className='text';
+      for(const seg of item.segs){
+        const s = document.createElement('span'); s.textContent = seg[0];
+        if(seg[1]){ s.className='r'; s.style.color='var(--'+seg[1]+')'; }
+        text.appendChild(s);
+      }
+      row.appendChild(text); scroll.appendChild(row);
+    }
+    scroll.scrollTop = scroll.scrollHeight;
+  }
+  document.getElementById('clearBtn').addEventListener('click', function(){ render([]); });
+  render(RAW_LOG);
+</script>
+</body>
+</html>
