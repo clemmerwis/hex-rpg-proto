@@ -2,6 +2,7 @@ import { HexGrid } from './HexGrid.js';
 import { GameStateManager, GAME_STATES, COMBAT_ACTIONS } from './GameStateManager.js';
 import { Renderer } from './Renderer.js';
 import { InputHandler } from './InputHandler.js';
+import { CameraController } from './CameraController.js';
 import { AssetManager } from './AssetManager.js';
 import { AreaManager } from './AreaManager.js';
 import { Pathfinding } from './Pathfinding.js';
@@ -36,8 +37,8 @@ export class Game {
             hexSize: GAME_CONSTANTS.HEX_SIZE
         };
 
-        // Camera state
-        this.camera = { x: 0, y: 0 };
+        // Camera position and scroll physics
+        this.camera = new CameraController(this.config);
 
         // Game state
         this.state = {
@@ -239,18 +240,13 @@ export class Game {
             hexGrid: this.hexGrid,
             gameStateManager: this.gameStateManager,
             combatInputHandler: this.combatInputHandler,
+            camera: this.camera,
             findPath: (start, goal, obstacles) => this.pathfinding.findPath(start, goal, obstacles),
             getCharacterAtHex: this.getCharacterAtHex.bind(this)
         });
 
-        this.inputHandler.onCameraUpdate = (scroll) => {
-            if (scroll && scroll.scrollX !== undefined) {
-                this.camera.x += scroll.scrollX;
-                this.camera.y += scroll.scrollY;
-                this.clampCamera();
-                return { x: this.camera.x, y: this.camera.y, zoom: this.config.zoom };
-            }
-            return { x: this.camera.x, y: this.camera.y, zoom: this.config.zoom };
+        this.camera.onMove = (x, y) => {
+            this.uiManager.updateCameraPosition(x, y);
         };
 
         this.inputHandler.onAnimationChange = (animation) => {
@@ -401,7 +397,7 @@ export class Game {
             // Update systems with delta time
             this.movementSystem.updateMovement(deltaTime);
             this.movementSystem.updateAnimations(deltaTime);
-            this.inputHandler.updateKeyboardScrolling();
+            this.camera.update(deltaTime, this.inputHandler.getScrollIntent());
 
             // Update combat log if in combat
             if (this.gameStateManager.isInCombat()) {
@@ -422,19 +418,7 @@ export class Game {
 
     // Helper methods
     centerCameraOn(worldX, worldY) {
-        this.camera.x = (worldX * this.config.zoom) - this.config.viewport.width / 2;
-        this.camera.y = (worldY * this.config.zoom) - this.config.viewport.height / 2;
-        this.clampCamera();
-    }
-
-    clampCamera() {
-        const maxCameraX = this.config.world.width * this.config.zoom - this.config.viewport.width;
-        const maxCameraY = this.config.world.height * this.config.zoom - this.config.viewport.height;
-
-        this.camera.x = Math.max(0, Math.min(this.camera.x, maxCameraX));
-        this.camera.y = Math.max(0, Math.min(this.camera.y, maxCameraY));
-
-        this.uiManager.updateCameraPosition(this.camera.x, this.camera.y);
+        this.camera.centerOn(worldX, worldY);
     }
 
     updateMarkedHexCount() {

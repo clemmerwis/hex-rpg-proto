@@ -110,7 +110,7 @@ export class UIManager {
 
 	/**
 	 * Update camera position display
-	 * Extracts UI update from Game.clampCamera()
+	 * Driven by CameraController.onMove
 	 * @param {number} x - Camera x position
 	 * @param {number} y - Camera y position
 	 */

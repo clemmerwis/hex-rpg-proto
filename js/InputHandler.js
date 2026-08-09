@@ -10,27 +10,25 @@ export class InputHandler {
         this.mouseX = 0;
         this.mouseY = 0;
         this.isMouseOverCanvas = false;
-        this.keyboardScrollActive = false;
-        this.mouseInEdgeZone = false;
-        this.wasInEdgeZone = false;
         this.hoveredHex = null;  // Current hex under mouse cursor
 
         // Hex marker mode (for map editing)
         this.hexMarkerMode = false;
         this.markedHexes = new Map(); // Key: "q,r", Value: {q, r}
 
-        // Keyboard state
+        // Held keys, indexed by physical key (e.code) rather than the produced
+        // character, so Shift or CapsLock can't strand a key in the held state
         this.keys = {};
 
         // Dependencies (injected)
         this.game = null;
         this.hexGrid = null;
         this.gameStateManager = null;
+        this.camera = null;
         this.findPath = null;
         this.getCharacterAtHex = null;
 
         // Callbacks
-        this.onCameraUpdate = null;
         this.onDebugUpdate = null;
         this.onAnimationChange = null;
         this.onMouseMove = null;
@@ -43,22 +41,21 @@ export class InputHandler {
         this.handleKeyUp = this.handleKeyUp.bind(this);
         this.handleMouseEnter = this.handleMouseEnter.bind(this);
         this.handleMouseLeave = this.handleMouseLeave.bind(this);
+        this.handleWindowBlur = this.handleWindowBlur.bind(this);
 
         // Set up event listeners
         this.setupEventListeners();
-
-        // Start edge scrolling loop
-        this.updateEdgeScrolling();
     }
 
     setDependencies(deps) {
-        const required = ['game', 'hexGrid', 'gameStateManager', 'combatInputHandler', 'findPath', 'getCharacterAtHex'];
+        const required = ['game', 'hexGrid', 'gameStateManager', 'combatInputHandler', 'camera', 'findPath', 'getCharacterAtHex'];
         for (const dep of required) {
             if (!deps[dep]) throw new Error(`InputHandler: missing required dependency '${dep}'`);
         }
         this.game = deps.game;
         this.hexGrid = deps.hexGrid;
         this.gameStateManager = deps.gameStateManager;
+        this.camera = deps.camera;
         this.combatInputHandler = deps.combatInputHandler;
         this.findPath = deps.findPath;
         this.getCharacterAtHex = deps.getCharacterAtHex;
@@ -71,6 +68,13 @@ export class InputHandler {
         this.canvas.addEventListener('mouseleave', this.handleMouseLeave);
         document.addEventListener('keydown', this.handleKeyDown);
         document.addEventListener('keyup', this.handleKeyUp);
+        // Losing focus mid-scroll never delivers the keyup, which would leave the
+        // camera scrolling on its own once focus returns
+        window.addEventListener('blur', this.handleWindowBlur);
+    }
+
+    handleWindowBlur() {
+        this.keys = {};
     }
 
     handleMouseEnter() {
@@ -90,9 +94,8 @@ export class InputHandler {
         const canvasY = e.clientY - rect.top;
 
         // Update hovered hex
-        const camera = this.onCameraUpdate?.() || { x: 0, y: 0, zoom: 1 };
-        const worldX = (canvasX + camera.x) / camera.zoom;
-        const worldY = (canvasY + camera.y) / camera.zoom;
+        const worldX = (canvasX + this.camera.x) / this.camera.zoom;
+        const worldY = (canvasY + this.camera.y) / this.camera.zoom;
         this.hoveredHex = this.hexGrid.pixelToHex(worldX, worldY);
 
         if (this.onMouseMove) {
@@ -105,9 +108,8 @@ export class InputHandler {
         const canvasX = e.clientX - rect.left;
         const canvasY = e.clientY - rect.top;
 
-        const camera = this.onCameraUpdate?.() || { x: 0, y: 0, zoom: 1 };
-        const worldX = (canvasX + camera.x) / camera.zoom;
-        const worldY = (canvasY + camera.y) / camera.zoom;
+        const worldX = (canvasX + this.camera.x) / this.camera.zoom;
+        const worldY = (canvasY + this.camera.y) / this.camera.zoom;
 
         const targetHex = this.hexGrid.pixelToHex(worldX, worldY);
 
@@ -155,7 +157,7 @@ export class InputHandler {
     }
 
     handleKeyDown(e) {
-        this.keys[e.key] = true;
+        this.keys[e.code] = true;
 
         // Prevent Tab from switching focus (used for show all nameplates)
         if (e.key === 'Tab') {
@@ -201,93 +203,78 @@ export class InputHandler {
     }
 
     handleKeyUp(e) {
-        this.keys[e.key] = false;
+        this.keys[e.code] = false;
     }
 
-    updateKeyboardScrolling() {
-        let scrollX = 0;
-        let scrollY = 0;
+    /**
+     * Desired camera scroll velocity in pixels per second, read once per frame
+     * by the game loop. Reports intent only - CameraController owns the physics.
+     * Keyboard wins over mouse edge scrolling while any scroll key is held.
+     */
+    getScrollIntent() {
+        const keyboard = this.getKeyboardScrollIntent();
+        if (keyboard.x !== 0 || keyboard.y !== 0) {
+            return keyboard;
+        }
+        return this.getEdgeScrollIntent();
+    }
 
-        if (this.keys['ArrowUp'] || this.keys['w'] || this.keys['W']) scrollY -= GAME_CONSTANTS.KEYBOARD_SCROLL_SPEED;
-        if (this.keys['ArrowDown'] || this.keys['s'] || this.keys['S']) scrollY += GAME_CONSTANTS.KEYBOARD_SCROLL_SPEED;
-        if (this.keys['ArrowLeft'] || this.keys['a'] || this.keys['A']) scrollX -= GAME_CONSTANTS.KEYBOARD_SCROLL_SPEED;
-        if (this.keys['ArrowRight'] || this.keys['d'] || this.keys['D']) scrollX += GAME_CONSTANTS.KEYBOARD_SCROLL_SPEED;
+    getKeyboardScrollIntent() {
+        let dirX = 0;
+        let dirY = 0;
 
-        if (scrollX === 0 && scrollY === 0) {
-            this.keyboardScrollActive = false;
-            return { scrollX, scrollY };
+        if (this.keys['ArrowUp'] || this.keys['KeyW']) dirY -= 1;
+        if (this.keys['ArrowDown'] || this.keys['KeyS']) dirY += 1;
+        if (this.keys['ArrowLeft'] || this.keys['KeyA']) dirX -= 1;
+        if (this.keys['ArrowRight'] || this.keys['KeyD']) dirX += 1;
+
+        const length = Math.hypot(dirX, dirY);
+        if (length === 0) {
+            return { x: 0, y: 0, kick: 0 };
         }
 
-        this.keyboardScrollActive = true;
-        this.onCameraUpdate?.({ scrollX, scrollY });
-        return { scrollX, scrollY };
+        // Normalize so diagonals aren't faster than the cardinals
+        const speed = GAME_CONSTANTS.KEYBOARD_SCROLL_SPEED;
+        return {
+            x: (dirX / length) * speed,
+            y: (dirY / length) * speed,
+            kick: GAME_CONSTANTS.KEYBOARD_SCROLL_KICK
+        };
     }
 
-    updateEdgeScrolling() {
+    getEdgeScrollIntent() {
+        // No kick: edge speed ramps with how deep the cursor sits in the zone,
+        // so jumping to a minimum speed at the boundary would feel like a lurch
+        const intent = { x: 0, y: 0, kick: 0 };
         if (!this.isMouseOverCanvas) {
-            requestAnimationFrame(() => this.updateEdgeScrolling());
-            return;
+            return intent;
         }
 
         const rect = this.canvas.getBoundingClientRect();
         const relativeX = this.mouseX - rect.left;
         const relativeY = this.mouseY - rect.top;
 
-        // Check if mouse is in edge zone
         const leftDistance = relativeX;
         const rightDistance = rect.width - relativeX;
         const topDistance = relativeY;
         const bottomDistance = rect.height - relativeY;
 
-        const currentlyInEdgeZone = (
-            (leftDistance < GAME_CONSTANTS.EDGE_SCROLL_THRESHOLD && leftDistance >= 0) ||
-            (rightDistance < GAME_CONSTANTS.EDGE_SCROLL_THRESHOLD && rightDistance >= 0) ||
-            (topDistance < GAME_CONSTANTS.EDGE_SCROLL_THRESHOLD && topDistance >= 0) ||
-            (bottomDistance < GAME_CONSTANTS.EDGE_SCROLL_THRESHOLD && bottomDistance >= 0)
-        );
+        const threshold = GAME_CONSTANTS.EDGE_SCROLL_THRESHOLD;
+        const maxSpeed = GAME_CONSTANTS.MAX_EDGE_SCROLL_SPEED;
 
-        // Track edge zone entry/exit
-        if (!this.wasInEdgeZone && currentlyInEdgeZone) {
-            this.mouseInEdgeZone = true;
-            if (this.keyboardScrollActive) {
-                this.keyboardScrollActive = false;
-            }
-        } else if (this.wasInEdgeZone && !currentlyInEdgeZone) {
-            this.mouseInEdgeZone = false;
+        if (leftDistance >= 0 && leftDistance < threshold) {
+            intent.x = -maxSpeed * (1 - leftDistance / threshold);
+        } else if (rightDistance >= 0 && rightDistance < threshold) {
+            intent.x = maxSpeed * (1 - rightDistance / threshold);
         }
 
-        this.wasInEdgeZone = currentlyInEdgeZone;
-
-        // Skip edge scrolling if keyboard scrolling is active
-        if (this.keyboardScrollActive) {
-            requestAnimationFrame(() => this.updateEdgeScrolling());
-            return;
+        if (topDistance >= 0 && topDistance < threshold) {
+            intent.y = -maxSpeed * (1 - topDistance / threshold);
+        } else if (bottomDistance >= 0 && bottomDistance < threshold) {
+            intent.y = maxSpeed * (1 - bottomDistance / threshold);
         }
 
-        let scrollX = 0;
-        let scrollY = 0;
-
-        if (leftDistance < GAME_CONSTANTS.EDGE_SCROLL_THRESHOLD && leftDistance >= 0) {
-            const speedMultiplier = 1 - (leftDistance / GAME_CONSTANTS.EDGE_SCROLL_THRESHOLD);
-            scrollX = -GAME_CONSTANTS.MAX_EDGE_SCROLL_SPEED * speedMultiplier;
-        } else if (rightDistance < GAME_CONSTANTS.EDGE_SCROLL_THRESHOLD && rightDistance >= 0) {
-            const speedMultiplier = 1 - (rightDistance / GAME_CONSTANTS.EDGE_SCROLL_THRESHOLD);
-            scrollX = GAME_CONSTANTS.MAX_EDGE_SCROLL_SPEED * speedMultiplier;
-        }
-
-        if (topDistance < GAME_CONSTANTS.EDGE_SCROLL_THRESHOLD && topDistance >= 0) {
-            const speedMultiplier = 1 - (topDistance / GAME_CONSTANTS.EDGE_SCROLL_THRESHOLD);
-            scrollY = -GAME_CONSTANTS.MAX_EDGE_SCROLL_SPEED * speedMultiplier;
-        } else if (bottomDistance < GAME_CONSTANTS.EDGE_SCROLL_THRESHOLD && bottomDistance >= 0) {
-            const speedMultiplier = 1 - (bottomDistance / GAME_CONSTANTS.EDGE_SCROLL_THRESHOLD);
-            scrollY = GAME_CONSTANTS.MAX_EDGE_SCROLL_SPEED * speedMultiplier;
-        }
-
-        if (scrollX !== 0 || scrollY !== 0) {
-            this.onCameraUpdate?.({ scrollX, scrollY });
-        }
-
-        requestAnimationFrame(() => this.updateEdgeScrolling());
+        return intent;
     }
 
     debugCharacterPositions() {

@@ -21,10 +21,13 @@ export const GAME_CONSTANTS = {
 	VIEWPORT_HEIGHT: 720,
 	ZOOM_LEVEL: 0.5,
 
-	// Camera and scrolling
+	// Camera and scrolling (all speeds in pixels per second)
 	EDGE_SCROLL_THRESHOLD: 100,
-	MAX_EDGE_SCROLL_SPEED: 12,
-	KEYBOARD_SCROLL_SPEED: 8,
+	MAX_EDGE_SCROLL_SPEED: 900,
+	KEYBOARD_SCROLL_SPEED: 1500,      // top speed while a key is held
+	KEYBOARD_SCROLL_KICK: 450,        // instant speed on keypress, so input registers on frame one
+	SCROLL_ACCEL: 20000,              // px/sec^2 ramping up to the target speed (~67ms to full)
+	SCROLL_DECEL: 45000,              // px/sec^2 coasting back to a stop (~33ms)
 
 	// Pathfinding
 	PATHFINDING_MAX_DISTANCE: 30,
