@@ -245,7 +245,7 @@ Each attacker must deplete a character's buffer individually before dealing real
 |-----|--------|
 | **1** | Activate Light Attack mode |
 | **2** | Activate Heavy Attack mode |
-| **Enter** | Repeat last attack (same direction + type) |
+| **Enter** | Repeat last attack (same hex + type). Only available if you have not moved since declaring it; the target hex is outlined in dashed red when available |
 | **Space** | Skip turn (wait) |
 | **Arrow Left** | Rotate facing counter-clockwise (60°) |
 | **Arrow Right** | Rotate facing clockwise (60°) |

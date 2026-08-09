@@ -87,8 +87,10 @@ export class CombatInputHandler {
             return true;
         }
 
-        // Enter: repeat last attack
-        if (e.key === 'Enter') {
+        // Enter: repeat last attack (only while the stored attack is valid — see
+        // GameStateManager.canRepeatLastAttack). Not consumed when unavailable,
+        // so the key falls through instead of being silently swallowed.
+        if (e.key === 'Enter' && this.gameStateManager.canRepeatLastAttack()) {
             e.preventDefault();
             const success = this.gameStateManager.repeatLastAttack();
             if (success) {

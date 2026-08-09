@@ -337,6 +337,15 @@ export class HexGridRenderer {
             }
         }
 
+        // Draw repeat-attack preview (Enter target) during combat input.
+        // Drawn even when occupied — seeing who you would swing at is the point.
+        if (this.gameStateManager.canRepeatLastAttack()) {
+            const repeatTarget = this.gameStateManager.playerLastAttackAction.target;
+            if (repeatTarget.q === q && repeatTarget.r === r) {
+                this.drawRepeatAttackHex(ctx, hexPoints);
+            }
+        }
+
         // Draw player selected move target (but not if character already there)
         if (
             this.gameStateManager.playerSelectedHex &&
@@ -436,6 +445,18 @@ export class HexGridRenderer {
 
     drawSelectedHex(ctx, hexPoints) {
         this._drawHexPath(ctx, hexPoints, "rgba(173, 216, 230, 0.4)", "#87CEEB", 3);
+    }
+
+    /**
+     * Preview of the hex Enter would attack.
+     * Dashed so it reads as "available" rather than the solid outline of a
+     * committed selection, and red to distinguish it from move-target blues.
+     */
+    drawRepeatAttackHex(ctx, hexPoints) {
+        ctx.save();
+        ctx.setLineDash([6, 5]);
+        this._drawHexPath(ctx, hexPoints, "rgba(211, 47, 47, 0.15)", "rgba(211, 47, 47, 0.8)", 2);
+        ctx.restore();
     }
 
     drawMarkedHex(ctx, hexPoints) {

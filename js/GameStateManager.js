@@ -58,7 +58,7 @@ export class GameStateManager {
         // Input phase data
         this.playerSelectedHex = null;
         this.playerSelectedAttackType = 'light';  // Current attack type for player
-        this.playerLastAttackAction = null;       // Remember last attack for Enter repeat
+        this.playerLastAttackAction = null;       // { origin, target, attackType } for Enter repeat
 
         // Track characters that were just hit (show their health bar temporarily)
         this.recentlyHitCharacters = new Set();
@@ -162,6 +162,7 @@ export class GameStateManager {
         this.combatCharacters = [];
         this.characterActions.clear();
         this.playerSelectedHex = null;
+        this.playerLastAttackAction = null;
         this.turnNumber = 1;
 
         // Reset HP buffers (temp HP resets after combat)
@@ -294,12 +295,10 @@ export class GameStateManager {
         this.playerSelectedHex = { q: hexQ, r: hexR };
         this.characterActions.set(this.game.pc, attackAction);
 
-        // Save for Enter repeat
+        // Save for Enter repeat — origin anchors it so any movement invalidates the repeat
         this.playerLastAttackAction = {
-            targetOffset: {
-                q: hexQ - this.game.pc.hexQ,
-                r: hexR - this.game.pc.hexR
-            },
+            origin: { q: this.game.pc.hexQ, r: this.game.pc.hexR },
+            target: { q: hexQ, r: hexR },
             attackType: this.playerSelectedAttackType
         };
 
@@ -320,22 +319,51 @@ export class GameStateManager {
     }
 
     /**
+     * Can the player repeat their last attack (Enter key)?
+     * Valid only while the PC still stands where that attack was declared —
+     * moving off the origin hex invalidates the stored attack, since its target
+     * is no longer the hex the player was aiming at.
+     *
+     * Checked at read time rather than cleared on move, so a move that gets
+     * Blocked during execution correctly leaves the stored attack intact, and
+     * any future source of displacement invalidates it without extra bookkeeping.
+     *
+     * Also drives the renderer's repeat-target preview — one source of truth.
+     */
+    canRepeatLastAttack() {
+        if (this.currentState !== GAME_STATES.COMBAT_INPUT) return false;
+        if (this.game.pc.isDefeated) return false;
+        if (this.characterActions.has(this.game.pc)) return false;
+
+        const last = this.playerLastAttackAction;
+        if (!last) return false;
+
+        if (last.origin.q !== this.game.pc.hexQ
+            || last.origin.r !== this.game.pc.hexR) return false;
+
+        // A corpse holds its hex permanently and can never be meaningfully
+        // attacked, so a repeat onto one would silently waste the round.
+        // An empty target hex stays valid — the whiff is a legitimate gamble.
+        const occupant = this.getCharacterAtHex(last.target.q, last.target.r);
+        if (occupant?.isDefeated) return false;
+
+        return true;
+    }
+
+    /**
      * Repeat last attack action (Enter key)
-     * Uses same relative hex offset and attack type
+     * Re-issues the same absolute target hex and attack type
      */
     repeatLastAttack() {
-        if (this.currentState !== GAME_STATES.COMBAT_INPUT) return false;
-        if (this.characterActions.has(this.game.pc)) return false;
-        if (!this.playerLastAttackAction) return false;
+        if (!this.canRepeatLastAttack()) return false;
 
-        // Calculate target hex from player's current position + stored offset
-        const targetQ = this.game.pc.hexQ + this.playerLastAttackAction.targetOffset.q;
-        const targetR = this.game.pc.hexR + this.playerLastAttackAction.targetOffset.r;
+        const { target, attackType } = this.playerLastAttackAction;
 
         // Set the attack type to match last attack
-        this.playerSelectedAttackType = this.playerLastAttackAction.attackType;
+        this.playerSelectedAttackType = attackType;
 
-        return this.selectPlayerAttackTarget(targetQ, targetR);
+        // Origin unchanged means the target is still adjacent, so this cannot fail
+        return this.selectPlayerAttackTarget(target.q, target.r);
     }
 
     // For UI updates
