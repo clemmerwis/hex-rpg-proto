@@ -13,7 +13,8 @@ export class AISystem {
      * Precompute pairwise distances for all living characters.
      * Called once per turn before AI decisions.
      * Builds symmetric matrix in N*(N-1)/2 computations.
-     * @param {Array} allCharacters - All characters in combat
+     * @param {Array} allCharacters - Full roster; defeated are filtered out here
+     *   since nothing ever needs the distance to a corpse.
      */
     beginTurn(allCharacters) {
         this._distanceMatrix.clear();
@@ -55,7 +56,10 @@ export class AISystem {
     /**
      * Main AI decision method - uses mode-based logic
      * @param {Object} character - The character making a decision
-     * @param {Array} allCharacters - All living characters in combat
+     * @param {Array} allCharacters - FULL roster including defeated. Corpses are
+     *   needed as pathfinding obstacles, and a dead ally's enemies still count
+     *   toward its faction's shared disposition. Living-only views are derived
+     *   here via isDefeated filters.
      */
     getAIAction(character, allCharacters) {
         const livingChars = allCharacters.filter(c => !c.isDefeated && c !== character);
@@ -113,6 +117,23 @@ export class AISystem {
 
     /**
      * Get all enemies for this character (shared across faction)
+     *
+     * Effective enemies = own grudges UNION every same-faction character's
+     * grudges, filtered to the living. The union runs over the FULL roster
+     * including the dead, so a faction keeps hating whoever killed its members,
+     * and reinforcements arriving mid-fight inherit the grudge for free.
+     *
+     * FRAGILITY: this relies on bodies staying in game.npcs forever, which
+     * CombatExecutor.handleCharacterDefeat() currently guarantees. A grudge
+     * effectively lives on the corpse of whoever earned it.
+     *
+     * TODO: when body cleanup lands (despawn timer, "clear the battlefield",
+     * loot-then-remove), this silently breaks — the last holder of a grudge gets
+     * removed and the faction forgets. Move to a faction-level ledger then:
+     * a per-faction Set of enemies (e.g. factionEnemies = { guard: Set<char> })
+     * consulted here instead of sweeping allies. Same union semantics, but the
+     * knowledge belongs to the faction rather than riding on a body that may
+     * stop existing. Also cheaper: one lookup instead of an O(allies) sweep.
      */
     getEffectiveEnemies(character, allCharacters) {
         const livingChars = allCharacters.filter(c => !c.isDefeated && c !== character);

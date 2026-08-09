@@ -131,15 +131,20 @@ export class GameStateManager {
     }
 
     processAITurns() {
+        // The AI needs the FULL roster, defeated included — bodies stay on their
+        // hex as obstacles, and a dead ally's grudges still inform its faction.
+        // Every consumer that needs living-only filters isDefeated itself.
+        const allCharacters = [this.game.pc, ...this.game.npcs];
+
         // Build distance matrix once for all AI characters this turn
-        this.aiSystem.beginTurn(this.combatCharacters);
+        this.aiSystem.beginTurn(allCharacters);
 
         // Get all non-player characters
         const npcs = this.combatCharacters.filter(char => char !== this.game.pc);
 
         npcs.forEach(npc => {
             // Get AI decision based on mode and enemies
-            const action = this.aiSystem.getAIAction(npc, this.combatCharacters);
+            const action = this.aiSystem.getAIAction(npc, allCharacters);
             this.characterActions.set(npc, action);
         });
 

@@ -264,7 +264,9 @@ export class CombatExecutor {
                 if (!targetChar.isDefeated) {
                     targetChar.lastAttackedBy = character;
 
-                    // Establish mutual hostility - attacking makes you enemies
+                    // Establish mutual hostility - attacking makes you enemies.
+                    // Faction-mates pick this up via AISystem.getEffectiveEnemies(),
+                    // which unions over the full roster including the dead.
                     makeEnemies(character, targetChar);
                 }
 
@@ -317,7 +319,10 @@ export class CombatExecutor {
         // Notify GSM to remove from combatCharacters roster
         if (this.onCharacterDefeated) this.onCharacterDefeated(character);
 
-        // Do NOT remove from game.npcs - dead body stays on hex and blocks movement
+        // Do NOT remove from game.npcs - dead body stays on hex and blocks movement.
+        // Also load-bearing for hostility: AISystem.getEffectiveEnemies() unions
+        // grudges across the full roster, so removing a body erases the grudges it
+        // held. Read the TODO there before adding any body cleanup.
     }
 
     /**

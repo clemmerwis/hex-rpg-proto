@@ -25,7 +25,10 @@ export class HexGridRenderer {
     }
 
     setDependencies(deps) {
-        const required = ["game", "getCharacterAtHex", "gameStateManager", "inputHandler", "combatInputHandler", "pathfinding", "engagementManager"];
+        // combatInputHandler is deliberately NOT required — it only feeds the
+        // cosmetic invalid-target X. Hard-failing on it turns a stale browser
+        // cache into a dead app instead of a missing cue.
+        const required = ["game", "getCharacterAtHex", "gameStateManager", "inputHandler", "pathfinding", "engagementManager"];
         for (const dep of required) {
             if (!deps[dep]) throw new Error(`HexGridRenderer: missing required dependency '${dep}'`);
         }
@@ -510,11 +513,12 @@ export class HexGridRenderer {
      * Preview of the hex Enter would attack.
      * Dashed so it reads as "available" rather than the solid outline of a
      * committed selection, and red to distinguish it from move-target blues.
+     * Outline only — no fill, so the hex keeps whatever faction tint it owns.
      */
     drawRepeatAttackHex(ctx, hexPoints) {
         ctx.save();
         ctx.setLineDash([6, 5]);
-        this._drawHexPath(ctx, hexPoints, "rgba(211, 47, 47, 0.15)", "rgba(211, 47, 47, 0.8)", 2);
+        this._drawHexPath(ctx, hexPoints, null, "rgba(211, 47, 47, 0.8)", 2);
         ctx.restore();
     }
 
