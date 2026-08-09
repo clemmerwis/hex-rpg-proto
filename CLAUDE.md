@@ -30,11 +30,18 @@ This is a hex-grid based isometric RPG prototype built with vanilla JavaScript (
 ```bash
 # Using Docker (recommended)
 docker compose -p $project_name up
-
-# Access at http://localhost:8080
 ```
 
+**Entry points** - there is no index, so a bare `http://localhost:8080` returns 403:
+
+- `http://localhost:8080/rpg.html` - the game
+- `http://localhost:8080/character-creation.html` - the character builder
+
 The application runs in an nginx container serving static files. No build step required - JavaScript modules are loaded natively by the browser.
+
+`nginx-dev.conf` is mounted over the default site config. It disables caching (stock nginx sends no `Cache-Control`, so browsers serve stale ES modules after edits) and exposes the `/characters/` WebDAV endpoint used for character build storage.
+
+**Compose config changes need a recreate, not a restart** - `docker compose up -d --force-recreate`. A stop/start reuses the existing container and silently ignores new volume mounts.
 
 ### Development Workflow
 - Edit files locally; Docker volume mount reflects changes immediately
