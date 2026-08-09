@@ -47,6 +47,9 @@ export class Renderer {
         }
         this.characterRenderer.drawCharacters(this.ctx);
 
+        // Combat cues draw last so they land on top of character sprites
+        this.hexGridRenderer.drawCombatOverlays(this.ctx);
+
         this.ctx.restore();
     }
 

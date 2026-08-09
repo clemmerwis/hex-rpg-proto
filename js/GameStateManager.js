@@ -288,12 +288,8 @@ export class GameStateManager {
         // Reject hexes holding a defeated body. Corpses stay on their hex forever
         // as obstacles, and executeNextAttack() no-ops against isDefeated targets,
         // so accepting this would silently burn the player's round.
-        //
-        // TODO: no rejection feedback yet — an orange X over the hex while in
-        // attack mode is the intended cue. It cannot be drawn from drawHex()
-        // because Renderer draws the hex grid before characters, so the X would
-        // land underneath the corpse sprite. Needs a post-character overlay pass
-        // (e.g. hexGridRenderer.drawCombatOverlays() called after drawCharacters).
+        // Signalled to the player by HexGridRenderer.drawCombatOverlays(), which
+        // draws an orange X over the hex while in attack mode.
         const targetOccupant = this.getCharacterAtHex(hexQ, hexR);
         if (targetOccupant?.isDefeated) {
             return false;

@@ -207,6 +207,7 @@ export class Game {
             getCharacterAtHex: this.getCharacterAtHex.bind(this),
             gameStateManager: this.gameStateManager,
             inputHandler: this.inputHandler,
+            combatInputHandler: this.combatInputHandler,
             pathfinding: this.pathfinding,
             engagementManager: this.engagementManager,
         });

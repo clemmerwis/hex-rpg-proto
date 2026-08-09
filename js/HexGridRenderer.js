@@ -11,6 +11,7 @@ export class HexGridRenderer {
         this.getCharacterAtHex = null;
         this.gameStateManager = null;
         this.inputHandler = null;
+        this.combatInputHandler = null;
         this.pathfinding = null;
         this.engagementManager = null;
 
@@ -24,7 +25,7 @@ export class HexGridRenderer {
     }
 
     setDependencies(deps) {
-        const required = ["game", "getCharacterAtHex", "gameStateManager", "inputHandler", "pathfinding", "engagementManager"];
+        const required = ["game", "getCharacterAtHex", "gameStateManager", "inputHandler", "combatInputHandler", "pathfinding", "engagementManager"];
         for (const dep of required) {
             if (!deps[dep]) throw new Error(`HexGridRenderer: missing required dependency '${dep}'`);
         }
@@ -32,6 +33,7 @@ export class HexGridRenderer {
         this.getCharacterAtHex = deps.getCharacterAtHex;
         this.gameStateManager = deps.gameStateManager;
         this.inputHandler = deps.inputHandler;
+        this.combatInputHandler = deps.combatInputHandler;
         this.pathfinding = deps.pathfinding;
         this.engagementManager = deps.engagementManager;
     }
@@ -445,6 +447,63 @@ export class HexGridRenderer {
 
     drawSelectedHex(ctx, hexPoints) {
         this._drawHexPath(ctx, hexPoints, "rgba(173, 216, 230, 0.4)", "#87CEEB", 3);
+    }
+
+    /**
+     * Combat cues that must paint on top of character sprites.
+     * Called by Renderer after drawCharacters(), inside the same camera
+     * transform — anything drawn from drawHex() lands underneath the sprites
+     * and would be hidden by a body occupying the hex.
+     */
+    drawCombatOverlays(ctx) {
+        if (this.gameStateManager.currentState !== GAME_STATES.COMBAT_INPUT) return;
+        if (!this.combatInputHandler?.attackModeActive) return;
+        if (this.gameStateManager.characterActions.has(this.game.pc)) return;
+
+        const hoveredHex = this.inputHandler?.hoveredHex;
+        if (!hoveredHex) return;
+
+        // Only adjacent hexes are selectable in the first place
+        const pcHex = { q: this.game.pc.hexQ, r: this.game.pc.hexR };
+        if (this.hexGrid.hexDistance(pcHex, hoveredHex) !== 1) return;
+
+        // A body on the hex is the rejection selectPlayerAttackTarget() makes
+        const occupant = this.getCharacterAtHex(hoveredHex.q, hoveredHex.r);
+        if (!occupant?.isDefeated) return;
+
+        this.drawInvalidTargetX(ctx, this.hexGrid.hexToPixel(hoveredHex.q, hoveredHex.r));
+    }
+
+    /**
+     * Orange X marking a hex that cannot be attacked (holds a defeated body).
+     * Vertically compressed to sit in the isometric hex plane, and stroked
+     * twice so it stays readable against light sprite pixels.
+     */
+    drawInvalidTargetX(ctx, center) {
+        const arm = this.hexSize * 0.4;
+        const armY = arm * this.hexGrid.isoRatio;
+
+        ctx.save();
+        ctx.lineCap = "round";
+
+        ctx.strokeStyle = "rgba(0, 0, 0, 0.55)";
+        ctx.lineWidth = 9;
+        this._strokeX(ctx, center, arm, armY);
+
+        ctx.strokeStyle = "#FF8C00";
+        ctx.lineWidth = 5;
+        this._strokeX(ctx, center, arm, armY);
+
+        ctx.restore();
+    }
+
+    _strokeX(ctx, center, arm, armY) {
+        ctx.beginPath();
+        ctx.moveTo(center.x - arm, center.y - armY);
+        ctx.lineTo(center.x + arm, center.y + armY);
+        ctx.moveTo(center.x + arm, center.y - armY);
+        ctx.lineTo(center.x - arm, center.y + armY);
+        ctx.stroke();
     }
 
     /**
