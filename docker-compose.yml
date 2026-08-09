@@ -5,4 +5,6 @@ services:
             - "8080:80"
         volumes:
             - .:/usr/share/nginx/html
+            # Disable browser caching so edited JS modules are picked up on refresh
+            - ./nginx-dev.conf:/etc/nginx/conf.d/default.conf:ro
         restart: unless-stopped

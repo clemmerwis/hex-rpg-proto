@@ -1,0 +1,35 @@
+{
+	"name": "Bandit Brute",
+	"stats": {
+		"str": 9,
+		"int": 4,
+		"dex": 6,
+		"per": 5,
+		"con": 8,
+		"will": 6,
+		"beauty": 7,
+		"cha": 5,
+		"instinct": 8,
+		"wis": 5,
+		"source": 3,
+		"luck": 3
+	},
+	"skills": {
+		"block": 1,
+		"dodge": 1,
+		"unarmed": 1,
+		"shortSword": 1,
+		"longSword": 1,
+		"shortSpear": 1,
+		"longSpear": 1,
+		"shortHammer": 1,
+		"longHammer": 3,
+		"criticalStrike": 3,
+		"criticalDefense": 1
+	},
+	"equipment": {
+		"mainHand": "longHammer",
+		"offHand": null,
+		"armor": "brigandine"
+	}
+}

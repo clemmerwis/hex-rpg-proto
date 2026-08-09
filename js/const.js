@@ -155,8 +155,9 @@ export function calculateAttackTiming(spriteSet) {
 }
 
 // Character stat system
-// 10 stats across 5 categories, Physical/Cerebral columns
-// Each character: min 3 per stat (30 base) + 33 distributable = 63 total
+// 12 stats: 10 across 5 categories (Physical/Cerebral columns) + 2 special stats
+// Special stats (source, luck) belong to no category - they sit outside the column grid
+// Each character: min 3 per stat (36 base) + 33 distributable = 69 total
 export const STATS = {
 	categories: {
 		power: { physical: 'str', cerebral: 'int' },
@@ -165,10 +166,15 @@ export const STATS = {
 		appearance: { physical: 'beauty', cerebral: 'cha' },
 		spirit: { physical: 'instinct', cerebral: 'wis' }
 	},
-	all: ['str', 'int', 'dex', 'per', 'con', 'will', 'beauty', 'cha', 'instinct', 'wis'],
+	// Uncategorized - no Physical/Cerebral pairing. No attached systems yet.
+	special: ['source', 'luck'],
+	all: [
+		'str', 'int', 'dex', 'per', 'con', 'will', 'beauty', 'cha', 'instinct', 'wis',
+		'source', 'luck'
+	],
 	MIN: 3,
 	MAX: 10,
-	TOTAL_POINTS: 63
+	TOTAL_POINTS: 69
 };
 
 // Stat bonus/multiplier tables for derived calculations
@@ -233,6 +239,16 @@ export function calculateCerebralPresence(stats) {
  */
 export function calculateEngagedMax(stats) {
 	return Math.floor(calculateCerebralPresence(stats) / 6);
+}
+
+/**
+ * Default stats object with every stat in STATS.all present.
+ * Use as the base of any merge so a partial/older stats object can never
+ * leave a stat undefined (which renders blank and turns arithmetic into NaN).
+ * @param {number} value - Value for every stat (defaults to STATS.MIN)
+ */
+export function createDefaultStats(value = STATS.MIN) {
+	return Object.fromEntries(STATS.all.map(stat => [stat, value]));
 }
 
 /**
@@ -584,7 +600,8 @@ export const NPC_TEMPLATES = {
 			dex: 7, per: 6,
 			con: 7, will: 5,
 			beauty: 5, cha: 5,
-			instinct: 6, wis: 7
+			instinct: 6, wis: 7,
+			source: 3, luck: 3
 		},
 		skills: {
 			...createDefaultSkills(),
@@ -610,7 +627,8 @@ export const NPC_TEMPLATES = {
 			dex: 8, per: 6,
 			con: 6, will: 6,
 			beauty: 6, cha: 6,
-			instinct: 7, wis: 6
+			instinct: 7, wis: 6,
+			source: 3, luck: 3
 		},
 		skills: {
 			...createDefaultSkills(),
@@ -635,7 +653,8 @@ export const NPC_TEMPLATES = {
 			dex: 6, per: 6,
 			con: 7, will: 6,
 			beauty: 6, cha: 7,
-			instinct: 9, wis: 5
+			instinct: 9, wis: 5,
+			source: 3, luck: 3
 		},
 		skills: {
 			...createDefaultSkills(),
@@ -659,7 +678,8 @@ export const NPC_TEMPLATES = {
 			dex: 6, per: 6,
 			con: 7, will: 6,
 			beauty: 6, cha: 7,
-			instinct: 9, wis: 5
+			instinct: 9, wis: 5,
+			source: 3, luck: 3
 		},
 		skills: {
 			...createDefaultSkills(),
@@ -686,7 +706,8 @@ export const NPC_TEMPLATES = {
 			dex: 6, per: 5,
 			con: 8, will: 6,
 			beauty: 7, cha: 5,
-			instinct: 8, wis: 5
+			instinct: 8, wis: 5,
+			source: 3, luck: 3
 		},
 		skills: {
 			...createDefaultSkills(),
@@ -710,7 +731,8 @@ export const NPC_TEMPLATES = {
 			dex: 8, per: 8,
 			con: 4, will: 4,
 			beauty: 6, cha: 6,
-			instinct: 8, wis: 6
+			instinct: 8, wis: 6,
+			source: 3, luck: 3
 		},
 		skills: {
 			...createDefaultSkills(),

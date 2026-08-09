@@ -10,6 +10,7 @@
 !.gitignore
 !*.yml
 !Dockerfile
+!*.conf
 
 # Local Claude config (ignore even though .md is allowed)
 .claude-config.md

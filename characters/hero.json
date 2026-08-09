@@ -1,0 +1,35 @@
+{
+	"name": "Hero",
+	"stats": {
+		"str": 7,
+		"int": 5,
+		"dex": 7,
+		"per": 6,
+		"con": 7,
+		"will": 5,
+		"beauty": 5,
+		"cha": 5,
+		"instinct": 6,
+		"wis": 7,
+		"source": 3,
+		"luck": 3
+	},
+	"skills": {
+		"block": 1,
+		"dodge": 3,
+		"unarmed": 3,
+		"shortSword": 1,
+		"longSword": 1,
+		"shortSpear": 1,
+		"longSpear": 1,
+		"shortHammer": 1,
+		"longHammer": 1,
+		"criticalStrike": 1,
+		"criticalDefense": 1
+	},
+	"equipment": {
+		"mainHand": "unarmed",
+		"offHand": null,
+		"armor": "scale"
+	}
+}

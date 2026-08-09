@@ -19,6 +19,7 @@ import { CombatInputHandler } from './CombatInputHandler.js';
 import { CharacterFactory } from './CharacterFactory.js';
 import { UIManager } from './UIManager.js';
 import { GAME_CONSTANTS, FACTIONS, SPRITE_SETS, NPC_TEMPLATES, calculateMaxHP, calculateHPBuffer, calculateEngagedMax } from './const.js';
+import { CharacterStore } from './CharacterStore.js';
 import { makeEnemies } from './utils.js';
 
 export class Game {
@@ -297,6 +298,10 @@ export class Game {
             // Load assets (sprites)
             const assets = await this.assetManager.loadAssets();
             this.state.assets = assets;
+
+            // Load saved character builds BEFORE any character is created -
+            // CharacterFactory reads them synchronously at spawn time
+            await CharacterStore.loadAll();
 
             // Load initial area (NPCs are instantiated inside loadArea via repository pattern)
             await this.areaManager.loadArea('bridge_crossing');

@@ -23,13 +23,14 @@ All characters (PC and NPCs) share this structure:
     faction,                       // Faction key: 'pc', 'pc_ally', 'bandit', 'guard'
     spriteSet,                     // Sprite set key: 'baseKnight', 'swordShieldKnight', 'swordKnight'
 
-    // Stats (10 stats, 63 total points, min 3 / max 10 per stat)
+    // Stats (12 stats, 69 total points, min 3 / max 10 per stat)
     stats: {
         str, int,                  // Power (Physical/Cerebral)
         dex, per,                  // Prowess (Physical/Cerebral)
         con, will,                 // Resistance (Physical/Cerebral)
         beauty, cha,               // Appearance (Physical/Cerebral)
-        instinct, wis              // Spirit (Physical/Cerebral)
+        instinct, wis,             // Spirit (Physical/Cerebral)
+        source, luck               // Special (uncategorized - no column pairing)
     },
 
     // Equipment
@@ -69,6 +70,47 @@ All characters (PC and NPCs) share this structure:
 }
 ```
 
+## Character Build Storage
+
+A **build** is the editable part of a character: `{ name, stats, skills, equipment }`.
+Game identity (faction, spriteSet, mode, facing, position) is NOT part of a build — that
+stays in `NPC_TEMPLATES` and `area.json`, so a saved build can never change who a
+character is.
+
+Builds live as JSON files in `characters/`, one per character, named by slug
+(`'Bandit Brute'` → `bandit_brute.json`).
+
+**Build priority:** `CharacterFactory defaults < NPC_TEMPLATES/area.json < characters/*.json`
+
+### Endpoints (nginx WebDAV, see `nginx-dev.conf`)
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/characters/` | JSON directory listing (the build index) |
+| GET | `/characters/{slug}.json` | Read one build |
+| PUT | `/characters/{slug}.json` | Create or overwrite |
+| DELETE | `/characters/{slug}.json` | Remove |
+
+> **DEV ONLY.** No auth, no validation, no concurrency control. Fine bound to
+> localhost in the dev container; never a shipping configuration.
+
+### CharacterStore
+
+`js/CharacterStore.js` wraps those four calls. Loading is async but
+`CharacterFactory.createCharacter()` is synchronous, so builds are fetched once into
+an in-memory cache at startup and read back synchronously:
+
+```javascript
+await CharacterStore.loadAll();   // Game.init(), before any character is created
+CharacterStore.get('Hero');       // sync cache read, used at spawn
+await CharacterStore.save(build); // PUT
+await CharacterStore.remove(name);// DELETE
+```
+
+**Migration to a real API:** change `BASE_PATH` and the four `fetch()` calls in
+`CharacterStore.js` from `/characters/{slug}.json` to `/api/characters/{id}`. No caller
+changes.
+
 ## Faction System
 
 Factions define visual styling and hostility. Defined in `const.js`:
@@ -89,8 +131,11 @@ Factions define visual styling and hostility. Defined in `const.js`:
 
 ### Stat System
 - 10 stats in 5 categories (Physical/Cerebral pairs)
+- 2 special stats (`source`, `luck`) that belong to no category — listed in `STATS.special`
 - Each stat: min 3, max 10
-- Total points per character: 63
+- Total points per character: 69 (36 base + 33 distributable)
+
+**Stats with no attached systems yet:** `beauty`, `cha`, `source`, `luck`
 
 ### Stat Bonuses
 

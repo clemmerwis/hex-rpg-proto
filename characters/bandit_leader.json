@@ -1,0 +1,35 @@
+{
+	"name": "Bandit Leader",
+	"stats": {
+		"str": 4,
+		"int": 9,
+		"dex": 8,
+		"per": 8,
+		"con": 4,
+		"will": 4,
+		"beauty": 6,
+		"cha": 6,
+		"instinct": 8,
+		"wis": 6,
+		"source": 3,
+		"luck": 3
+	},
+	"skills": {
+		"block": 1,
+		"dodge": 4,
+		"unarmed": 1,
+		"shortSword": 1,
+		"longSword": 2,
+		"shortSpear": 1,
+		"longSpear": 1,
+		"shortHammer": 1,
+		"longHammer": 1,
+		"criticalStrike": 1,
+		"criticalDefense": 1
+	},
+	"equipment": {
+		"mainHand": "longSword",
+		"offHand": null,
+		"armor": "brigandine"
+	}
+}

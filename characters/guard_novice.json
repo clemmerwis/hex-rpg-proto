@@ -1,0 +1,35 @@
+{
+	"name": "Guard Novice",
+	"stats": {
+		"str": 6,
+		"int": 5,
+		"dex": 6,
+		"per": 6,
+		"con": 7,
+		"will": 6,
+		"beauty": 6,
+		"cha": 7,
+		"instinct": 9,
+		"wis": 5,
+		"source": 3,
+		"luck": 3
+	},
+	"skills": {
+		"block": 1,
+		"dodge": 2,
+		"unarmed": 1,
+		"shortSword": 1,
+		"longSword": 1,
+		"shortSpear": 1,
+		"longSpear": 2,
+		"shortHammer": 1,
+		"longHammer": 1,
+		"criticalStrike": 2,
+		"criticalDefense": 2
+	},
+	"equipment": {
+		"mainHand": "longSpear",
+		"offHand": null,
+		"armor": "chain"
+	}
+}

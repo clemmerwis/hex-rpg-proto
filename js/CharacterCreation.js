@@ -8,21 +8,17 @@ import {
 	calculateMaxHP, calculateHPBuffer, calculateCerebralPresence,
 	calculateEngagedMax, calculateMoveSpeed, calculateActionSpeed,
 	calculateDamage, calculateAttackRating, calculateDefenseRating,
-	calculateCSA_R, calculateCSD_R, getEquipmentBonus, getWeaponSynergy, createDefaultSkills
+	calculateCSA_R, calculateCSD_R, getEquipmentBonus, getWeaponSynergy,
+	createDefaultSkills, createDefaultStats
 } from './const.js';
+import { CharacterStore } from './CharacterStore.js';
 
 class CharacterCreator {
 	constructor() {
 		// Character state
 		this.character = {
 			name: 'Hero',
-			stats: {
-				str: 3, int: 3,
-				dex: 3, per: 3,
-				con: 3, will: 3,
-				beauty: 3, cha: 3,
-				instinct: 3, wis: 3
-			},
+			stats: createDefaultStats(),
 			skills: createDefaultSkills(),
 			equipment: {
 				mainHand: 'unarmed',
@@ -32,10 +28,13 @@ class CharacterCreator {
 		};
 
 		// Point pools
-		this.statPointsTotal = 63; // 30 base (10 stats * 3) + 33 distributable
-		this.statPointsUsed = 30; // 10 stats * 3 minimum
+		this.statPointsTotal = STATS.TOTAL_POINTS; // 36 base (12 stats * 3) + 33 distributable
+		this.statPointsUsed = STATS.all.length * STATS.MIN; // 12 stats * 3 minimum
 		this.skillPointsTotal = 15; // Starting skill points
 		this.skillPointsUsed = 11; // 11 skills * 1 minimum
+
+		// Slug of the build file currently loaded (null = unsaved//defaults only)
+		this.activeSavedBuild = null;
 
 		// Cache DOM elements
 		this.elements = {};
@@ -64,6 +63,10 @@ class CharacterCreator {
 
 		// Character name
 		this.elements.nameInput = document.querySelector('input[name="name"]');
+
+		// Saved-build indicator
+		this.elements.savedBuildIndicator = document.getElementById('savedBuildIndicator');
+		this.elements.savedBuildName = document.querySelector('[data-saved-build-name]');
 
 		// Stat rows
 		this.elements.statRows = document.querySelectorAll('[data-stat]');
@@ -159,8 +162,10 @@ class CharacterCreator {
 		if (newValue < STATS.MIN || newValue > STATS.MAX) return;
 
 		// Validate points (increasing costs points, decreasing gives points back)
+		// Only guard increases: if a character is somehow over the pool, blocking
+		// decrements too would freeze the sheet with no way back under the cap
 		const pointsAfter = this.statPointsUsed + delta;
-		if (pointsAfter > this.statPointsTotal) return;
+		if (delta > 0 && pointsAfter > this.statPointsTotal) return;
 
 		// Apply change
 		this.character.stats[stat] = newValue;
@@ -295,6 +300,21 @@ class CharacterCreator {
 		this.updateDerivedDisplays();
 		this.updateTotalDisplays();
 		this.updateEquipmentDisplays();
+		this.updateSavedBuildIndicator();
+	}
+
+	updateSavedBuildIndicator() {
+		const indicator = this.elements.savedBuildIndicator;
+		if (!indicator) return;
+
+		if (this.activeSavedBuild) {
+			if (this.elements.savedBuildName) {
+				this.elements.savedBuildName.textContent = `characters/${this.activeSavedBuild}.json`;
+			}
+			indicator.hidden = false;
+		} else {
+			indicator.hidden = true;
+		}
 	}
 
 	updatePointDisplays() {
@@ -564,32 +584,25 @@ class CharacterCreator {
 
 	// --- Template Auto-load & Cycling ---
 
-	autoLoadTemplate() {
-		const heroData = localStorage.getItem('charTemplate_Hero');
-		if (heroData) {
-			this.loadCharacterData(JSON.parse(heroData));
+	async autoLoadTemplate() {
+		const build = await CharacterStore.fetchBuild('hero');
+		if (build) {
+			this.loadCharacterData(build, 'hero');
 		}
 	}
 
-	getSavedTemplateNames() {
-		const names = [];
-		for (let i = 0; i < localStorage.length; i++) {
-			const key = localStorage.key(i);
-			if (key.startsWith('charTemplate_')) {
-				names.push(key.replace('charTemplate_', ''));
-			}
-		}
-		return names.sort();
+	/** Slugs of every build file, sorted */
+	async getSavedTemplateNames() {
+		return CharacterStore.list();
 	}
 
-	cycleTemplate() {
-		const names = this.getSavedTemplateNames();
-		if (names.length === 0) return;
+	async cycleTemplate() {
+		const slugs = await this.getSavedTemplateNames();
+		if (slugs.length === 0) return;
 
-		const currentName = this.character.name;
-		const currentIdx = names.indexOf(currentName);
-		const nextIdx = (currentIdx + 1) % names.length;
-		this.selectTemplate(names[nextIdx]);
+		const currentIdx = slugs.indexOf(this.activeSavedBuild);
+		const nextIdx = (currentIdx + 1) % slugs.length;
+		this.selectTemplate(slugs[nextIdx]);
 	}
 
 	// --- Footer Button Events ---
@@ -598,6 +611,26 @@ class CharacterCreator {
 		document.getElementById('newCharacterBtn')?.addEventListener('click', () => this.resetCharacter());
 		document.getElementById('loadTemplateBtn')?.addEventListener('click', () => this.loadTemplate());
 		document.getElementById('saveTemplateBtn')?.addEventListener('click', () => this.saveTemplate());
+		document.getElementById('clearSavedBuildBtn')?.addEventListener('click', () => this.clearSavedBuild());
+	}
+
+	/**
+	 * Delete the active build file so the game falls back to NPC_TEMPLATES.
+	 * Only touches the one build currently loaded - never the whole store.
+	 */
+	async clearSavedBuild() {
+		const slug = this.activeSavedBuild;
+		if (!slug) return;
+
+		if (!confirm(`Delete characters/${slug}.json?\n\nThe game will fall back to the NPC_TEMPLATES entry in const.js.`)) return;
+
+		const ok = await CharacterStore.remove(this.character.name);
+		if (!ok) {
+			alert(`Failed to delete characters/${slug}.json - see the console.`);
+			return;
+		}
+
+		this.resetCharacter();
 	}
 
 	// --- Template Management ---
@@ -606,13 +639,7 @@ class CharacterCreator {
 		// Reset character state to defaults
 		this.character = {
 			name: 'Hero',
-			stats: {
-				str: 3, int: 3,
-				dex: 3, per: 3,
-				con: 3, will: 3,
-				beauty: 3, cha: 3,
-				instinct: 3, wis: 3
-			},
+			stats: createDefaultStats(),
 			skills: createDefaultSkills(),
 			equipment: {
 				mainHand: 'unarmed',
@@ -622,8 +649,11 @@ class CharacterCreator {
 		};
 
 		// Reset point pools
-		this.statPointsUsed = 30;
+		this.statPointsUsed = STATS.all.length * STATS.MIN;
 		this.skillPointsUsed = 11;
+
+		// No longer editing a saved build
+		this.activeSavedBuild = null;
 
 		// Update name input
 		if (this.elements.nameInput) {
@@ -645,38 +675,30 @@ class CharacterCreator {
 		this.updateAllDisplays();
 	}
 
-	saveTemplate() {
+	async saveTemplate() {
 		const name = this.character.name.trim();
 		if (!name) {
 			alert('Please enter a character name before saving.');
 			return;
 		}
 
-		const data = this.getCharacterData();
-		const key = `charTemplate_${name}`;
-
-		// Check if overwriting
-		const existing = localStorage.getItem(key);
-		if (existing) {
-			// Silently overwrite as per requirements
+		const ok = await CharacterStore.save(this.getCharacterData());
+		if (!ok) {
+			alert(`Failed to save "${name}".\n\nIs the dev container running with nginx-dev.conf mounted?\nSee the console for details.`);
+			return;
 		}
 
-		localStorage.setItem(key, JSON.stringify(data));
-		alert(`Template "${name}" saved!`);
+		this.activeSavedBuild = CharacterStore.slug(name);
+		this.updateSavedBuildIndicator();
+
+		alert(`Saved to characters/${CharacterStore.slug(name)}.json`);
 	}
 
-	loadTemplate() {
-		// Get all saved templates
-		const templates = [];
-		for (let i = 0; i < localStorage.length; i++) {
-			const key = localStorage.key(i);
-			if (key.startsWith('charTemplate_')) {
-				templates.push(key.replace('charTemplate_', ''));
-			}
-		}
+	async loadTemplate() {
+		const templates = await this.getSavedTemplateNames();
 
 		if (templates.length === 0) {
-			alert('No saved templates found.');
+			alert('No character builds found in characters/.');
 			return;
 		}
 
@@ -703,7 +725,7 @@ class CharacterCreator {
 
 		// Title
 		const title = document.createElement('h3');
-		title.textContent = 'Load Template';
+		title.textContent = 'Load Character Build';
 		title.style.cssText = `
 			color: #58a6b1; margin: 0 0 15px 0;
 			font-size: 14px; text-transform: uppercase; letter-spacing: 1px;
@@ -760,25 +782,28 @@ class CharacterCreator {
 		document.body.appendChild(overlay);
 	}
 
-	selectTemplate(name) {
-		const key = `charTemplate_${name}`;
-		const data = localStorage.getItem(key);
+	async selectTemplate(slug) {
+		const build = await CharacterStore.fetchBuild(slug);
 
-		if (!data) {
-			alert(`Template "${name}" not found.`);
+		if (!build) {
+			alert(`Build "${slug}" could not be loaded.`);
 			return;
 		}
 
-		const template = JSON.parse(data);
-		this.loadCharacterData(template);
+		this.loadCharacterData(build, slug);
 	}
 
-	loadCharacterData(data) {
+	loadCharacterData(data, savedBuildName = null) {
 		// Load character state
+		// Merge over defaults rather than replacing: a build saved before a stat
+		// existed has no value for it, and a missing stat renders blank and makes
+		// adjustStat() produce NaN. Defaults guarantee every stat is present.
 		this.character.name = data.name || 'Hero';
-		this.character.stats = { ...data.stats };
-		this.character.skills = { ...data.skills };
+		this.character.stats = { ...createDefaultStats(), ...data.stats };
+		this.character.skills = { ...createDefaultSkills(), ...data.skills };
 		this.character.equipment = { ...data.equipment };
+
+		this.activeSavedBuild = savedBuildName;
 
 		// Recalculate point usage
 		this.statPointsUsed = Object.values(this.character.stats).reduce((sum, val) => sum + val, 0);

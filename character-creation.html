@@ -43,6 +43,43 @@
 			margin: 0 auto;
 		}
 
+		/* Saved-build indicator - warns that browser storage is overriding code */
+		#savedBuildIndicator {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			gap: 16px;
+			padding: 8px 16px;
+			background: #2b1d0e;
+			border: 1px solid #7d5a1e;
+			color: #e3b341;
+			font-size: 12px;
+		}
+
+		#savedBuildIndicator[hidden] {
+			display: none;
+		}
+
+		#savedBuildIndicator code {
+			font-family: 'Consolas', monospace;
+			color: #f0c674;
+		}
+
+		#savedBuildIndicator button {
+			background: #3d2a12;
+			border: 1px solid #7d5a1e;
+			color: #e3b341;
+			padding: 4px 12px;
+			font-size: 12px;
+			cursor: pointer;
+			flex-shrink: 0;
+		}
+
+		#savedBuildIndicator button:hover {
+			background: #7d5a1e;
+			color: #fff;
+		}
+
 		/* Header */
 		header {
 			display: flex;
@@ -454,6 +491,13 @@
 		<button id="cycleTemplateBtn" title="Cycle saved templates">&gt;</button>
 	</header>
 
+	<!-- Which build file is loaded; it overrides NPC_TEMPLATES in the game -->
+	<div id="savedBuildIndicator" hidden>
+		<span>Editing <strong data-saved-build-name></strong> &mdash; overrides the matching
+			<code>NPC_TEMPLATES</code> stats/skills/equipment in game.</span>
+		<button id="clearSavedBuildBtn" title="Delete this build file and fall back to the code template">Delete</button>
+	</div>
+
 	<main>
 		<!-- STATS Column -->
 		<article>
@@ -559,6 +603,27 @@
 					</div>
 					<div class="stat-row" data-stat="wis">
 						<label>Wisdom</label>
+						<div class="controls">
+							<button>&lt;</button>
+							<span class="value">3</span>
+							<button>&gt;</button>
+						</div>
+					</div>
+				</section>
+
+				<!-- Special (uncategorized - no Physical/Cerebral pairing) -->
+				<section>
+					<h3>Special <span class="formula">no category</span></h3>
+					<div class="stat-row" data-stat="source">
+						<label>Source</label>
+						<div class="controls">
+							<button>&lt;</button>
+							<span class="value">3</span>
+							<button>&gt;</button>
+						</div>
+					</div>
+					<div class="stat-row" data-stat="luck">
+						<label>Luck</label>
 						<div class="controls">
 							<button>&lt;</button>
 							<span class="value">3</span>

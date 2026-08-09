@@ -1,0 +1,35 @@
+{
+	"name": "Guard Captain",
+	"stats": {
+		"str": 6,
+		"int": 5,
+		"dex": 6,
+		"per": 6,
+		"con": 7,
+		"will": 6,
+		"beauty": 6,
+		"cha": 7,
+		"instinct": 9,
+		"wis": 5,
+		"source": 3,
+		"luck": 3
+	},
+	"skills": {
+		"block": 4,
+		"dodge": 1,
+		"unarmed": 1,
+		"shortSword": 1,
+		"longSword": 1,
+		"shortSpear": 2,
+		"longSpear": 1,
+		"shortHammer": 1,
+		"longHammer": 1,
+		"criticalStrike": 1,
+		"criticalDefense": 1
+	},
+	"equipment": {
+		"mainHand": "shortSpear",
+		"offHand": "largeShield",
+		"armor": "chain"
+	}
+}
