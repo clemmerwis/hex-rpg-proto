@@ -45,8 +45,17 @@ export class UIManager {
 			spawnMode: document.getElementById('spawnMode'),
 			spawnControls: document.getElementById('spawnControls'),
 			spawnBuild: document.getElementById('spawnBuild'),
-			spawnFaction: document.getElementById('spawnFaction')
+			spawnFaction: document.getElementById('spawnFaction'),
+			clearSpawned: document.getElementById('clearSpawned'),
+			spawnedCount: document.getElementById('spawnedCount')
 		};
+	}
+
+	/** Show how many placements came from spawn mode (i.e. are clearable) */
+	updateSpawnedCount(count) {
+		if (this.elements.spawnedCount) {
+			this.elements.spawnedCount.textContent = `Spawned: ${count}`;
+		}
 	}
 
 	/**
@@ -191,5 +200,6 @@ export class UIManager {
 		this.elements.spawnMode?.addEventListener('change', callbacks.onSpawnModeChange);
 		this.elements.spawnBuild?.addEventListener('change', callbacks.onSpawnBuildChange);
 		this.elements.spawnFaction?.addEventListener('change', callbacks.onSpawnFactionChange);
+		this.elements.clearSpawned?.addEventListener('click', callbacks.onClearSpawned);
 	}
 }

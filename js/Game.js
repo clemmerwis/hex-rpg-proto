@@ -262,6 +262,7 @@ export class Game {
         // Spawn mode mutates the area roster in place - refresh derived UI
         this.inputHandler.onRosterChange = () => {
             this.updateGameStateUI();
+            this.uiManager.updateSpawnedCount(this.countSpawned());
             requestAnimationFrame(() => this.render());
         };
 
@@ -307,8 +308,24 @@ export class Game {
             },
             onSpawnFactionChange: (e) => {
                 this.inputHandler.setSpawnFaction(e.target.value);
+            },
+            onClearSpawned: async () => {
+                const count = this.countSpawned();
+                if (count === 0) return;
+                if (!confirm(`Remove ${count} spawned character${count === 1 ? '' : 's'}?\n\nThe area's original roster is left alone.`)) return;
+
+                const removed = await this.areaManager.removeSpawnedPlacements();
+                console.log(`[Spawn] Cleared ${removed} spawned character(s)`);
+                this.updateGameStateUI();
+                this.uiManager.updateSpawnedCount(this.countSpawned());
+                requestAnimationFrame(() => this.render());
             }
         });
+    }
+
+    /** Placements added via spawn mode - the ones Clear All Spawned removes */
+    countSpawned() {
+        return (this.areaManager.currentArea?.npcs || []).filter(n => n.buildId).length;
     }
 
     async init() {
@@ -339,6 +356,7 @@ export class Game {
 
             // Retrieve instantiated NPCs from AreaManager (loaded from area.json + templates)
             this.state.npcs = this.areaManager.getNPCs();
+            this.uiManager.updateSpawnedCount(this.countSpawned());
 
             // Store area background for renderer fallback
             this.state.assets.background = this.areaManager.getBackground();

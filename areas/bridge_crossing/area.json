@@ -341,38 +341,6 @@
             "facing": "dir2",
             "animationFrame": 2,
             "animationTimer": 100
-        },
-        {
-            "buildId": "companion",
-            "name": "Companion 2",
-            "faction": "bandit",
-            "mode": "aggressive",
-            "hexQ": -4,
-            "hexR": 3
-        },
-        {
-            "buildId": "companion",
-            "name": "Companion 3",
-            "faction": "bandit",
-            "mode": "aggressive",
-            "hexQ": -4,
-            "hexR": 5
-        },
-        {
-            "buildId": "guard_captain",
-            "name": "Guard Captain 2",
-            "faction": "guard",
-            "mode": "aggressive",
-            "hexQ": 4,
-            "hexR": -2
-        },
-        {
-            "buildId": "companion",
-            "name": "Companion 4",
-            "faction": "pc",
-            "mode": "aggressive",
-            "hexQ": 5,
-            "hexR": -4
         }
     ],
     "ambience": {

@@ -348,6 +348,28 @@ export class AreaManager {
     }
 
     /**
+     * Remove every placement that was added via spawn mode.
+     *
+     * Spawn-mode placements are the ones backed by a build alone (buildId), so
+     * the area's hand-authored templateId roster is left untouched - this clears
+     * test characters without resetting the area.
+     *
+     * @returns {Promise<number>} How many were removed
+     */
+    async removeSpawnedPlacements() {
+        if (!this.currentArea?.npcs) return 0;
+
+        const before = this.currentArea.npcs.length;
+        this.currentArea.npcs = this.currentArea.npcs.filter(n => !n.buildId);
+        const removed = before - this.currentArea.npcs.length;
+        if (removed === 0) return 0;
+
+        this.refreshNPCs();
+        await this.saveArea();
+        return removed;
+    }
+
+    /**
      * Rebuild the instantiated roster from the current placements.
      * Mutates the existing array in place so references held by Game.state stay valid.
      */
