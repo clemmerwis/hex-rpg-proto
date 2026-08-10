@@ -338,10 +338,15 @@ export class Game {
             // CharacterFactory reads them synchronously at spawn time
             await CharacterStore.loadAll();
 
-            // Spawn mode picks from whatever builds exist
+            // Spawn mode picks from whatever builds exist.
+            // Seed the handler from what the dropdowns actually display - a change
+            // event only fires when you pick something, so without this the handler
+            // keeps its constructor defaults and spawns something other than what
+            // the UI says is selected.
             const buildIds = CharacterStore.ids();
             this.uiManager.populateSpawnControls(buildIds, FACTIONS);
-            this.inputHandler.setSpawnBuild(buildIds[0] || null);
+            this.inputHandler.setSpawnBuild(this.uiManager.elements.spawnBuild?.value || buildIds[0] || null);
+            this.inputHandler.setSpawnFaction(this.uiManager.elements.spawnFaction?.value || 'bandit');
 
             // Load initial area (NPCs are instantiated inside loadArea via repository pattern)
             await this.areaManager.loadArea('bridge_crossing');

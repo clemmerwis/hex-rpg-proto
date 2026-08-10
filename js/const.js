@@ -546,14 +546,25 @@ export function calculateDamage(stats, weaponKey, attackType = 'light') {
 }
 
 // Faction configurations
+//
+// Allegiance is a plain faction-equality check: same faction = allies (cannot
+// target or engage each other, and they share grudges via getEffectiveEnemies).
+// So 'pc' is the player's side - spawn an ally by giving it faction 'pc'.
+//
+// spawnable: false marks an entry that exists only to carry colours and is not
+// a side anyone can belong to. Keep those out of any faction picker.
 export const FACTIONS = {
 	pc: {
-		name: "PC",
+		name: "Ally (player side)",
 		tintColor: "#4CAF50",
 		nameplateColor: "#00ff00",
 	},
+	// Colour-only. The PC renders with FACTIONS.pc; everyone else on the player's
+	// side renders with this, so allies read as blue and the hero as green.
+	// Nothing ever has faction 'pc_ally' - see CharacterRenderer.getFactionData().
 	pc_ally: {
-		name: "Companion",
+		name: "Ally colours (not a side)",
+		spawnable: false,
 		tintColor: "#4169E1",
 		nameplateColor: "#6495ED",
 	},

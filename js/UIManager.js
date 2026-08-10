@@ -71,7 +71,9 @@ export class UIManager {
 			.map(id => `<option value="${id}">${id}</option>`)
 			.join('');
 
+		// Skip colour-only entries - they are not sides anything can belong to
 		spawnFaction.innerHTML = Object.entries(factions)
+			.filter(([, f]) => f.spawnable !== false)
 			.map(([key, f]) => `<option value="${key}">${f.name}</option>`)
 			.join('');
 	}
