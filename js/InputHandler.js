@@ -338,7 +338,7 @@ export class InputHandler {
                 console.warn('[Spawn] The PC is not an area placement - cannot remove');
                 return;
             }
-            const removed = await this.areaManager.removeNPCPlacementAt(hex.q, hex.r);
+            const removed = await this.areaManager.removeNPCPlacement(occupant);
             console.log(removed
                 ? `[Spawn] Removed ${occupant.name} at (${hex.q},${hex.r})`
                 : `[Spawn] ${occupant.name} is not an area placement - cannot remove`);

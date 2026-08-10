@@ -269,35 +269,48 @@ export class AreaManager {
         }
 
         return areaDef.npcs.map((npcSpec, index) => {
-            const templateId = npcSpec.templateId;
+            return this.instantiateNPC(npcSpec, index);
+        }).filter(npc => npc !== null); // Remove any failed lookups
+    }
 
-            // A placement is backed either by a code template (templateId) or by a
-            // build file alone (buildId), in which case it carries its own identity
-            // fields and needs no NPC_TEMPLATES entry.
-            let template = {};
-            if (templateId) {
-                // Repository Pattern: Lookup template (NOW: const.js, FUTURE: API fetch)
-                template = NPC_TEMPLATES[templateId];
-                if (!template) {
-                    console.warn(`[AreaManager] Area '${this.currentArea?.id}': npcs[${index}] references unknown template '${templateId}'`);
-                    return null;
-                }
-            } else if (!npcSpec.buildId) {
-                console.warn(`[AreaManager] Area '${this.currentArea?.id}': npcs[${index}] has neither templateId nor buildId`);
+    /**
+     * Instantiate a single placement.
+     * Shared by the initial area load and by live placement, so both resolve
+     * templates and builds the same way.
+     *
+     * @param {Object} npcSpec - Placement entry from area.json npcs[]
+     * @param {number} index - Index in npcs[], for diagnostics
+     * @returns {Object|null} Character, or null if the placement is unresolvable
+     */
+    instantiateNPC(npcSpec, index) {
+        const templateId = npcSpec.templateId;
+
+        // A placement is backed either by a code template (templateId) or by a
+        // build file alone (buildId), in which case it carries its own identity
+        // fields and needs no NPC_TEMPLATES entry.
+        let template = {};
+        if (templateId) {
+            // Repository Pattern: Lookup template (NOW: const.js, FUTURE: API fetch)
+            template = NPC_TEMPLATES[templateId];
+            if (!template) {
+                console.warn(`[AreaManager] Area '${this.currentArea?.id}': npcs[${index}] references unknown template '${templateId}'`);
                 return null;
             }
+        } else if (!npcSpec.buildId) {
+            console.warn(`[AreaManager] Area '${this.currentArea?.id}': npcs[${index}] has neither templateId nor buildId`);
+            return null;
+        }
 
-            // Merge template with area-specific overrides (position, facing, name, etc.)
-            const npcConfig = {
-                ...template,
-                ...npcSpec,
-            };
+        // Merge template with area-specific overrides (position, facing, name, etc.)
+        const npcConfig = {
+            ...template,
+            ...npcSpec,
+        };
 
-            // Remove templateId from final config (not needed by CharacterFactory)
-            delete npcConfig.templateId;
+        // Remove templateId from final config (not needed by CharacterFactory)
+        delete npcConfig.templateId;
 
-            return CharacterFactory.createCharacter(npcConfig);
-        }).filter(npc => npc !== null); // Remove any failed lookups
+        return CharacterFactory.createCharacter(npcConfig);
     }
 
     /**
@@ -316,35 +329,98 @@ export class AreaManager {
     // what lets the same build spawn under any faction.
 
     /**
-     * Add an NPC placement and re-instantiate the roster.
-     * @param {Object} spec - { buildId, faction, hexQ, hexR, name?, mode?, spriteSet? }
+     * Place a character's pixel position from its hex coordinates.
+     *
+     * Characters are created with pixelX/pixelY at 0, and Game.init() runs a
+     * one-time positioning pass. Anything instantiated after that has to be
+     * positioned here or it renders at the world origin - i.e. vanishes.
+     */
+    positionCharacter(character) {
+        const pos = this.hexGrid.hexToPixel(character.hexQ, character.hexR);
+        character.pixelX = pos.x;
+        character.pixelY = pos.y;
+        character.targetPixelX = pos.x;
+        character.targetPixelY = pos.y;
+        return character;
+    }
+
+    /**
+     * Add an NPC placement and instantiate just that character.
+     *
+     * Only the new character is created - the existing roster is left alone so
+     * nobody loses health, grudges, or engagement state when something spawns
+     * mid-fight.
+     *
+     * @param {Object} spec - { buildId, faction, hexQ, hexR, name?, mode? }
      * @returns {Promise<Object|null>} The new character, or null on failure
      */
     async addNPCPlacement(spec) {
         if (!this.currentArea) return null;
 
+        const character = this.instantiateNPC(spec, this.currentArea.npcs?.length ?? 0);
+        if (!character) return null;
+
         this.currentArea.npcs = this.currentArea.npcs || [];
         this.currentArea.npcs.push(spec);
 
-        const character = this.refreshNPCs();
+        this.positionCharacter(character);
+        this.getNPCs().push(character);
+
         await this.saveArea();
-        return character[character.length - 1] || null;
+        return character;
     }
 
     /**
-     * Remove whatever placement sits on a hex.
-     * @returns {Promise<boolean>} True if something was removed
+     * Remove the placement behind a specific character.
+     *
+     * Matched by name first, since a character may have moved away from the hex
+     * its placement records. Falls back to position for hand-authored entries,
+     * which carry no name of their own.
+     *
+     * @returns {Promise<boolean>} True if a placement was removed
      */
-    async removeNPCPlacementAt(q, r) {
-        if (!this.currentArea?.npcs) return false;
+    async removeNPCPlacement(character) {
+        const specs = this.currentArea?.npcs;
+        if (!specs || !character) return false;
 
-        const before = this.currentArea.npcs.length;
-        this.currentArea.npcs = this.currentArea.npcs.filter(n => !(n.hexQ === q && n.hexR === r));
-        if (this.currentArea.npcs.length === before) return false;
+        const index = specs.findIndex(n => n.name
+            ? n.name === character.name
+            : n.hexQ === character.hexQ && n.hexR === character.hexR);
+        if (index === -1) return false;
 
-        this.refreshNPCs();
+        specs.splice(index, 1);
+        this.dropCharacters(c => c === character);
+
         await this.saveArea();
         return true;
+    }
+
+    /**
+     * Drop matching characters from the live roster and scrub references to them
+     * held by everyone else, so removed characters cannot linger as ghost enemies.
+     * @param {Function} predicate - (character) => boolean
+     * @returns {number} How many were dropped
+     */
+    dropCharacters(predicate) {
+        const live = this.getNPCs();
+        const doomed = live.filter(predicate);
+        if (doomed.length === 0) return 0;
+
+        for (let i = live.length - 1; i >= 0; i--) {
+            if (doomed.includes(live[i])) live.splice(i, 1);
+        }
+
+        const survivors = [...live, this.game?.state?.pc].filter(Boolean);
+        doomed.forEach(gone => {
+            survivors.forEach(c => {
+                c.enemies?.delete(gone);
+                c.engagedBy?.delete(gone);
+                c.hpBufferByAttacker?.delete(gone);
+                if (c.lastAttackedBy === gone) c.lastAttackedBy = null;
+            });
+        });
+
+        return doomed.length;
     }
 
     /**
@@ -364,27 +440,13 @@ export class AreaManager {
         const removed = before - this.currentArea.npcs.length;
         if (removed === 0) return 0;
 
-        this.refreshNPCs();
+        // buildId rides the spec through into the character, so spawned
+        // characters identify themselves without matching on position - which
+        // would miss anyone who has moved since being placed
+        this.dropCharacters(c => !!c.buildId);
+
         await this.saveArea();
         return removed;
-    }
-
-    /**
-     * Rebuild the instantiated roster from the current placements.
-     * Mutates the existing array in place so references held by Game.state stay valid.
-     */
-    refreshNPCs() {
-        const npcs = this.instantiateNPCs(this.currentArea);
-        const live = this.currentArea._instantiatedNPCs;
-
-        if (Array.isArray(live)) {
-            live.length = 0;
-            live.push(...npcs);
-            return live;
-        }
-
-        this.currentArea._instantiatedNPCs = npcs;
-        return npcs;
     }
 
     /**
