@@ -10,9 +10,9 @@
 		"beauty": 7,
 		"cha": 5,
 		"instinct": 8,
-		"wis": 5,
+		"wis": 3,
 		"source": 3,
-		"luck": 3
+		"luck": 5
 	},
 	"skills": {
 		"block": 1,
@@ -30,6 +30,6 @@
 	"equipment": {
 		"mainHand": "longHammer",
 		"offHand": null,
-		"armor": "brigandine"
+		"armor": "leather"
 	}
 }

@@ -173,10 +173,18 @@ defenseR = (skill * 5) + (dex * 3) + (instinct * 2) + equipment.defenseR + 5
 
 **To-Hit Chance (integer percentage, 0-100%):**
 ```
-THC = clamp(0, 100, (attackR - defenseR) + (50 - evasionBonus))
+THC = clamp(0, 100, (attackR - defenseR) + (50 - evasionBonus) + flankBonus)
 // evasionBonus reduces base hit chance (from equipment passives)
+// flankBonus: +15 when flanking (COMBAT_MODIFIERS.FLANK_THC_BONUS), else 0
 // Roll d100 (1-100), hit if roll <= THC
 ```
+
+**Flanking:** granted by attacking from behind the defender's facing **or** by the
+defender being at `engagedMax` and unable to engage the attacker back. The two
+sources do not stack — either alone gives the same `+15` THC and the same armor
+DR scaling. Resolved by `CombatSystem.determineFlanking()` *before* the hit roll,
+since the roll spends it. `HexGridRenderer.holdsFlankAdvantage()` mirrors the
+same boolean to colour the shared hex edge; keep the two in step.
 
 **Critical Strike Ratings (integer percentage, 0-100%):**
 ```
@@ -221,7 +229,7 @@ initiative = will + instinct  // Higher goes first
 ```
 
 ### HP Buffer System
-Each attacker must deplete a character's buffer individually before dealing real HP damage. Represents stamina/composure that resets per-opponent.
+Each attacker must deplete a character's buffer individually before dealing real HP damage. Represents composure that resets per-opponent. Unrelated to the (future) Stamina resource — the buffer is derived from Instinct and Will, not spent by moving or acting.
 
 ## Equipment
 

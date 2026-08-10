@@ -1,5 +1,5 @@
 import { AISystem } from './AISystem.js';
-import { hexKey } from './const.js';
+import { hexKey, getFacingFromDelta } from './const.js';
 
 export const GAME_STATES = {
     EXPLORATION: 'exploration',
@@ -145,11 +145,32 @@ export class GameStateManager {
         npcs.forEach(npc => {
             // Get AI decision based on mode and enemies
             const action = this.aiSystem.getAIAction(npc, allCharacters);
-            this.characterActions.set(npc, action);
+            this.setCharacterAction(npc, action);
         });
 
         // All actions should now be set (player + AI), transition to execution
         this.setState(GAME_STATES.COMBAT_EXECUTION);
+    }
+
+    /**
+     * Store a character's action for this round, stamping declaration-time facts
+     * that execution can no longer recover.
+     *
+     * `wasOccupied` separates a regular attack from a lead. Both can resolve
+     * against an empty hex, but they mean opposite things: a regular attack was
+     * aimed at somebody who then left, and is cancelled; a lead was aimed at open
+     * ground on purpose, and swings. Execution cannot tell them apart on its own,
+     * because by then the hex is empty either way.
+     *
+     * Every action must go through here — a raw characterActions.set() would skip
+     * the stamp and silently make an attack behave as a lead.
+     */
+    setCharacterAction(character, action) {
+        if (action?.action === COMBAT_ACTIONS.ATTACK && action.target) {
+            const occupant = this.getCharacterAtHex(action.target.q, action.target.r);
+            action.wasOccupied = !!occupant && !occupant.isDefeated;
+        }
+        this.characterActions.set(character, action);
     }
 
     isInputPhaseComplete() {
@@ -225,7 +246,7 @@ export class GameStateManager {
         if (this.characterActions.has(this.game.pc)) return false; // Already chosen
 
         // Player chooses to wait
-        this.characterActions.set(this.game.pc, {
+        this.setCharacterAction(this.game.pc, {
             action: COMBAT_ACTIONS.WAIT,
             target: null
         });
@@ -262,7 +283,7 @@ export class GameStateManager {
 
         // Valid selection
         this.playerSelectedHex = { q: hexQ, r: hexR };
-        this.characterActions.set(this.game.pc, {
+        this.setCharacterAction(this.game.pc, {
             action: COMBAT_ACTIONS.MOVE,
             target: { q: hexQ, r: hexR }
         });
@@ -307,8 +328,16 @@ export class GameStateManager {
             attackType: this.playerSelectedAttackType
         };
 
+        // Commit facing to the target hex now, at declaration. Execution sets it
+        // again anyway, but the player needs to see which way the swing has
+        // committed them while there is still a decision to make — facing is
+        // worth FLANK_THC_BONUS to whoever ends up behind them.
+        const tPx = this.hexGrid.hexToPixel(hexQ, hexR);
+        const aPx = this.hexGrid.hexToPixel(this.game.pc.hexQ, this.game.pc.hexR);
+        this.game.pc.facing = getFacingFromDelta(tPx.x - aPx.x, tPx.y - aPx.y);
+
         this.playerSelectedHex = { q: hexQ, r: hexR };
-        this.characterActions.set(this.game.pc, attackAction);
+        this.setCharacterAction(this.game.pc, attackAction);
 
         // Save for Enter repeat — origin anchors it so any movement invalidates the repeat
         this.playerLastAttackAction = {

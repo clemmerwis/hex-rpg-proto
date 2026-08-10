@@ -180,6 +180,14 @@ export class InputHandler {
             return;
         }
 
+        // Arrow keys are deliberately unbound — camera is WASD, facing is Q/E.
+        // Still swallowed so they cannot scroll the page, and reserved for a
+        // future binding.
+        if (e.key.startsWith('Arrow')) {
+            e.preventDefault();
+            return;
+        }
+
         // Handle Shift+Space for combat toggle (works from any state)
         if (e.key === ' ' && e.shiftKey) {
             e.preventDefault();
@@ -238,10 +246,11 @@ export class InputHandler {
         let dirX = 0;
         let dirY = 0;
 
-        if (this.keys['ArrowUp'] || this.keys['KeyW']) dirY -= 1;
-        if (this.keys['ArrowDown'] || this.keys['KeyS']) dirY += 1;
-        if (this.keys['ArrowLeft'] || this.keys['KeyA']) dirX -= 1;
-        if (this.keys['ArrowRight'] || this.keys['KeyD']) dirX += 1;
+        // WASD only — the arrow keys are deliberately unbound and reserved
+        if (this.keys['KeyW']) dirY -= 1;
+        if (this.keys['KeyS']) dirY += 1;
+        if (this.keys['KeyA']) dirX -= 1;
+        if (this.keys['KeyD']) dirX += 1;
 
         const length = Math.hypot(dirX, dirY);
         if (length === 0) {
@@ -348,7 +357,6 @@ export class InputHandler {
             name: this.uniqueName(build?.name || this.spawnBuildId),
             faction: this.spawnFaction,
             mode: 'aggressive',
-            spriteSet: build?.spriteSet || 'swordKnight',
             hexQ: hex.q,
             hexR: hex.r,
         });

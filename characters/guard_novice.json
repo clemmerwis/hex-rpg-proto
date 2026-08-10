@@ -2,17 +2,17 @@
 	"name": "Guard Novice",
 	"stats": {
 		"str": 6,
-		"int": 5,
+		"int": 6,
 		"dex": 6,
 		"per": 6,
-		"con": 7,
+		"con": 6,
 		"will": 6,
 		"beauty": 6,
-		"cha": 7,
+		"cha": 6,
 		"instinct": 9,
 		"wis": 5,
 		"source": 3,
-		"luck": 3
+		"luck": 4
 	},
 	"skills": {
 		"block": 1,

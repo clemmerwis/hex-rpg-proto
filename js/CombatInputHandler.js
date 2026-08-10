@@ -43,7 +43,7 @@ export class CombatInputHandler {
 
     /**
      * Handle keydown during combat input phase.
-     * Processes: Space (skip), Arrow keys (facing), 1/2 (attack type), Enter (repeat).
+     * Processes: Space (skip), Q/E (facing), 1/2 (attack type), Enter (repeat).
      * @param {KeyboardEvent} e
      * @returns {boolean} true if event was consumed
      */
@@ -57,17 +57,17 @@ export class CombatInputHandler {
             return true;
         }
 
-        // ArrowLeft/ArrowRight: rotate facing (Ctrl for 2 steps)
-        if (e.key === 'ArrowLeft') {
+        // Q/E: rotate facing one hex step, Ctrl for two.
+        // e.code, not e.key, so Caps Lock and Ctrl-held do not change the match.
+        // e.repeat is swallowed deliberately: held-key auto-repeat used to spin
+        // the facing several steps off a single tap, which read as the rotation
+        // being inconsistent. One press is one step.
+        if (e.code === 'KeyQ' || e.code === 'KeyE') {
             e.preventDefault();
+            if (e.repeat) return true;
+            const clockwise = e.code === 'KeyE';
             const steps = e.ctrlKey ? 2 : 1;
-            this.game.pc.facing = rotateFacing(this.game.pc.facing, false, steps);
-            return true;
-        }
-        if (e.key === 'ArrowRight') {
-            e.preventDefault();
-            const steps = e.ctrlKey ? 2 : 1;
-            this.game.pc.facing = rotateFacing(this.game.pc.facing, true, steps);
+            this.game.pc.facing = rotateFacing(this.game.pc.facing, clockwise, steps);
             return true;
         }
 

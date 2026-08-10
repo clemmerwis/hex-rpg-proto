@@ -1,4 +1,4 @@
-import { createDefaultSkills, createDefaultStats, calculateMaxHP, calculateHPBuffer, calculateEngagedMax } from './const.js';
+import { createDefaultSkills, createDefaultStats, deriveSpriteSet, calculateMaxHP, calculateHPBuffer, calculateEngagedMax } from './const.js';
 import { CharacterStore } from './CharacterStore.js';
 
 /**
@@ -38,7 +38,6 @@ export class CharacterFactory {
 
 			// Character identity
 			name: 'Unnamed',
-			spriteSet: 'baseKnight',
 			faction: 'neutral',
 
 			// Stats and equipment
@@ -90,6 +89,11 @@ export class CharacterFactory {
 				...(savedBuild?.skills || {}),
 			},
 		};
+
+		// Appearance follows gear unless a template or placement names a set
+		// explicitly. Equipment is build-editable, so deriving here is what makes
+		// swapping a weapon in the creator change how the character looks.
+		character.spriteSet = config.spriteSet || deriveSpriteSet(character.equipment);
 
 		// Initialize Sets and Maps (NEVER null - always ready)
 		character.enemies = new Set();

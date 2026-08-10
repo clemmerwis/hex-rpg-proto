@@ -1,4 +1,4 @@
-import { calculateDamage, calculateAttackRating, calculateDefenseRating, calculateCSC, getEquipmentBonus, calculateActionSpeed, getSpeedTier, WEAPONS, ARMOR_TYPES, ATTACK_TYPES, STAT_BONUSES, DAMAGE_TYPE_PROPERTIES, isFlanking, getFacingFromDelta } from './const.js';
+import { calculateDamage, calculateAttackRating, calculateDefenseRating, calculateCSC, getEquipmentBonus, calculateActionSpeed, getSpeedTier, WEAPONS, ARMOR_TYPES, ATTACK_TYPES, STAT_BONUSES, COMBAT_MODIFIERS, DAMAGE_TYPE_PROPERTIES, isFlanking, getFacingFromDelta } from './const.js';
 
 export class CombatSystem {
     constructor(hexGrid, getCharacterAtHex, gameStateManager, logger) {
@@ -16,11 +16,12 @@ export class CombatSystem {
      *  2. Lookup defender → handleWhiff() if empty
      *  3. Format attack name (formatAttackTypeName)
      *  4. Check friendly fire
-     *  5. Resolve hit roll (resolveHitRoll) → handleMiss() if miss
-     *  6. Get weapon/armor
-     *  7. Calculate base damage (calculateDamage)
+     *  5. Determine flanking (determineFlanking) — must precede the hit roll,
+     *     which spends it on THC
+     *  6. Resolve hit roll (resolveHitRoll) → handleMiss() if miss
+     *  7. Get weapon/armor, calculate base damage (calculateDamage)
      *  8. Apply resistance modifier (applyResistanceModifier)
-     *  9. Calculate flanking and DR (calculateFlankingAndDR)
+     *  9. Apply armor DR, scaled by flanking (applyDR)
      * 10. Apply crit modifier (applyCritModifier)
      * 11. Build and emit combat log (buildDamageBreakdown, buildCombatLogLines)
      * 12. Apply damage through buffer (applyDamage)
@@ -40,10 +41,12 @@ export class CombatSystem {
         const attackTypeName = this.formatAttackTypeName(weaponKey, attackType);
         const friendlyFire = defender.faction === attacker.faction;
         if (friendlyFire) this.logger.warn(`[FRIENDLY FIRE WARNING] ${attacker.name} attacks ally ${defender.name}!`);
-        // 5. Resolve hit roll → miss if failed
-        const { hit, thc, thcRoll } = this.resolveHitRoll(attacker, defender);
-        if (!hit) return this.handleMiss(attacker, defender, attackTypeName, { thc, thcRoll }, attackType);
-        // 6. Get weapon and armor  7. Calculate base damage
+        // 5. Determine flanking (feeds both the hit roll and armor DR below)
+        const { flanking } = this.determineFlanking(attacker, defender);
+        // 6. Resolve hit roll → miss if failed
+        const { hit, thc, thcRoll } = this.resolveHitRoll(attacker, defender, flanking);
+        if (!hit) return this.handleMiss(attacker, defender, attackTypeName, { thc, thcRoll }, attackType, flanking);
+        // 7. Get weapon and armor, calculate base damage
         const weapon = WEAPONS[weaponKey];
         const armor = ARMOR_TYPES[defender.equipment.armor || "none"];
         let damage = calculateDamage(attacker.stats, weaponKey, attackType);
@@ -52,9 +55,9 @@ export class CombatSystem {
         let resistMod;
         ({ damage, resistMod } = this.applyResistanceModifier(damage, weapon, armor, attackType));
         const damageAfterResist = damage;
-        // 9. Calculate flanking and DR
-        let flanking, effectiveDR, drAbsorbed;
-        ({ flanking, effectiveDR, drAbsorbed, damage } = this.calculateFlankingAndDR(attacker, defender, damage, armor));
+        // 9. Apply armor DR, scaled by flanking
+        let effectiveDR, drAbsorbed;
+        ({ effectiveDR, drAbsorbed, damage } = this.applyDR(damage, armor, flanking));
         const damageAfterDR = damage;
         // 10. Apply crit modifier
         let crit, csc, cscRoll;
@@ -139,13 +142,14 @@ export class CombatSystem {
      * Pure calculation — no side effects, no logging
      * Returns { hit, thc, thcRoll }
      */
-    resolveHitRoll(attacker, defender) {
+    resolveHitRoll(attacker, defender, flanking = false) {
         const attackRating = calculateAttackRating(attacker);
         const defenseRating = calculateDefenseRating(defender);
 
         // Calculate to-hit chance as integer percentage (0-100%)
         const evasionBonus = getEquipmentBonus(defender, 'evasionBonus');
-        const thc = Math.max(0, Math.min(100, attackRating - defenseRating + (50 - evasionBonus)));
+        const flankBonus = flanking ? COMBAT_MODIFIERS.FLANK_THC_BONUS : 0;
+        const thc = Math.max(0, Math.min(100, attackRating - defenseRating + (50 - evasionBonus) + flankBonus));
 
         // Roll d100 (1-100), hit if roll <= THC — THC% of rolls land in the hit band
         const thcRoll = Math.floor(Math.random() * 100) + 1;
@@ -155,12 +159,15 @@ export class CombatSystem {
     }
 
     /**
-     * Calculate flanking status and apply DR (flat damage reduction)
-     * Side-effect-free (read-only queries on gameStateManager and hexGrid)
-     * Returns { flanking, behindDefender, cannotEngageBack, effectiveDR, drAbsorbed, damage: damageAfterDR }
+     * Determine flanking status: attacker behind the defender's facing, OR the
+     * defender too engaged to answer back. The two sources do not stack — either
+     * one alone yields the same advantage.
+     * Side-effect-free (read-only queries on engagementManager and hexGrid), so
+     * it is safe to run before the hit roll, which spends it on THC.
+     * HexGridRenderer.holdsFlankAdvantage() mirrors this — keep them in step.
+     * Returns { flanking, behindDefender, cannotEngageBack }
      */
-    calculateFlankingAndDR(attacker, defender, damage, armor) {
-        // Check flanking (attacker behind defender OR defender over-engaged)
+    determineFlanking(attacker, defender) {
         const behindDefender = isFlanking(
             { q: attacker.hexQ, r: attacker.hexR },
             { q: defender.hexQ, r: defender.hexR },
@@ -168,19 +175,24 @@ export class CombatSystem {
             this.hexGrid
         );
         const cannotEngageBack = !this.engagementManager.canEngageBack(defender, attacker);
-        const flanking = behindDefender || cannotEngageBack;
+        return { flanking: behindDefender || cannotEngageBack, behindDefender, cannotEngageBack };
+    }
 
-        // Calculate effective DR (modified by flanking)
+    /**
+     * Apply armor DR (flat damage reduction, before crit)
+     * Flanking scales the armor's DR by its flankingDefense multiplier
+     * Returns { effectiveDR, drAbsorbed, damage: damageAfterDR }
+     */
+    applyDR(damage, armor, flanking) {
         let effectiveDR = armor.defense;
         if (flanking) {
             effectiveDR = Math.floor(armor.defense * armor.flankingDefense);
         }
 
-        // Apply DR (flat reduction, before crit)
         const drAbsorbed = Math.min(damage, effectiveDR);
         damage = Math.max(0, damage - effectiveDR);
 
-        return { flanking, behindDefender, cannotEngageBack, effectiveDR, drAbsorbed, damage };
+        return { effectiveDR, drAbsorbed, damage };
     }
 
     /**
@@ -367,12 +379,16 @@ export class CombatSystem {
      * Logs the miss message with THC/roll data and returns the miss result object
      * Returns { hit: false, damage: 0, crit: false, defenderDefeated: false }
      */
-    handleMiss(attacker, defender, attackTypeName, hitResult, attackType = 'light') {
+    handleMiss(attacker, defender, attackTypeName, hitResult, attackType = 'light', flanking = false) {
         const { thc, thcRoll } = hitResult;
         const actionSpeed = calculateActionSpeed(attacker, attackType);
         const spdTip = this.buildActionSpeedTip(attacker, attackType);
         const spdTier = getSpeedTier(actionSpeed).tier;
-        this.logger.combat(`{{char:${attacker.name}}}: ${attackTypeName} {{char:${defender.name}}} (THC= {{thc}}${thc}%{{/thc}}, Roll= {{roll}}${thcRoll}{{/roll}}, {{miss}}) {{tip:${spdTip}}}{{spd}}[${actionSpeed} T${spdTier}]{{/spd}}{{/tip}}`);
+        const logParts = [`{{char:${attacker.name}}}: ${attackTypeName} {{char:${defender.name}}} (THC= {{thc}}${thc}%{{/thc}}, Roll= {{roll}}${thcRoll}{{/roll}}, {{miss}}) {{tip:${spdTip}}}{{spd}}[${actionSpeed} T${spdTier}]{{/spd}}{{/tip}}`];
+        // Flanking already inflated the THC above. Tag it here too, or the
+        // number reads as unexplained on the one line that shows no damage.
+        if (flanking) logParts.push("{{flanking}}");
+        this.logger.combat(logParts.join(" "));
         return { hit: false, damage: 0, crit: false, defenderDefeated: false };
     }
 

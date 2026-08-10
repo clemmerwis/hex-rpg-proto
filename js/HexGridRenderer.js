@@ -1,4 +1,4 @@
-import { GAME_CONSTANTS, FACTIONS, hexKey } from "./const.js";
+import { GAME_CONSTANTS, FACTIONS, ENGAGEMENT_BORDER, hexKey, isFlanking } from "./const.js";
 import { GAME_STATES, COMBAT_ACTIONS } from "./GameStateManager.js";
 
 export class HexGridRenderer {
@@ -395,43 +395,46 @@ export class HexGridRenderer {
         // Draw main faction border
         this._drawHexPath(ctx, hexPoints, null, factionData.tintColor + "99", 2);
 
-        // Draw shared borders with engagement-aware gradients
+        // Draw shared borders — each edge reports who holds the flanking advantage
         sharedEdges.forEach((edgeIndex) => {
             const [dq, dr] = adjacentDirs[edgeIndex];
             const adjCharacter = this.getCharacterAtHex(q + dq, r + dr);
             const adjFactionData = this.getFactionData(adjCharacter);
 
-            const startPoint = hexPoints[edgeIndex];
-            const endPoint = hexPoints[(edgeIndex + 1) % 6];
+            // Both hexes paint this same edge, in opposite winding order. Anchor
+            // to world geometry so the two passes agree instead of overwriting
+            // each other with mirrored output.
+            const a = hexPoints[edgeIndex];
+            const b = hexPoints[(edgeIndex + 1) % 6];
+            const flip = b.x < a.x || (b.x === a.x && b.y < a.y);
+            const startPoint = flip ? b : a;
+            const endPoint = flip ? a : b;
 
-            // Check engagement status for visual indicator
-            const thisCanEngageAdj = this.engagementManager?.canEngageBack(character, adjCharacter) ?? true;
-            const adjCanEngageThis = this.engagementManager?.canEngageBack(adjCharacter, character) ?? true;
+            const iHoldAdvantage = this.holdsFlankAdvantage(character, adjCharacter);
+            const theyHoldAdvantage = this.holdsFlankAdvantage(adjCharacter, character);
+
+            // Same canonical anchor for the colour pair, for the same reason
+            const selfFirst = (character.hexQ - adjCharacter.hexQ) || (character.hexR - adjCharacter.hexR);
+            const nearColor = selfFirst < 0 ? factionData.tintColor : adjFactionData.tintColor;
+            const farColor = selfFirst < 0 ? adjFactionData.tintColor : factionData.tintColor;
+
+            if (iHoldAdvantage && theyHoldAdvantage) {
+                // Both exposed to each other — the deadliest pairing on the board
+                this._drawMutualFlankEdge(ctx, startPoint, endPoint, nearColor, farColor);
+                return;
+            }
 
             let strokeStyle;
-            if (thisCanEngageAdj && adjCanEngageThis) {
-                // Mutual engagement: 50/50 gradient
-                const gradient = ctx.createLinearGradient(
-                    startPoint.x, startPoint.y,
-                    endPoint.x, endPoint.y
-                );
-                gradient.addColorStop(0, factionData.tintColor);
-                gradient.addColorStop(1, adjFactionData.tintColor);
-                strokeStyle = gradient;
-            } else if (!thisCanEngageAdj && adjCanEngageThis) {
-                // This character cannot engage adjacent back: adjacent's color dominates (they have advantage)
-                strokeStyle = adjFactionData.tintColor;
-            } else if (thisCanEngageAdj && !adjCanEngageThis) {
-                // Adjacent cannot engage this character back: this character's color dominates
-                strokeStyle = factionData.tintColor;
+            if (theyHoldAdvantage || iHoldAdvantage) {
+                strokeStyle = ENGAGEMENT_BORDER.FLANK_COLOR;
             } else {
-                // Neither can engage the other: neutral gradient
+                // Neither exposed: locked in, colours blend
                 const gradient = ctx.createLinearGradient(
                     startPoint.x, startPoint.y,
                     endPoint.x, endPoint.y
                 );
-                gradient.addColorStop(0, factionData.tintColor);
-                gradient.addColorStop(1, adjFactionData.tintColor);
+                gradient.addColorStop(0, nearColor);
+                gradient.addColorStop(1, farColor);
                 strokeStyle = gradient;
             }
 
@@ -439,9 +442,48 @@ export class HexGridRenderer {
             ctx.moveTo(startPoint.x, startPoint.y);
             ctx.lineTo(endPoint.x, endPoint.y);
             ctx.strokeStyle = strokeStyle;
-            ctx.lineWidth = 15;
+            ctx.lineWidth = ENGAGEMENT_BORDER.EDGE_WIDTH;
             ctx.stroke();
         });
+    }
+
+    /**
+     * Does `attacker` hold the flanking advantage over `defender`?
+     * Mirrors CombatSystem.determineFlanking: attacking from behind the
+     * defender's facing OR the defender being too engaged to answer back.
+     * Kept in lockstep with that boolean so the border never lies about THC.
+     */
+    holdsFlankAdvantage(attacker, defender) {
+        const behindDefender = isFlanking(
+            { q: attacker.hexQ, r: attacker.hexR },
+            { q: defender.hexQ, r: defender.hexR },
+            defender.facing,
+            this.hexGrid
+        );
+        const canEngageBack = this.engagementManager?.canEngageBack(defender, attacker) ?? true;
+        return behindDefender || !canEngageBack;
+    }
+
+    /**
+     * Mutual flank edge: both sides hold the advantage over each other. Carries
+     * all three hues — each faction colour plus the violet core — so it reads as
+     * "flanking is live" while still showing who the two parties are.
+     */
+    _drawMutualFlankEdge(ctx, startPoint, endPoint, nearColor, farColor) {
+        const gradient = ctx.createLinearGradient(
+            startPoint.x, startPoint.y,
+            endPoint.x, endPoint.y
+        );
+        gradient.addColorStop(0, nearColor);
+        gradient.addColorStop(0.5, ENGAGEMENT_BORDER.FLANK_COLOR);
+        gradient.addColorStop(1, farColor);
+
+        ctx.beginPath();
+        ctx.moveTo(startPoint.x, startPoint.y);
+        ctx.lineTo(endPoint.x, endPoint.y);
+        ctx.strokeStyle = gradient;
+        ctx.lineWidth = ENGAGEMENT_BORDER.EDGE_WIDTH;
+        ctx.stroke();
     }
 
     drawHoverHex(ctx, hexPoints) {

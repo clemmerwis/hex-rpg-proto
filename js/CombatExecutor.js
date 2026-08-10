@@ -249,8 +249,15 @@ export class CombatExecutor {
         character.currentAnimation = 'attack';
 
         setTimeout(() => {
-            if (!targetChar) {
-                // Auto-miss: no one at hex
+            if (!targetChar && action.wasOccupied) {
+                // Regular attack whose target left the hex during the move phase.
+                // Not a swing — you do not hack at empty air where someone used
+                // to be. Costs the round but nothing else, and once Stamina lands
+                // this is the branch that must not charge for it.
+                this.logger.combat(`{{char:${character.name}}}: target left the hex - attack {{blocked}}`);
+            } else if (!targetChar) {
+                // Lead: aimed at open ground on purpose and nobody arrived
+                this.combatSystem.handleWhiff(character, action.target, character.equipment.mainHand, action.attackType || 'light');
             } else if (targetChar === character) {
                 // Can't hit yourself
             } else if (targetChar.isDefeated) {

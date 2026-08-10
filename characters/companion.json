@@ -16,9 +16,9 @@
 	},
 	"skills": {
 		"block": 1,
-		"dodge": 3,
+		"dodge": 5,
 		"unarmed": 1,
-		"shortSword": 3,
+		"shortSword": 1,
 		"longSword": 1,
 		"shortSpear": 1,
 		"longSpear": 1,

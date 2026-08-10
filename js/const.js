@@ -66,7 +66,8 @@ const DEFAULT_ANIM_CONFIG = {
 };
 
 // Sprite set registry - each set is self-contained with folder info and animation configs
-// Every character must have an explicit spriteSet property referencing a key here
+// Characters get their set from deriveSpriteSet() based on equipment; a template or
+// placement can still name one explicitly to override that
 export const SPRITE_SETS = {
 	baseKnight: {
 		folder: 'KnightBasic',
@@ -118,6 +119,28 @@ export const SPRITE_SETS = {
 		}
 	}
 };
+
+/**
+ * Pick the sprite set that matches what a character is holding.
+ *
+ * Appearance follows gear, so changing a weapon in the character creator changes
+ * how the character looks. Only three sets exist, so every armed character reads
+ * as "sword" - spears and hammers included - until more art lands.
+ *
+ * An explicit spriteSet on a template or placement still wins, for the cases
+ * where the art is deliberately not what the gear implies.
+ *
+ * @param {Object} equipment - { mainHand, offHand, armor }
+ * @returns {string} Sprite set key
+ */
+export function deriveSpriteSet(equipment = {}) {
+	const weapon = WEAPONS[equipment.mainHand];
+	const offHand = equipment.offHand ? WEAPONS[equipment.offHand] : null;
+
+	if (offHand?.grip === 'off') return 'swordShieldKnight';
+	if (weapon && equipment.mainHand !== 'unarmed') return 'swordKnight';
+	return 'baseKnight';
+}
 
 /**
  * Get animation config for a sprite set and animation name
@@ -546,6 +569,30 @@ export const FACTIONS = {
 	},
 };
 
+// Combat modifiers applied on top of the rating subtraction
+// FLANK_THC_BONUS is worth 3 skill levels or 5 stat points of defence, so
+// earning it is a real play. Both flanking sources (behind-the-back and
+// engagement overload) grant it, and they do not stack - see isFlanking() and
+// EngagementManager.canEngageBack().
+export const COMBAT_MODIFIERS = {
+	FLANK_THC_BONUS: 15,
+};
+
+// Shared-edge border visuals
+// The hex edge between two adjacent enemies reports flanking. FLANK_COLOR
+// appears if and only if flanking is live. Grammar:
+//   faction -> faction gradient - neither exposed, both locked in
+//   solid FLANK_COLOR - one side holds the advantage
+//   faction -> FLANK_COLOR -> faction - both exposed to each other, all three
+//     hues in one edge
+// FLANK_COLOR must stay off the FACTIONS palette or it reads as a faction claim.
+// Iso compression leaves the E/W edges ~17px tall at ZOOM_LEVEL, so all of this
+// has to carry on hue alone - seams and dashes vanish at that size.
+export const ENGAGEMENT_BORDER = {
+	EDGE_WIDTH: 15,
+	FLANK_COLOR: '#DDA0FF',
+};
+
 /**
  * Semantic tokens used by CombatSystem - replaced with formatted HTML
  * This keeps game logic separate from presentation
@@ -615,7 +662,6 @@ export const NPC_TEMPLATES = {
 		},
 		facing: 'dir8',
 		faction: 'pc',
-		spriteSet: 'baseKnight',
 		mode: 'aggressive',
 	},
 
@@ -641,7 +687,6 @@ export const NPC_TEMPLATES = {
 			armor: 'leather',
 		},
 		faction: 'pc',
-		spriteSet: 'swordKnight',
 		mode: 'aggressive',
 	},
 
@@ -667,7 +712,6 @@ export const NPC_TEMPLATES = {
 			armor: 'chain',
 		},
 		faction: 'guard',
-		spriteSet: 'swordShieldKnight',
 		mode: 'neutral',
 	},
 
@@ -694,7 +738,6 @@ export const NPC_TEMPLATES = {
 			armor: 'chain',
 		},
 		faction: 'guard',
-		spriteSet: 'swordKnight',
 		mode: 'neutral',
 	},
 
@@ -720,7 +763,6 @@ export const NPC_TEMPLATES = {
 			armor: 'brigandine',
 		},
 		faction: 'bandit',
-		spriteSet: 'swordKnight',
 		mode: 'aggressive',
 	},
 
@@ -745,7 +787,6 @@ export const NPC_TEMPLATES = {
 			armor: 'brigandine',
 		},
 		faction: 'bandit',
-		spriteSet: 'swordKnight',
 		mode: 'aggressive',
 	},
 };

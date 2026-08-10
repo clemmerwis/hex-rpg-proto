@@ -14,14 +14,32 @@ export class EngagementManager {
      * Called after movement completes in executeNextMove()
      */
     updateEngagement(character) {
-        const charHex = { q: character.hexQ, r: character.hexR };
-        const neighbors = this.hexGrid.getNeighbors(charHex);
-
-        // First, clear any non-adjacent engagements
-        this.clearNonAdjacentEngagements(character);
+        // First, drop engagements that no longer hold
+        const freed = this.clearStaleEngagements(character);
 
         // Then, establish new engagements with adjacent enemies
-        for (const neighbor of neighbors) {
+        this.establishAdjacentEngagements(character);
+
+        // A departure also frees a slot on whoever was left behind, and those
+        // characters may have neighbours that were locked out at max capacity.
+        // Nothing else re-offers it — updateEngagement only runs for the mover —
+        // so engagedBy under-reports who is actually engaged until they move.
+        // canEngageBack()'s capacity test masks that for flanking, but the set
+        // is still wrong for anything reading membership. The defeated case in
+        // clearStaleEngagements() is the one that leaks flanking outright.
+        for (const other of freed) {
+            if (other.isDefeated) continue;
+            this.establishAdjacentEngagements(other);
+        }
+    }
+
+    /**
+     * Offer engagement between a character and every adjacent enemy
+     */
+    establishAdjacentEngagements(character) {
+        const charHex = { q: character.hexQ, r: character.hexR };
+
+        for (const neighbor of this.hexGrid.getNeighbors(charHex)) {
             const occupant = this.getCharacterAtHex(neighbor.q, neighbor.r);
             if (!occupant || occupant.isDefeated) continue;
             if (occupant.faction === character.faction) continue;  // Same faction - no engagement
@@ -32,26 +50,34 @@ export class EngagementManager {
     }
 
     /**
-     * Clear engagements for characters that are no longer adjacent
+     * Clear engagements that no longer hold - the other party has moved out of
+     * reach, or has been defeated. A corpse left holding a slot blocks a living
+     * attacker from being engaged, which reads as flanking.
+     * Returns the characters whose own slot was freed, so callers can re-offer.
      */
-    clearNonAdjacentEngagements(character) {
+    clearStaleEngagements(character) {
         // Guard: skip if not initialized yet
         if (!character.engagedBy) {
-            return;
+            return [];
         }
 
         const charHex = { q: character.hexQ, r: character.hexR };
+        const freed = [];
 
         // Check all characters this one is engaging
         for (const engaged of [...character.engagedBy]) {
             const dist = this.hexGrid.hexDistance(charHex, { q: engaged.hexQ, r: engaged.hexR });
-            if (dist > 1) {
-                // No longer adjacent - clear mutual engagement
-                character.engagedBy.delete(engaged);
-                engaged.engagedBy.delete(character);
-                this.logger.debug(`[ENGAGEMENT] ${character.name} and ${engaged.name} disengaged (non-adjacent)`);
-            }
+            const stale = dist > 1 || engaged.isDefeated;
+            if (!stale) continue;
+
+            character.engagedBy.delete(engaged);
+            engaged.engagedBy?.delete(character);
+            freed.push(engaged);
+            const why = engaged.isDefeated ? "defeated" : "non-adjacent";
+            this.logger.debug(`[ENGAGEMENT] ${character.name} and ${engaged.name} disengaged (${why})`);
         }
+
+        return freed;
     }
 
     /**
