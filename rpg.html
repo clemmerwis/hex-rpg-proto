@@ -35,6 +35,19 @@
                 <button id="clearHexes" style="font-size: 11px; padding: 3px 8px;">Clear All</button>
                 <div id="markedCount" style="font-size: 11px; margin-top: 3px;">Marked: 0</div>
             </div>
+
+            <div style="margin-top: 8px;">
+                <label><input type="checkbox" id="spawnMode"> Spawn Mode</label>
+            </div>
+            <div id="spawnControls" style="margin-top: 5px; display: none; font-size: 11px;">
+                <div style="margin-bottom: 4px;">
+                    Build: <select id="spawnBuild" style="font-size: 11px; max-width: 130px;"></select>
+                </div>
+                <div style="margin-bottom: 4px;">
+                    Faction: <select id="spawnFaction" style="font-size: 11px; max-width: 130px;"></select>
+                </div>
+                <div style="color: #aaa;">Click empty hex to place<br>Click a placed NPC to remove</div>
+            </div>
             <div style="margin-top: 10px; font-size: 11px;">
                 <strong>Edge Scroll:</strong> Move mouse to edges<br>
                 <strong>Camera:</strong> <span id="cameraPos">0, 0</span><br>

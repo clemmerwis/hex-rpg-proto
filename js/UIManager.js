@@ -39,8 +39,38 @@ export class UIManager {
 			hexMarkerControls: document.getElementById('hexMarkerControls'),
 			exportHexes: document.getElementById('exportHexes'),
 			clearHexes: document.getElementById('clearHexes'),
-			markedCount: document.getElementById('markedCount')
+			markedCount: document.getElementById('markedCount'),
+
+			// Spawn mode elements
+			spawnMode: document.getElementById('spawnMode'),
+			spawnControls: document.getElementById('spawnControls'),
+			spawnBuild: document.getElementById('spawnBuild'),
+			spawnFaction: document.getElementById('spawnFaction')
 		};
+	}
+
+	/**
+	 * Fill the spawn-mode dropdowns from the loaded builds and faction list.
+	 * @param {Array<string>} buildIds - Build ids from CharacterStore
+	 * @param {Object} factions - FACTIONS from const.js
+	 */
+	populateSpawnControls(buildIds, factions) {
+		const { spawnBuild, spawnFaction } = this.elements;
+		if (!spawnBuild || !spawnFaction) return;
+
+		spawnBuild.innerHTML = buildIds
+			.map(id => `<option value="${id}">${id}</option>`)
+			.join('');
+
+		spawnFaction.innerHTML = Object.entries(factions)
+			.map(([key, f]) => `<option value="${key}">${f.name}</option>`)
+			.join('');
+	}
+
+	setSpawnControlsVisible(visible) {
+		if (this.elements.spawnControls) {
+			this.elements.spawnControls.style.display = visible ? 'block' : 'none';
+		}
 	}
 
 	/**
@@ -156,5 +186,10 @@ export class UIManager {
 		this.elements.hexMarkerMode.addEventListener('change', callbacks.onHexMarkerModeChange);
 		this.elements.exportHexes.addEventListener('click', callbacks.onExportHexes);
 		this.elements.clearHexes.addEventListener('click', callbacks.onClearHexes);
+
+		// Spawn mode controls
+		this.elements.spawnMode?.addEventListener('change', callbacks.onSpawnModeChange);
+		this.elements.spawnBuild?.addEventListener('change', callbacks.onSpawnBuildChange);
+		this.elements.spawnFaction?.addEventListener('change', callbacks.onSpawnFactionChange);
 	}
 }

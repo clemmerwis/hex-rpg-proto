@@ -66,8 +66,10 @@ export class CharacterFactory {
 			lastAttackedBy: null,
 		};
 
-		// Saved build from characters/*.json (stats/skills/equipment only)
-		const savedBuild = config.name ? CharacterStore.get(config.name) : null;
+		// Saved build from characters/*.json (stats/skills/equipment only).
+		// buildId lets several placements share one build under different names.
+		const buildKey = config.buildId || config.name;
+		const savedBuild = buildKey ? CharacterStore.get(buildKey) : null;
 
 		// Merge: defaults < config < savedBuild (for build properties only)
 		const character = {

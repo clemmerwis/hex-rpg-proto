@@ -20,7 +20,7 @@
 const BASE_PATH = '/characters/';
 
 export class CharacterStore {
-	/** name -> build, populated by loadAll() */
+	/** slug -> build, populated by loadAll() */
 	static cache = new Map();
 	static loaded = false;
 
@@ -79,8 +79,8 @@ export class CharacterStore {
 		const slugs = await this.list();
 		const builds = await Promise.all(slugs.map(s => this.fetchBuild(s)));
 
-		builds.forEach(build => {
-			if (build?.name) this.cache.set(build.name, build);
+		slugs.forEach((slug, i) => {
+			if (builds[i]) this.cache.set(slug, builds[i]);
 		});
 
 		this.loaded = true;
@@ -89,14 +89,22 @@ export class CharacterStore {
 	}
 
 	/**
-	 * Synchronous cache read, by character name. Used at spawn time.
+	 * Synchronous cache read. Used at spawn time.
+	 * Accepts a build id/slug ('bandit_brute') or a character name ('Bandit Brute').
+	 * Taking an explicit id is what lets several placements share one build while
+	 * carrying their own display names.
 	 * @returns {Object|null}
 	 */
-	static get(name) {
+	static get(idOrName) {
 		if (!this.loaded) {
 			console.warn('[CharacterStore] get() called before loadAll() - no builds available');
 		}
-		return this.cache.get(name) || null;
+		return this.cache.get(this.slug(idOrName)) || null;
+	}
+
+	/** Build ids available to spawn, sorted */
+	static ids() {
+		return [...this.cache.keys()].sort();
 	}
 
 	/**
@@ -118,7 +126,7 @@ export class CharacterStore {
 			});
 			if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-			this.cache.set(build.name, build);
+			this.cache.set(slug, build);
 			return true;
 		} catch (e) {
 			console.error(`[CharacterStore] Failed to save "${build.name}":`, e.message);
@@ -135,7 +143,7 @@ export class CharacterStore {
 			const res = await fetch(`${BASE_PATH}${this.slug(name)}.json`, { method: 'DELETE' });
 			if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-			this.cache.delete(name);
+			this.cache.delete(this.slug(name));
 			return true;
 		} catch (e) {
 			console.error(`[CharacterStore] Failed to delete "${name}":`, e.message);

@@ -1,5 +1,6 @@
 import { GAME_STATES } from './GameStateManager.js';
 import { GAME_CONSTANTS, hexKey } from './const.js';
+import { CharacterStore } from './CharacterStore.js';
 
 export class InputHandler {
     constructor(canvas, config) {
@@ -16,6 +17,11 @@ export class InputHandler {
         this.hexMarkerMode = false;
         this.markedHexes = new Map(); // Key: "q,r", Value: {q, r}
 
+        // Spawn mode (dev): click an empty hex to place, a placed NPC to remove
+        this.spawnMode = false;
+        this.spawnBuildId = null;
+        this.spawnFaction = 'bandit';
+
         // Held keys, indexed by physical key (e.code) rather than the produced
         // character, so Shift or CapsLock can't strand a key in the held state
         this.keys = {};
@@ -27,12 +33,14 @@ export class InputHandler {
         this.camera = null;
         this.findPath = null;
         this.getCharacterAtHex = null;
+        this.areaManager = null; // Optional - only needed for spawn mode
 
         // Callbacks
         this.onDebugUpdate = null;
         this.onAnimationChange = null;
         this.onMouseMove = null;
         this.onMarkedHexesChange = null;
+        this.onRosterChange = null;
 
         // Bind methods
         this.handleMouseMove = this.handleMouseMove.bind(this);
@@ -59,6 +67,7 @@ export class InputHandler {
         this.combatInputHandler = deps.combatInputHandler;
         this.findPath = deps.findPath;
         this.getCharacterAtHex = deps.getCharacterAtHex;
+        this.areaManager = deps.areaManager || null;
     }
 
     setupEventListeners() {
@@ -112,6 +121,12 @@ export class InputHandler {
         const worldY = (canvasY + this.camera.y) / this.camera.zoom;
 
         const targetHex = this.hexGrid.pixelToHex(worldX, worldY);
+
+        // Handle spawn mode (only when not in combat)
+        if (this.spawnMode && this.gameStateManager.currentState !== GAME_STATES.COMBAT_INPUT) {
+            this.handleSpawnClick(targetHex);
+            return;
+        }
 
         // Handle hex marker mode (only when not in combat)
         if (this.hexMarkerMode && this.gameStateManager.currentState !== GAME_STATES.COMBAT_INPUT) {
@@ -284,6 +299,75 @@ export class InputHandler {
         this.game.npcs.forEach(npc => {
             const foundNPC = this.getCharacterAtHex(npc.hexQ, npc.hexR);
         });
+    }
+
+    // Spawn mode methods (dev)
+
+    setSpawnMode(enabled) {
+        this.spawnMode = enabled;
+        console.log(`Spawn mode: ${enabled ? 'ON' : 'OFF'}`);
+    }
+
+    setSpawnBuild(buildId) {
+        this.spawnBuildId = buildId;
+    }
+
+    setSpawnFaction(faction) {
+        this.spawnFaction = faction;
+    }
+
+    /**
+     * Click handler while in spawn mode.
+     * Occupied hex -> remove that placement. Empty hex -> place the selected build.
+     * The PC is never removable - it is not an area placement.
+     */
+    async handleSpawnClick(hex) {
+        const occupant = this.getCharacterAtHex(hex.q, hex.r);
+
+        if (occupant) {
+            if (occupant === this.game.pc) {
+                console.warn('[Spawn] The PC is not an area placement - cannot remove');
+                return;
+            }
+            const removed = await this.areaManager.removeNPCPlacementAt(hex.q, hex.r);
+            console.log(removed
+                ? `[Spawn] Removed ${occupant.name} at (${hex.q},${hex.r})`
+                : `[Spawn] ${occupant.name} is not an area placement - cannot remove`);
+            this.onRosterChange?.();
+            return;
+        }
+
+        if (!this.spawnBuildId) {
+            console.warn('[Spawn] No build selected');
+            return;
+        }
+
+        const build = CharacterStore.get(this.spawnBuildId);
+        const character = await this.areaManager.addNPCPlacement({
+            buildId: this.spawnBuildId,
+            name: this.uniqueName(build?.name || this.spawnBuildId),
+            faction: this.spawnFaction,
+            mode: 'aggressive',
+            spriteSet: build?.spriteSet || 'swordKnight',
+            hexQ: hex.q,
+            hexR: hex.r,
+        });
+
+        console.log(`[Spawn] Placed ${character?.name} (${this.spawnFaction}) at (${hex.q},${hex.r})`);
+        this.onRosterChange?.();
+    }
+
+    /**
+     * Suffix a name until it is unique, so several instances of one build stay
+     * distinguishable in the log and nameplates.
+     */
+    uniqueName(base) {
+        const taken = new Set([this.game.pc?.name, ...this.game.npcs.map(n => n.name)]);
+        if (!taken.has(base)) return base;
+
+        let i = 2;
+        while (taken.has(`${base} ${i}`)) i++;
+        return `${base} ${i}`;
     }
 
     // Hex marker mode methods

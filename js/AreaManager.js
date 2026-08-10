@@ -271,11 +271,19 @@ export class AreaManager {
         return areaDef.npcs.map((npcSpec, index) => {
             const templateId = npcSpec.templateId;
 
-            // Repository Pattern: Lookup template (NOW: const.js, FUTURE: API fetch)
-            const template = NPC_TEMPLATES[templateId];
-
-            if (!template) {
-                console.warn(`[AreaManager] Area '${this.currentArea?.id}': npcs[${index}] references unknown template '${templateId}'`);
+            // A placement is backed either by a code template (templateId) or by a
+            // build file alone (buildId), in which case it carries its own identity
+            // fields and needs no NPC_TEMPLATES entry.
+            let template = {};
+            if (templateId) {
+                // Repository Pattern: Lookup template (NOW: const.js, FUTURE: API fetch)
+                template = NPC_TEMPLATES[templateId];
+                if (!template) {
+                    console.warn(`[AreaManager] Area '${this.currentArea?.id}': npcs[${index}] references unknown template '${templateId}'`);
+                    return null;
+                }
+            } else if (!npcSpec.buildId) {
+                console.warn(`[AreaManager] Area '${this.currentArea?.id}': npcs[${index}] has neither templateId nor buildId`);
                 return null;
             }
 
@@ -298,6 +306,102 @@ export class AreaManager {
      */
     getNPCs() {
         return this.currentArea?._instantiatedNPCs || [];
+    }
+
+    // --- Live placement editing (dev) ---
+    //
+    // Placements live in area.json's npcs[] and are written back via WebDAV, so
+    // characters placed in-game survive a refresh. A placement entry overrides
+    // its template (see instantiateNPCs' {...template, ...npcSpec}), which is
+    // what lets the same build spawn under any faction.
+
+    /**
+     * Add an NPC placement and re-instantiate the roster.
+     * @param {Object} spec - { buildId, faction, hexQ, hexR, name?, mode?, spriteSet? }
+     * @returns {Promise<Object|null>} The new character, or null on failure
+     */
+    async addNPCPlacement(spec) {
+        if (!this.currentArea) return null;
+
+        this.currentArea.npcs = this.currentArea.npcs || [];
+        this.currentArea.npcs.push(spec);
+
+        const character = this.refreshNPCs();
+        await this.saveArea();
+        return character[character.length - 1] || null;
+    }
+
+    /**
+     * Remove whatever placement sits on a hex.
+     * @returns {Promise<boolean>} True if something was removed
+     */
+    async removeNPCPlacementAt(q, r) {
+        if (!this.currentArea?.npcs) return false;
+
+        const before = this.currentArea.npcs.length;
+        this.currentArea.npcs = this.currentArea.npcs.filter(n => !(n.hexQ === q && n.hexR === r));
+        if (this.currentArea.npcs.length === before) return false;
+
+        this.refreshNPCs();
+        await this.saveArea();
+        return true;
+    }
+
+    /**
+     * Rebuild the instantiated roster from the current placements.
+     * Mutates the existing array in place so references held by Game.state stay valid.
+     */
+    refreshNPCs() {
+        const npcs = this.instantiateNPCs(this.currentArea);
+        const live = this.currentArea._instantiatedNPCs;
+
+        if (Array.isArray(live)) {
+            live.length = 0;
+            live.push(...npcs);
+            return live;
+        }
+
+        this.currentArea._instantiatedNPCs = npcs;
+        return npcs;
+    }
+
+    /**
+     * Serialize an area definition in the file's hand-authored style:
+     * 4-space indent, with {q, r} coordinate pairs kept on one line.
+     *
+     * Plain JSON.stringify explodes every blocked hex across three lines, which
+     * turns a one-NPC change into a thousand-line diff.
+     */
+    serializeArea(areaDef) {
+        return JSON.stringify(areaDef, null, 4)
+            .replace(/\{\s*\n\s*"q": (-?\d+),\s*\n\s*"r": (-?\d+)\s*\n\s*\}/g, '{"q": $1, "r": $2}');
+    }
+
+    /**
+     * Persist the current area definition back to areas/{id}/area.json.
+     * DEV ONLY - relies on the WebDAV PUT enabled in nginx-dev.conf.
+     */
+    async saveArea() {
+        if (!this.currentArea) return false;
+
+        // Strip every runtime-only field (convention: leading underscore) so
+        // cached images and instantiated characters never land in level data
+        const areaDef = Object.fromEntries(
+            Object.entries(this.currentArea).filter(([key]) => !key.startsWith('_'))
+        );
+
+        try {
+            const res = await fetch(`areas/${areaDef.id}/area.json`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: this.serializeArea(areaDef) + '\n',
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return true;
+        } catch (e) {
+            console.error(`[AreaManager] Failed to save area '${areaDef.id}':`, e.message);
+            return false;
+        }
     }
 
     /**

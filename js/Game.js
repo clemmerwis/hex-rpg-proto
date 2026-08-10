@@ -243,7 +243,8 @@ export class Game {
             combatInputHandler: this.combatInputHandler,
             camera: this.camera,
             findPath: (start, goal, obstacles) => this.pathfinding.findPath(start, goal, obstacles),
-            getCharacterAtHex: this.getCharacterAtHex.bind(this)
+            getCharacterAtHex: this.getCharacterAtHex.bind(this),
+            areaManager: this.areaManager
         });
 
         this.camera.onMove = (x, y) => {
@@ -256,6 +257,12 @@ export class Game {
 
         this.inputHandler.onMarkedHexesChange = () => {
             this.updateMarkedHexCount();
+        };
+
+        // Spawn mode mutates the area roster in place - refresh derived UI
+        this.inputHandler.onRosterChange = () => {
+            this.updateGameStateUI();
+            requestAnimationFrame(() => this.render());
         };
 
         // AssetManager callbacks (removed - now called at end of init())
@@ -289,6 +296,17 @@ export class Game {
             onClearHexes: () => {
                 this.inputHandler.clearMarkedHexes();
                 this.updateMarkedHexCount();
+            },
+            onSpawnModeChange: (e) => {
+                const enabled = e.target.checked;
+                this.inputHandler.setSpawnMode(enabled);
+                this.uiManager.setSpawnControlsVisible(enabled);
+            },
+            onSpawnBuildChange: (e) => {
+                this.inputHandler.setSpawnBuild(e.target.value);
+            },
+            onSpawnFactionChange: (e) => {
+                this.inputHandler.setSpawnFaction(e.target.value);
             }
         });
     }
@@ -302,6 +320,11 @@ export class Game {
             // Load saved character builds BEFORE any character is created -
             // CharacterFactory reads them synchronously at spawn time
             await CharacterStore.loadAll();
+
+            // Spawn mode picks from whatever builds exist
+            const buildIds = CharacterStore.ids();
+            this.uiManager.populateSpawnControls(buildIds, FACTIONS);
+            this.inputHandler.setSpawnBuild(buildIds[0] || null);
 
             // Load initial area (NPCs are instantiated inside loadArea via repository pattern)
             await this.areaManager.loadArea('bridge_crossing');

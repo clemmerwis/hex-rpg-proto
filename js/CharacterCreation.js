@@ -636,9 +636,12 @@ class CharacterCreator {
 	// --- Template Management ---
 
 	resetCharacter() {
-		// Reset character state to defaults
+		// Reset character state to defaults.
+		// Name is deliberately blank: defaulting to 'Hero' meant New Character
+		// followed by Save silently overwrote characters/hero.json with an
+		// all-3s sheet. Save refuses an empty name, so this forces a rename.
 		this.character = {
-			name: 'Hero',
+			name: '',
 			stats: createDefaultStats(),
 			skills: createDefaultSkills(),
 			equipment: {
@@ -657,7 +660,8 @@ class CharacterCreator {
 
 		// Update name input
 		if (this.elements.nameInput) {
-			this.elements.nameInput.value = 'Hero';
+			this.elements.nameInput.value = '';
+			this.elements.nameInput.focus();
 		}
 
 		// Reset equipment radios
