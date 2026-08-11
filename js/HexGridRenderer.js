@@ -1,4 +1,5 @@
 import { GAME_CONSTANTS, FACTIONS, ENGAGEMENT_BORDER, hexKey, isFlanking } from "./const.js";
+import { areHostile } from "./utils.js";
 import { GAME_STATES, COMBAT_ACTIONS } from "./GameStateManager.js";
 
 export class HexGridRenderer {
@@ -321,22 +322,31 @@ export class HexGridRenderer {
             this.drawFactionBorders(ctx, hexPoints, q, r, characterHere);
         }
 
-        // Draw hover highlight for valid adjacent hexes during combat input
+        // Draw hover highlight for valid adjacent hexes during combat input.
+        // The cue follows the mode: attack mode gets the red dashed outline, so
+        // the hover matches the Enter-repeat preview and the blue never implies
+        // a move the click will not make.
         if (
             this.gameStateManager.currentState === GAME_STATES.COMBAT_INPUT &&
             !this.gameStateManager.characterActions.has(this.game.pc)
         ) {
             const hoveredHex = this.inputHandler?.hoveredHex;
             if (hoveredHex && hoveredHex.q === q && hoveredHex.r === r) {
-                // Check if this is a valid adjacent hex (distance 1 from player, unoccupied, not blocked)
                 const pcHex = { q: this.game.pc.hexQ, r: this.game.pc.hexR };
                 const distance = this.hexGrid.hexDistance(pcHex, { q, r });
-                const isOccupied = this.getCharacterAtHex(q, r);
+                const occupant = this.getCharacterAtHex(q, r);
                 const isBlocked = this.pathfinding?.blockedHexes?.has(
                     hexKey(q, r),
                 );
 
-                if (distance === 1 && !isOccupied && !isBlocked) {
+                if (this.combatInputHandler?.attackModeActive) {
+                    // Mirrors selectPlayerAttackTarget: adjacent, and not a body.
+                    // An empty hex stays valid — that is a lead. Corpses get the
+                    // orange X from drawCombatOverlays() instead.
+                    if (distance === 1 && !occupant?.isDefeated) {
+                        this.drawAttackTargetHex(ctx, hexPoints);
+                    }
+                } else if (distance === 1 && !occupant && !isBlocked) {
                     this.drawHoverHex(ctx, hexPoints);
                 }
             }
@@ -347,7 +357,7 @@ export class HexGridRenderer {
         if (this.gameStateManager.canRepeatLastAttack()) {
             const repeatTarget = this.gameStateManager.playerLastAttackAction.target;
             if (repeatTarget.q === q && repeatTarget.r === r) {
-                this.drawRepeatAttackHex(ctx, hexPoints);
+                this.drawAttackTargetHex(ctx, hexPoints);
             }
         }
 
@@ -373,7 +383,11 @@ export class HexGridRenderer {
         // Fill hex with very transparent faction color
         this._drawHexPath(ctx, hexPoints, factionData.tintColor + "25");
 
-        // Check for adjacent different factions
+        // Only hostile neighbours get a shared edge. A different faction is not
+        // enough — a guard at your shoulder must look exactly like your companion
+        // there, because neither is a threat. Corpses are excluded for the same
+        // reason: a body cannot swing at you.
+        const roster = this._roster();
         const adjacentDirs = [
             [1, 0],
             [0, 1],
@@ -387,7 +401,8 @@ export class HexGridRenderer {
         adjacentDirs.forEach((dir, edgeIndex) => {
             const [dq, dr] = dir;
             const adjCharacter = this.getCharacterAtHex(q + dq, r + dr);
-            if (adjCharacter && adjCharacter.faction !== character.faction) {
+            if (adjCharacter && !adjCharacter.isDefeated
+                && areHostile(character, adjCharacter, roster)) {
                 sharedEdges.push(edgeIndex);
             }
         });
@@ -410,6 +425,7 @@ export class HexGridRenderer {
             const startPoint = flip ? b : a;
             const endPoint = flip ? a : b;
 
+            // Hostility is already established — sharedEdges only holds enemies
             const iHoldAdvantage = this.holdsFlankAdvantage(character, adjCharacter);
             const theyHoldAdvantage = this.holdsFlankAdvantage(adjCharacter, character);
 
@@ -445,6 +461,14 @@ export class HexGridRenderer {
             ctx.lineWidth = ENGAGEMENT_BORDER.EDGE_WIDTH;
             ctx.stroke();
         });
+    }
+
+    /**
+     * Every character on the board, living and dead. Corpses are included on
+     * purpose: a grudge lives on the body that earned it (see AISystem).
+     */
+    _roster() {
+        return [this.game.pc, ...(this.game.npcs || [])].filter(Boolean);
     }
 
     /**
@@ -552,12 +576,13 @@ export class HexGridRenderer {
     }
 
     /**
-     * Preview of the hex Enter would attack.
+     * Preview of a hex an attack would land on — both the Enter-repeat target
+     * and the hovered hex while attack mode is armed.
      * Dashed so it reads as "available" rather than the solid outline of a
      * committed selection, and red to distinguish it from move-target blues.
      * Outline only — no fill, so the hex keeps whatever faction tint it owns.
      */
-    drawRepeatAttackHex(ctx, hexPoints) {
+    drawAttackTargetHex(ctx, hexPoints) {
         ctx.save();
         ctx.setLineDash([6, 5]);
         this._drawHexPath(ctx, hexPoints, null, "rgba(211, 47, 47, 0.8)", 2);

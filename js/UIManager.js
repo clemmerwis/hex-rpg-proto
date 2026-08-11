@@ -1,4 +1,4 @@
-import { GAME_STATES } from './GameStateManager.js';
+import { GAME_STATES, isKnockedDown } from './GameStateManager.js';
 
 /**
  * UIManager - Handles all DOM manipulation and UI updates
@@ -100,8 +100,15 @@ export class UIManager {
 			elements.combatInfo.style.display = 'block';
 
 			elements.currentTurn.textContent = gameStateManager.turnNumber;
-			elements.activeCharacter.textContent = gameStateManager.characterActions.has(gameState.pc)
-				? 'Action Chosen' : 'Choose Action';
+			// While prone, move and attack are both rejected and the attack-mode
+			// keys are swallowed — say so, or the input just feels broken
+			if (gameStateManager.characterActions.has(gameState.pc)) {
+				elements.activeCharacter.textContent = 'Action Chosen';
+			} else if (isKnockedDown(gameState.pc)) {
+				elements.activeCharacter.textContent = 'Knocked Down - Space to stand';
+			} else {
+				elements.activeCharacter.textContent = 'Choose Action';
+			}
 
 			const enemyCount = gameState.npcs.filter(npc => npc.faction === 'bandit' && !npc.isDefeated).length;
 			elements.enemyCount.textContent = enemyCount;

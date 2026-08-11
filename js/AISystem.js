@@ -1,4 +1,4 @@
-import { ARMOR_TYPES, hexKey } from './const.js';
+import { ARMOR_TYPES, CONDITIONS, hexKey } from './const.js';
 
 export class AISystem {
     constructor(hexGrid, getCharacterAtHex, pathfinding, logger) {
@@ -62,6 +62,14 @@ export class AISystem {
      *   here via isDefeated filters.
      */
     getAIAction(character, allCharacters) {
+        // Prone overrides everything — a knocked-down character can neither move
+        // nor swing, so the round goes on getting up. Without this branch a downed
+        // NPC would declare attacks that CombatExecutor cancels, and never rise.
+        if (character.conditions?.has(CONDITIONS.KNOCKDOWN)) {
+            this.logger.debug(`[AI] ${character.name} is knocked down - standing up`);
+            return { action: 'stand', target: null };
+        }
+
         const livingChars = allCharacters.filter(c => !c.isDefeated && c !== character);
 
         // Get enemies shared across faction

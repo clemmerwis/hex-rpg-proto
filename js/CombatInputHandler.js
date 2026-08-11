@@ -1,4 +1,4 @@
-import { GAME_STATES } from './GameStateManager.js';
+import { GAME_STATES, isKnockedDown } from './GameStateManager.js';
 import { rotateFacing } from './const.js';
 
 export class CombatInputHandler {
@@ -48,12 +48,25 @@ export class CombatInputHandler {
      * @returns {boolean} true if event was consumed
      */
     handleCombatKeyDown(e) {
-        // Space (no shift): skip turn if player hasn't acted
+        // Space (no shift): stand up if prone, otherwise skip the turn.
+        // Getting up is the only useful thing a prone character can do, so Space
+        // carries it rather than introducing a binding that is dead 99% of the time.
         if (e.key === ' ' && !e.shiftKey) {
             e.preventDefault();
             if (!this.gameStateManager.characterActions.has(this.game.pc)) {
-                this.gameStateManager.skipPlayerTurn();
+                if (isKnockedDown(this.game.pc)) {
+                    this.gameStateManager.standPlayerUp();
+                } else {
+                    this.gameStateManager.skipPlayerTurn();
+                }
             }
+            return true;
+        }
+
+        // Attacking is off the table while prone — swallow the attack-mode keys
+        // rather than arming a mode whose every click would silently fail
+        if ((e.key === '1' || e.key === '2') && isKnockedDown(this.game.pc)) {
+            e.preventDefault();
             return true;
         }
 

@@ -1,4 +1,4 @@
-import { GAME_CONSTANTS, calculateMoveSpeed, calculateActionSpeed, getSpeedTier, calculateInitiative, getFacingFromDelta, calculateAttackTiming, ARMOR_TYPES } from './const.js';
+import { GAME_CONSTANTS, calculateMoveSpeed, calculateActionSpeed, getSpeedTier, calculateInitiative, getFacingFromDelta, calculateAttackTiming, ARMOR_TYPES, CONDITIONS } from './const.js';
 import { makeEnemies } from './utils.js';
 
 export class CombatExecutor {
@@ -195,18 +195,35 @@ export class CombatExecutor {
     }
 
     /**
-     * Execute all ATTACK actions after moves, sorted by speed
+     * Execute all ATTACK and STAND actions after moves, sorted by speed
+     * Standing up resolves here rather than in the move phase because it costs
+     * the action, and it has to take its place in speed order among the swings
+     * it is racing — a fast attacker can still put you back down first.
      */
     executeActionPhase() {
-        // Filter characters with ATTACK actions, sort by speed
-        const attackers = this.executionQueue.filter(char => {
+        const actors = this.executionQueue.filter(char => {
             const action = this.characterActions.get(char);
-            return action && action.action === 'attack';
+            return action && (action.action === 'attack' || action.action === 'stand');
         });
-        this.actionQueue = this.sortBySpeed(attackers, 'action', this.characterActions);
+        this.actionQueue = this.sortBySpeed(actors, 'action', this.characterActions);
         this.currentActionIndex = 0;
 
         this.executeNextAttack();
+    }
+
+    /**
+     * Spend the action getting up — clears the knockdown and drops the held
+     * death pose that CombatSystem.applyKnockdown() borrowed for it.
+     */
+    executeStandUp(character) {
+        character.conditions?.delete(CONDITIONS.KNOCKDOWN);
+        character.animationFrame = 0;
+        character.animationTimer = 0;
+        character.currentAnimation = 'idle';
+
+        const standSpeed = calculateActionSpeed(character, 'light');
+        const tier = getSpeedTier(standSpeed).tier;
+        this.logger.combat(`{{char:${character.name}}}: Stands up {{spd}}[${standSpeed} T${tier}]{{/spd}}`);
     }
 
     executeNextAttack() {
@@ -233,9 +250,51 @@ export class CombatExecutor {
 
         const action = this.characterActions.get(character);
 
+        // Getting up consumes the whole action — no swing follows it
+        if (action.action === 'stand') {
+            this.executeStandUp(character);
+            this.currentActionIndex++;
+            this.executeNextAttack();
+            return;
+        }
+
+        // Knocked down after this attack was declared but before it resolved.
+        // The swing never happens — landing a knockdown on someone faster than
+        // you is how you deny their action outright, which is the whole point of
+        // the condition. Handled here for the same reason as the vacated-target
+        // case below: skipping inside the windup timer would still play a full
+        // visible swing that happens to deal nothing.
+        if (character.conditions?.has(CONDITIONS.KNOCKDOWN)) {
+            const denied = this.combatSystem.formatAttackTypeName(
+                character.equipment.mainHand, action.attackType || 'light');
+            this.logger.combat(`{{char:${character.name}}}: ${denied} {{blocked}} - knocked down before the swing`);
+            this.currentActionIndex++;
+            this.executeNextAttack();
+            return;
+        }
+
         // Get whoever is NOW at the target hex (may be different from original target!)
         // Attacks hit whoever is on the hex, even allies (accidents happen)
         const targetChar = this.getCharacterAtHex(action.target.q, action.target.r);
+
+        // A regular attack whose target vacated during the move phase is called
+        // off outright — no turn, no swing, no whiff. Only a lead (declared at an
+        // empty hex on purpose) commits to striking open ground.
+        //
+        // This has to happen HERE rather than inside the windup timer below.
+        // Facing and the attack animation are the only parts of an attack the
+        // player can actually see, so running them and then skipping the damage
+        // still reads as a full swing. Skipping the turn also matters mechanically
+        // now that facing is worth FLANK_THC_BONUS to whoever ends up behind you —
+        // an action that was never performed must not reposition you.
+        if (!targetChar && action.wasOccupied) {
+            const calledOff = this.combatSystem.formatAttackTypeName(
+                character.equipment.mainHand, action.attackType || 'light');
+            this.logger.combat(`{{char:${character.name}}}: ${calledOff} {{blocked}} - target left the hex`);
+            this.currentActionIndex++;
+            this.executeNextAttack();
+            return;
+        }
 
         // Face the target hex regardless of whether target is there
         const targetPixel = this.hexGrid.hexToPixel(action.target.q, action.target.r);
@@ -249,14 +308,9 @@ export class CombatExecutor {
         character.currentAnimation = 'attack';
 
         setTimeout(() => {
-            if (!targetChar && action.wasOccupied) {
-                // Regular attack whose target left the hex during the move phase.
-                // Not a swing — you do not hack at empty air where someone used
-                // to be. Costs the round but nothing else, and once Stamina lands
-                // this is the branch that must not charge for it.
-                this.logger.combat(`{{char:${character.name}}}: target left the hex - attack {{blocked}}`);
-            } else if (!targetChar) {
-                // Lead: aimed at open ground on purpose and nobody arrived
+            if (!targetChar) {
+                // Only leads reach here — a vacated regular attack returned above.
+                // Aimed at open ground on purpose and nobody arrived.
                 this.combatSystem.handleWhiff(character, action.target, character.equipment.mainHand, action.attackType || 'light');
             } else if (targetChar === character) {
                 // Can't hit yourself

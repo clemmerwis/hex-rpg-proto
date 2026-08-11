@@ -1,4 +1,4 @@
-import { calculateDamage, calculateAttackRating, calculateDefenseRating, calculateCSC, getEquipmentBonus, calculateActionSpeed, getSpeedTier, WEAPONS, ARMOR_TYPES, ATTACK_TYPES, STAT_BONUSES, COMBAT_MODIFIERS, DAMAGE_TYPE_PROPERTIES, isFlanking, getFacingFromDelta } from './const.js';
+import { calculateDamage, calculateAttkR, calculateDefR, calculateCSC, getEquipmentBonus, getCritMultiplier, calculateActionSpeed, getSpeedTier, WEAPONS, ARMOR_TYPES, ATTACK_TYPES, STAT_BONUSES, COMBAT_MODIFIERS, CONDITIONS, DAMAGE_TYPE_PROPERTIES, isFlanking, getFacingFromDelta } from './const.js';
 
 export class CombatSystem {
     constructor(hexGrid, getCharacterAtHex, gameStateManager, logger) {
@@ -20,13 +20,18 @@ export class CombatSystem {
      *     which spends it on THC
      *  6. Resolve hit roll (resolveHitRoll) → handleMiss() if miss
      *  7. Get weapon/armor, calculate base damage (calculateDamage)
-     *  8. Apply resistance modifier (applyResistanceModifier)
-     *  9. Apply armor DR, scaled by flanking (applyDR)
-     * 10. Apply crit modifier (applyCritModifier)
-     * 11. Build and emit combat log (buildDamageBreakdown, buildCombatLogLines)
-     * 12. Apply damage through buffer (applyDamage)
-     * 13. Log damage application (logDamageApplication)
-     * 14. Return hit result (handleHitResult)
+     *  8. Roll for crit (rollCrit) — rolled HERE, before ADR, because a concussive
+     *     crit decides whether armor ADR applies at all. The damage multiplier is
+     *     still applied last, at step 11.
+     *  9. Apply resistance modifier (applyResistanceModifier)
+     * 10. Apply armor ADR, scaled by flanking (applyADR) — skipped entirely when
+     *     step 8 crit on a bypassADROnCrit damage type
+     * 11. Apply crit damage multiplier (applyCritDamage)
+     * 12. Build and emit combat log (buildDamageBreakdown, buildCombatLogLines)
+     * 13. Apply damage through buffer (applyDamage)
+     * 14. Log damage application (logDamageApplication)
+     * 15. Return hit result (handleHitResult)
+     * 16. Knock the defender down if the crit carried that effect (applyKnockdown)
      */
     executeAttack(attacker, targetHex, attackType = 'light') {
         // 1. Face target
@@ -41,38 +46,47 @@ export class CombatSystem {
         const attackTypeName = this.formatAttackTypeName(weaponKey, attackType);
         const friendlyFire = defender.faction === attacker.faction;
         if (friendlyFire) this.logger.warn(`[FRIENDLY FIRE WARNING] ${attacker.name} attacks ally ${defender.name}!`);
-        // 5. Determine flanking (feeds both the hit roll and armor DR below)
+        // 5. Determine flanking (feeds both the hit roll and armor ADR below)
         const { flanking } = this.determineFlanking(attacker, defender);
         // 6. Resolve hit roll → miss if failed
-        const { hit, thc, thcRoll } = this.resolveHitRoll(attacker, defender, flanking);
-        if (!hit) return this.handleMiss(attacker, defender, attackTypeName, { thc, thcRoll }, attackType, flanking);
+        const { hit, thc, thcRoll, prone } = this.resolveHitRoll(attacker, defender, flanking);
+        if (!hit) return this.handleMiss(attacker, defender, attackTypeName, { thc, thcRoll }, attackType, flanking, prone);
         // 7. Get weapon and armor, calculate base damage
         const weapon = WEAPONS[weaponKey];
         const armor = ARMOR_TYPES[defender.equipment.armor || "none"];
         let damage = calculateDamage(attacker.stats, weaponKey, attackType);
         const baseDamage = damage;
-        // 8. Apply resistance/vulnerability
+        // 8. Roll for crit up front — a bypassing crit cancels ADR below
+        const { crit, csc, cscRoll } = this.rollCrit(attacker, defender);
+        // 9. Apply resistance/vulnerability
         let resistMod;
         ({ damage, resistMod } = this.applyResistanceModifier(damage, weapon, armor, attackType));
         const damageAfterResist = damage;
-        // 9. Apply armor DR, scaled by flanking
-        let effectiveDR, drAbsorbed;
-        ({ effectiveDR, drAbsorbed, damage } = this.applyDR(damage, armor, flanking));
-        const damageAfterDR = damage;
-        // 10. Apply crit modifier
-        let crit, csc, cscRoll;
-        ({ crit, csc, cscRoll, damage } = this.applyCritModifier(attacker, defender, damage));
+        // 10. Apply armor ADR, scaled by flanking (skipped on a bypassing crit)
+        const typeProps = DAMAGE_TYPE_PROPERTIES[weapon.type] || {};
+        const adrBypassed = crit && !!typeProps.bypassADROnCrit;
+        let effectiveADR, adrAbsorbed;
+        ({ effectiveADR, adrAbsorbed, damage } = this.applyADR(damage, armor, flanking, adrBypassed));
+        const damageAfterADR = damage;
+        // 11. Apply crit damage multiplier — still last, so it scales what survived ADR
+        damage = this.applyCritDamage(attacker, damage, crit);
         const finalDamage = damage;
-        // 11. Build and emit combat log
-        const breakdown = this.buildDamageBreakdown(attacker, attackType, weapon, armor, baseDamage, damageAfterResist, resistMod, effectiveDR, flanking, drAbsorbed, damageAfterDR, crit, finalDamage, defender);
+        // 12. Build and emit combat log
+        const breakdown = this.buildDamageBreakdown(attacker, attackType, weapon, armor, baseDamage, damageAfterResist, resistMod, effectiveADR, flanking, adrAbsorbed, damageAfterADR, crit, finalDamage, defender, adrBypassed);
         const actionSpeed = calculateActionSpeed(attacker, attackType);
         const spdTip = this.buildActionSpeedTip(attacker, attackType);
-        this.buildCombatLogLines(attacker, defender, attackTypeName, thc, thcRoll, crit, flanking, friendlyFire, csc, cscRoll, breakdown, actionSpeed, spdTip).forEach(line => this.logger.combat(line));
-        // 12. Apply damage through buffer  13. Log damage application
+        this.buildCombatLogLines(attacker, defender, attackTypeName, thc, thcRoll, crit, flanking, friendlyFire, csc, cscRoll, breakdown, actionSpeed, spdTip, prone).forEach(line => this.logger.combat(line));
+        // 13. Apply damage through buffer  14. Log damage application
         const damageResult = this.applyDamage(attacker, defender, damage);
         this.logDamageApplication(defender, attacker, damageResult);
-        // 14. Return hit result
-        return this.handleHitResult(attacker, defender, finalDamage, crit, flanking);
+        // 15. Return hit result
+        const hitResult = this.handleHitResult(attacker, defender, finalDamage, crit, flanking);
+        // 16. Knockdown — after handleHitResult so the prone pose overrides the
+        //     impact animation it just set
+        if (!hitResult.defenderDefeated) {
+            hitResult.knockdown = this.applyKnockdown(defender, weapon, crit);
+        }
+        return hitResult;
     }
 
     /**
@@ -143,19 +157,30 @@ export class CombatSystem {
      * Returns { hit, thc, thcRoll }
      */
     resolveHitRoll(attacker, defender, flanking = false) {
-        const attackRating = calculateAttackRating(attacker);
-        const defenseRating = calculateDefenseRating(defender);
+        const attkR = calculateAttkR(attacker);
+        let defR = calculateDefR(defender);
+
+        // A prone defender keeps only KNOCKDOWN_DR_MULT of its Defense Rating
+        // against adjacent melee. Applied here rather than inside
+        // calculateDefR() because that function only sees the defender,
+        // and the "from adjacent melee" qualifier needs the attacker — a no-op
+        // distinction today (every attack is adjacent melee) that starts mattering
+        // the moment ranged attacks exist.
+        const prone = defender.conditions?.has(CONDITIONS.KNOCKDOWN) ?? false;
+        if (prone) {
+            defR = Math.floor(defR * COMBAT_MODIFIERS.KNOCKDOWN_DR_MULT);
+        }
 
         // Calculate to-hit chance as integer percentage (0-100%)
         const evasionBonus = getEquipmentBonus(defender, 'evasionBonus');
         const flankBonus = flanking ? COMBAT_MODIFIERS.FLANK_THC_BONUS : 0;
-        const thc = Math.max(0, Math.min(100, attackRating - defenseRating + (50 - evasionBonus) + flankBonus));
+        const thc = Math.max(0, Math.min(100, attkR - defR + (50 - evasionBonus) + flankBonus));
 
         // Roll d100 (1-100), hit if roll <= THC — THC% of rolls land in the hit band
         const thcRoll = Math.floor(Math.random() * 100) + 1;
         const hit = thcRoll <= thc;
 
-        return { hit, thc, thcRoll };
+        return { hit, thc, thcRoll, prone };
     }
 
     /**
@@ -179,45 +204,77 @@ export class CombatSystem {
     }
 
     /**
-     * Apply armor DR (flat damage reduction, before crit)
-     * Flanking scales the armor's DR by its flankingDefense multiplier
-     * Returns { effectiveDR, drAbsorbed, damage: damageAfterDR }
+     * Apply Armor Damage Reduction (flat, before crit)
+     * Flanking scales the armor's ADR by its flankingDefense multiplier
+     * adrBypassed short-circuits it entirely — a crit that landed inside the guard
+     * Returns { effectiveADR, adrAbsorbed, damage: damageAfterADR }
      */
-    applyDR(damage, armor, flanking) {
-        let effectiveDR = armor.defense;
-        if (flanking) {
-            effectiveDR = Math.floor(armor.defense * armor.flankingDefense);
+    applyADR(damage, armor, flanking, adrBypassed = false) {
+        if (adrBypassed) {
+            return { effectiveADR: 0, adrAbsorbed: 0, damage };
         }
 
-        const drAbsorbed = Math.min(damage, effectiveDR);
-        damage = Math.max(0, damage - effectiveDR);
+        let effectiveADR = armor.adr;
+        if (flanking) {
+            effectiveADR = Math.floor(armor.adr * armor.flankingDefense);
+        }
 
-        return { effectiveDR, drAbsorbed, damage };
+        const adrAbsorbed = Math.min(damage, effectiveADR);
+        damage = Math.max(0, damage - effectiveADR);
+
+        return { effectiveADR, adrAbsorbed, damage };
     }
 
     /**
-     * Roll for critical hit and apply crit damage multiplier
-     * Has a random roll (d100) so not deterministic, but isolated
-     * Returns { crit, csc, cscRoll, damage: finalDamage }
+     * Roll for a critical hit. Split from the damage multiplier because the crit
+     * result is needed BEFORE armor ADR (a bypassADROnCrit type skips ADR entirely)
+     * while the multiplier still has to land after it.
+     * Has a random roll (d100) so not deterministic, but isolated.
+     * Returns { crit, csc, cscRoll }
      */
-    applyCritModifier(attacker, defender, damage) {
-        // Roll d100 for critical hit (CSC is integer percentage 0-100%), crit if roll <= CSC
+    rollCrit(attacker, defender) {
+        // CSC is an integer percentage 0-100%; crit if roll <= CSC
         const csc = calculateCSC(attacker, defender);
         const cscRoll = Math.floor(Math.random() * 100) + 1;
-        const crit = cscRoll <= csc;
+        return { crit: cscRoll <= csc, csc, cscRoll };
+    }
 
-        if (crit) {
-            // Critical hit: 1.5x damage (applied last in pipeline)
-            damage = Math.floor(damage * 1.5);
+    /**
+     * Apply the crit damage multiplier — the last step in the damage pipeline.
+     * getCritMultiplier() resolves equipment override vs the CRIT_DAMAGE_MULT
+     * default; the floor keeps a fractional multiplier from leaking into HP.
+     * Pure calculation — no side effects
+     */
+    applyCritDamage(attacker, damage, crit) {
+        if (!crit) return damage;
+        return Math.floor(damage * getCritMultiplier(attacker));
+    }
 
-            // Apply crit multiplier from equipment passives (if any)
-            const critMult = getEquipmentBonus(attacker, 'critMultiplier');
-            if (critMult > 0) {
-                damage *= critMult;
-            }
-        }
+    /**
+     * Knock the defender down on a crit from a weapon carrying the knockdown
+     * effect. There is deliberately no second roll — the crit IS the roll, since
+     * unarmed already pays critMod -15 to get here (~6% for an even matchup).
+     * A prone character spends its next action standing up and defends at
+     * COMBAT_MODIFIERS.KNOCKDOWN_DR_MULT until it does.
+     * Returns true if the condition was newly applied.
+     */
+    applyKnockdown(defender, weapon, crit) {
+        if (!crit) return false;
+        if (!weapon.effects?.includes(CONDITIONS.KNOCKDOWN)) return false;
+        if (defender.isDefeated || defender.health <= 0) return false;
+        if (defender.conditions.has(CONDITIONS.KNOCKDOWN)) return false;
 
-        return { crit, csc, cscRoll, damage };
+        defender.conditions.add(CONDITIONS.KNOCKDOWN);
+
+        // Borrow the death pose until there is a dedicated prone sprite.
+        // MovementSystem.updateCharacterAnimation() holds it on the final frame
+        // for prone characters exactly as it does for the dead.
+        defender.currentAnimation = 'die';
+        defender.animationFrame = 0;
+        defender.animationTimer = 0;
+
+        this.logger.combat(`    → {{char:${defender.name}}} is {{knockdown}} - next action is spent standing up`);
+        return true;
     }
 
     /**
@@ -277,9 +334,9 @@ export class CombatSystem {
     /**
      * Build the detailed damage breakdown string with semantic tokens
      * Pure string building — references STAT_BONUSES, ATTACK_TYPES for formula display
-     * Returns the complete breakdown: base {{tip}} → resist/vuln → DR → crit
+     * Returns the complete breakdown: base {{tip}} → resist/vuln → ADR → crit
      */
-    buildDamageBreakdown(attacker, attackType, weapon, armor, baseDamage, damageAfterResist, resistMod, effectiveDR, flanking, drAbsorbed, damageAfterDR, crit, finalDamage, defender) {
+    buildDamageBreakdown(attacker, attackType, weapon, armor, baseDamage, damageAfterResist, resistMod, effectiveADR, flanking, adrAbsorbed, damageAfterADR, crit, finalDamage, defender, adrBypassed = false) {
         const strMult = STAT_BONUSES.MULTIPLIER[attacker.stats.str] ?? 1;
         const strBonus = Math.ceil(weapon.force * strMult);
         const attackMod = ATTACK_TYPES[attackType]?.damageMod || 0;
@@ -293,7 +350,7 @@ export class CombatSystem {
         baseFormula += ` + (str_multiplier: ${strMult} x ${weaponName}_force: ${weapon.force})`;
         let breakdown = `{{tip:${baseFormula}}}{{dmg}}${baseDamage}{{/dmg}}{{/tip}}`;
 
-        // Resist/Vuln modifier (applied before DR)
+        // Resist/Vuln modifier (applied before ADR)
         if (resistMod === "resistant") {
             breakdown += ` -> Resist: {{resist}}x0.5{{/resist}} = {{dmg}}${damageAfterResist}{{/dmg}}`;
         } else if (resistMod === "vulnerable") {
@@ -302,16 +359,19 @@ export class CombatSystem {
             breakdown += ` -> Vuln+: {{vuln}}x${attackType === "heavy" ? "2.5" : "2.0"}{{/vuln}} = {{dmg}}${damageAfterResist}{{/dmg}}`;
         }
 
-        // DR modifier with armor name
-        if (effectiveDR > 0) {
-            const armorKey = defender.equipment.armor || "none";
-            breakdown += ` -> {{armor:${armorKey}}} DR({{dr}}-${effectiveDR}{{/dr}})`;
+        // ADR modifier with armor name — or the bypass notice when the crit went
+        // inside the guard. Only worth saying when there was ADR to bypass.
+        const armorKey = defender.equipment.armor || "none";
+        if (adrBypassed && armor.adr > 0) {
+            breakdown += ` -> {{armor:${armorKey}}} ADR({{adr_bypassed}}bypassed{{/adr_bypassed}})`;
+        } else if (effectiveADR > 0) {
+            breakdown += ` -> {{armor:${armorKey}}} ADR({{adr}}-${effectiveADR}{{/adr}})`;
             if (flanking) breakdown += ` (flanked ${Math.round(armor.flankingDefense * 100)}%)`;
-            breakdown += ` = {{dmg}}${damageAfterDR}{{/dmg}}`;
+            breakdown += ` = {{dmg}}${damageAfterADR}{{/dmg}}`;
         }
 
-        // Crit modifier (applied last, after DR)
-        if (crit) breakdown += ` -> Crit: x1.5 = {{dmg}}${finalDamage}{{/dmg}}`;
+        // Crit modifier (applied last, after ADR)
+        if (crit) breakdown += ` -> Crit: x${getCritMultiplier(attacker)} = {{dmg}}${finalDamage}{{/dmg}}`;
 
         return breakdown;
     }
@@ -321,12 +381,14 @@ export class CombatSystem {
      * Pure string building — no side effects
      * Returns array of log strings: header (with tags), optional CSC line, damage breakdown line
      */
-    buildCombatLogLines(attacker, defender, attackTypeName, thc, thcRoll, crit, flanking, friendlyFire, csc, cscRoll, damageBreakdown, actionSpeed, spdTip) {
+    buildCombatLogLines(attacker, defender, attackTypeName, thc, thcRoll, crit, flanking, friendlyFire, csc, cscRoll, damageBreakdown, actionSpeed, spdTip, prone = false) {
         let logParts = [];
         const spdTier = getSpeedTier(actionSpeed).tier;
         logParts.push(`{{char:${attacker.name}}}: ${attackTypeName} {{char:${defender.name}}} (THC= {{thc}}${thc}%{{/thc}}, Roll= {{roll}}${thcRoll}{{/roll}}, {{hit}}) {{tip:${spdTip}}}{{spd}}[${actionSpeed} T${spdTier}]{{/spd}}{{/tip}}`);
         if (crit) logParts.push("{{critical}}");
         if (flanking) logParts.push("{{flanking}}");
+        // Prone inflated the THC above, same as flanking — tag it or the number reads as unexplained
+        if (prone) logParts.push("{{prone}}");
         if (friendlyFire) logParts.push("{{friendlyFire}}");
 
         const lines = [];
@@ -379,7 +441,7 @@ export class CombatSystem {
      * Logs the miss message with THC/roll data and returns the miss result object
      * Returns { hit: false, damage: 0, crit: false, defenderDefeated: false }
      */
-    handleMiss(attacker, defender, attackTypeName, hitResult, attackType = 'light', flanking = false) {
+    handleMiss(attacker, defender, attackTypeName, hitResult, attackType = 'light', flanking = false, prone = false) {
         const { thc, thcRoll } = hitResult;
         const actionSpeed = calculateActionSpeed(attacker, attackType);
         const spdTip = this.buildActionSpeedTip(attacker, attackType);
@@ -388,6 +450,7 @@ export class CombatSystem {
         // Flanking already inflated the THC above. Tag it here too, or the
         // number reads as unexplained on the one line that shows no damage.
         if (flanking) logParts.push("{{flanking}}");
+        if (prone) logParts.push("{{prone}}");
         this.logger.combat(logParts.join(" "));
         return { hit: false, damage: 0, crit: false, defenderDefeated: false };
     }

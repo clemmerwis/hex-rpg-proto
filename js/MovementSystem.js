@@ -1,4 +1,4 @@
-import { GAME_CONSTANTS, getAnimationConfig, getFacingFromDelta } from './const.js';
+import { GAME_CONSTANTS, CONDITIONS, getAnimationConfig, getFacingFromDelta } from './const.js';
 
 
 export class MovementSystem {
@@ -161,8 +161,11 @@ export class MovementSystem {
 
     // Update animation for a specific character
     updateCharacterAnimation(character, deltaTime) {
-        // Hold death animation on final frame
-        if (character.isDefeated && character.currentAnimation === 'die') {
+        // Hold the death pose on its final frame — for the dead, and for the merely
+        // prone, who borrow the same animation until there is a knocked-down sprite.
+        // Only the health bar tells the two apart on screen right now.
+        const prone = character.conditions?.has(CONDITIONS.KNOCKDOWN) ?? false;
+        if ((character.isDefeated || prone) && character.currentAnimation === 'die') {
             const dieConfig = this.getAnimConfigForCharacter(character, 'die');
             if (dieConfig) {
                 character.animationFrame = dieConfig.frameCount - 1; // Hold on last frame

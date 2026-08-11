@@ -1,5 +1,5 @@
 import { AISystem } from './AISystem.js';
-import { hexKey, getFacingFromDelta } from './const.js';
+import { hexKey, getFacingFromDelta, CONDITIONS } from './const.js';
 
 export const GAME_STATES = {
     EXPLORATION: 'exploration',
@@ -11,8 +11,19 @@ export const GAME_STATES = {
 export const COMBAT_ACTIONS = {
     MOVE: 'move',
     WAIT: 'wait',
-    ATTACK: 'attack'
+    ATTACK: 'attack',
+    // Spent by a knocked-down character to clear CONDITIONS.KNOCKDOWN. Resolves
+    // in the action phase alongside attacks — getting up costs you the round.
+    STAND: 'stand'
 };
+
+/**
+ * Is this character knocked down? Prone characters can neither move nor attack;
+ * STAND is their only useful action.
+ */
+export function isKnockedDown(character) {
+    return character.conditions?.has(CONDITIONS.KNOCKDOWN) ?? false;
+}
 
 export class GameStateManager {
     constructor(game, hexGrid, getCharacterAtHex, movementSystem, combatSystem, pathfinding, logger, gameInstance, combatExecutor, engagementManager) {
@@ -110,7 +121,9 @@ export class GameStateManager {
         // Stop any current movement
         this.game.pc.isMoving = false;
         this.game.pc.movementQueue = [];
-        if (!this.game.pc.isDefeated) {
+        // A prone PC keeps the held death pose — snapping to idle here would make
+        // them look like they had already stood up, for free
+        if (!this.game.pc.isDefeated && !isKnockedDown(this.game.pc)) {
             this.game.pc.currentAnimation = 'idle';
         }
 
@@ -201,6 +214,10 @@ export class GameStateManager {
             }
         });
 
+        // Clear conditions (knockdown does not survive the fight that caused it)
+        this.game.pc.conditions?.clear();
+        this.game.npcs.forEach(npc => npc.conditions?.clear());
+
         // Clear engagement tracking
         this.engagementManager.clearAllEngagements(this.game.pc, this.game.npcs);
 
@@ -256,9 +273,29 @@ export class GameStateManager {
         return true;
     }
 
+    /**
+     * Spend the round getting back up. Bound to the same key as skip/wait —
+     * while prone that is the only thing worth doing, so Space means "stand"
+     * rather than "wait" and the player never has to learn a second binding.
+     */
+    standPlayerUp() {
+        if (this.currentState !== GAME_STATES.COMBAT_INPUT) return false;
+        if (this.characterActions.has(this.game.pc)) return false; // Already chosen
+        if (!isKnockedDown(this.game.pc)) return false;
+
+        this.setCharacterAction(this.game.pc, {
+            action: COMBAT_ACTIONS.STAND,
+            target: null
+        });
+
+        this.processAITurns();
+        return true;
+    }
+
     selectPlayerMoveTarget(hexQ, hexR) {
         if (this.currentState !== GAME_STATES.COMBAT_INPUT) return false;
         if (this.characterActions.has(this.game.pc)) return false; // Already chosen
+        if (isKnockedDown(this.game.pc)) return false; // Stand up first
 
         // Check if hex is adjacent to player
         const distance = this.hexGrid.hexDistance(
@@ -300,6 +337,7 @@ export class GameStateManager {
     selectPlayerAttackTarget(hexQ, hexR) {
         if (this.currentState !== GAME_STATES.COMBAT_INPUT) return false;
         if (this.characterActions.has(this.game.pc)) return false; // Already chosen
+        if (isKnockedDown(this.game.pc)) return false; // Stand up first
 
         // Check if hex is adjacent to player
         const distance = this.hexGrid.hexDistance(
@@ -377,6 +415,7 @@ export class GameStateManager {
     canRepeatLastAttack() {
         if (this.currentState !== GAME_STATES.COMBAT_INPUT) return false;
         if (this.game.pc.isDefeated) return false;
+        if (isKnockedDown(this.game.pc)) return false;
         if (this.characterActions.has(this.game.pc)) return false;
 
         const last = this.playerLastAttackAction;

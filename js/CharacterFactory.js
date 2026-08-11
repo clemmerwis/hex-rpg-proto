@@ -99,6 +99,9 @@ export class CharacterFactory {
 		character.enemies = new Set();
 		character.engagedBy = new Set();
 		character.hpBufferByAttacker = new Map();
+		// Active conditions, keyed by CONDITIONS.* (currently only knockdown).
+		// Cleared wholesale by GameStateManager.exitCombat().
+		character.conditions = new Set();
 
 		// Calculate health properties from stats (immediate, not deferred)
 		character.maxHealth = calculateMaxHP(character.stats);
