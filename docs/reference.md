@@ -13,7 +13,10 @@ All characters (PC and NPCs) share this structure:
     targetPixelX, targetPixelY,    // Movement interpolation targets
 
     // Animation
-    facing,                        // Direction (dir1, dir2, dir3, dir5, dir6, dir7 - 6 hex directions)
+    facing,                        // One of the SIX hex facings only (dir1, dir2, dir3, dir5, dir6, dir7).
+                                   // Sprites ship dir4/dir8 too, but those are the pure N/S pair a hex grid
+                                   // has no neighbour for — assigning one strands rotateFacing() and
+                                   // silently disables positional flanking against that character.
     currentAnimation,              // Animation state (idle, walk, run, attack, jump, die, impact, idle2)
     animationFrame,                // Current frame index
     animationTimer,                // Timer for frame progression
@@ -21,7 +24,7 @@ All characters (PC and NPCs) share this structure:
     // Identity
     name,                          // Display name
     faction,                       // Faction key: 'pc', 'pc_ally', 'bandit', 'guard'
-    spriteSet,                     // Sprite set key: 'baseKnight', 'swordShieldKnight', 'swordKnight'
+    spriteSet,                     // Derived from equipment unless overridden — see Sprite System
 
     // Stats (12 stats, 69 total points, min 3 / max 10 per stat)
     stats: {
@@ -53,10 +56,12 @@ All characters (PC and NPCs) share this structure:
     hpBufferByAttacker,            // Map<attacker, remaining buffer>
 
     // Combat State
-    isDefeated,                    // Boolean - character defeated
+    isDefeated,                    // Boolean - character defeated (body stays on hex as obstacle)
     mode,                          // 'aggressive' or 'neutral' (AI behavior)
-    enemies,                       // Set<character> - hostile targets
+    enemies,                       // Set<character> - direct grudges (see Hostility)
     lastAttackedBy,                // Reference to last attacker
+    conditions,                    // Set<CONDITIONS.*> - active conditions (currently only knockdown).
+                                   // Cleared wholesale on combat exit.
 
     // Engagement (multi-opponent tracking)
     engagedBy,                     // Set<character> - who is engaging this character
@@ -111,9 +116,9 @@ await CharacterStore.remove(name);// DELETE
 `CharacterStore.js` from `/characters/{slug}.json` to `/api/characters/{id}`. No caller
 changes.
 
-## Faction System
+## Factions & Hostility
 
-Factions define visual styling and hostility. Defined in `const.js`:
+Factions define visual styling and team identity. Defined in `const.js`:
 
 | Faction Key | Name | Tint Color | Nameplate Color |
 |-------------|------|------------|-----------------|
@@ -122,10 +127,44 @@ Factions define visual styling and hostility. Defined in `const.js`:
 | `bandit` | Bandit | #B22222 (red) | #cc3333 |
 | `guard` | Guard | #FF9800 (orange) | #ffaa44 |
 
-**Hostility Rules:**
-- Same faction = allies (can accidentally hit with friendly fire, but not target)
-- Attacking any character makes you mutual enemies
-- Enemies are shared across same-faction characters
+Note: the Companion's actual `faction` is `pc` — `pc_ally` exists only as a render
+tint for non-PC members of the pc faction.
+
+**A different faction is NOT hostility.** Hostility is a *grudge* — per-character
+`enemies` Sets, shared across a faction:
+
+- **Direct grudge:** attacking any character makes the pair mutual enemies
+  (`makeEnemies`, fired even on a miss).
+- **Faction-shared:** a character treats X as an enemy if any faction-mate holds a
+  grudge against X (`AISystem.getEffectiveEnemies`; the pairwise test is
+  `utils.areHostile(a, b, roster)` — keep the two in step).
+- **Corpses hold grudges.** Bodies stay in `game.npcs` forever, and a faction's
+  shared disposition unions over the dead. Removing a body would erase the grudges
+  it holds — read the TODO in AISystem before adding body cleanup.
+- **Initial seeding** (`Game.init`): bandits ↔ PC faction bidirectionally; bandits →
+  guards one-way (guards don't auto-aggro). Guards stay neutral to the player until
+  somebody swings at one — then the whole guard faction turns.
+
+Same faction: allies. Cannot be targeted, but attacks hit whoever is on the hex, so
+friendly fire is possible when a target moves.
+
+## Threat Display (shared hex edges)
+
+The border between two adjacent characters is a threat indicator, drawn by
+`HexGridRenderer.drawFactionBorders`. **Hostility-gated**: neutral pairs (a guard at
+your shoulder, your companion) and corpses draw no edge at all.
+
+| Edge | Meaning |
+|------|---------|
+| faction → faction gradient | Hostile, both locked in — neither has flanking |
+| solid violet | One side holds the flanking advantage (+15 THC live in one direction) |
+| faction → violet → faction | Mutual flank — both exposed, +15 both ways |
+
+Violet (`ENGAGEMENT_BORDER.FLANK_COLOR`, #DDA0FF) appears **if and only if flanking
+is live**. `holdsFlankAdvantage()` mirrors `CombatSystem.determineFlanking()` exactly,
+so the border never disagrees with the THC math. The E/W edges compress to ~17px at
+play zoom — the grammar deliberately carries on hue alone (seams and dashes vanish
+at that size).
 
 ## Stats & Combat Calculations
 
@@ -156,12 +195,23 @@ hpBufferMax = ceil(instinct * MULTIPLIER[will])
 engagedMax = floor((per + wis + int) / 6)  // Cerebral Presence
 ```
 
-### Combat Formulas
+### Naming
 
-**Naming:** three separate numbers that used to blur together —
+Three separate numbers that used to blur together:
 - **AttkR** / **DefR** — Attack and Defense Rating, the to-hit pair
 - **ADR** — Armor Damage Reduction, flat damage subtracted by armor
 - **resist / vuln** — armor's 0.5x / 1.5x multipliers, applied *before* ADR
+
+### COMBAT_MODIFIERS (const.js)
+
+| Constant | Value | Meaning |
+|----------|-------|---------|
+| `FLANK_THC_BONUS` | 15 | THC bonus while flanking (worth 3 skill levels or 5 stat points of DefR) |
+| `CRIT_BASE` | 25 | Baseline crit chance before ratings and critMod |
+| `CRIT_DAMAGE_MULT` | 1.5 | Default crit multiplier — a weapon's `passives.critMultiplier` REPLACES it |
+| `KNOCKDOWN_DR_MULT` | 0.7 | DefR multiplier while prone |
+
+### Combat Formulas
 
 **Attack Rating:**
 ```
@@ -174,7 +224,7 @@ attkR = ((weaponSkill + synergy) * 5) + (str * 3) + (dex * 2) + passives.attkR
 defR = (skill * 5) + (dex * 3) + (instinct * 2) + passives.defR + 5
 // Uses block skill if shield, dodge skill otherwise
 // +5 base defence bonus makes hitting slightly harder
-// Halved-ish while prone: floor(defR * KNOCKDOWN_DR_MULT) — see Conditions
+// While prone: floor(defR * KNOCKDOWN_DR_MULT) — see Conditions
 ```
 
 **To-Hit Chance (integer percentage, 0-100%):**
@@ -222,6 +272,7 @@ moveSpeed = armor.mobility - str  // Lower = faster
 **Action Speed (attack phase):**
 ```
 actionSpeed = weapon.speed + shield.speed (if not 2h) + attackType.speedMod - dex
+// STAND resolves at light-attack action speed
 ```
 
 **Speed Tiers:**
@@ -232,10 +283,8 @@ actionSpeed = weapon.speed + shield.speed (if not 2h) + attackType.speedMod - de
 | 3 | 41-55 | 3/4 |
 | 4 | 56+ | 4/4 (slowest) |
 
-**Initiative (tiebreaker within tier):**
-```
-initiative = will + instinct  // Higher goes first
-```
+**Ordering within a phase:** speed tier, then `initiative = will + instinct`
+(higher first), then a per-round d100 roll breaks remaining ties.
 
 ### HP Buffer System
 Each attacker must deplete a character's buffer individually before dealing real HP damage. Represents composure that resets per-opponent. Unrelated to the (future) Stamina resource — the buffer is derived from Instinct and Will, not spent by moving or acting.
@@ -256,6 +305,9 @@ Each attacker must deplete a character's buffer individually before dealing real
 | Large Shield | 1 | blunt | 3 | 20 | off | defR: 8 |
 
 **Grip types:** `one` (mainHand only), `two` (both hands), `off` (offHand only)
+
+**Passive bonus channels** (summed across mainHand + offHand + armor by
+`getEquipmentBonus`): `attkR`, `defR`, `evasionBonus`, `critMod`, `critMultiplier`.
 
 ### Weapon Effects
 
@@ -293,6 +345,9 @@ Each attacker must deplete a character's buffer individually before dealing real
 Concussive is deliberately absent from every resist/vuln list — it has its own
 mechanics (buffer bypass, ADR bypass on crit) instead.
 
+Leather's `flankingDefense: 1.5` is intended: supple armor wraps evenly, so leather
+gets *tougher* against flankers (ADR 6 → 9).
+
 ### Conditions
 Live on `character.conditions` (a `Set` of `CONDITIONS.*` keys), initialized by
 `CharacterFactory` and cleared wholesale by `GameStateManager.exitCombat()`.
@@ -306,7 +361,8 @@ Live on `character.conditions` (a `Set` of `CONDITIONS.*` keys), initialized by
 ### Universal Controls
 | Key | Action |
 |-----|--------|
-| **Arrow keys / WASD** | Pan camera |
+| **WASD** | Pan camera |
+| **Arrow keys** | *Unbound, reserved.* Swallowed so they can't scroll the page — they no longer pan the camera or rotate facing |
 | **Shift+Space** | Toggle combat mode |
 | **Tab** (hold) | Show all character nameplates |
 
@@ -315,19 +371,25 @@ Live on `character.conditions` (a `Set` of `CONDITIONS.*` keys), initialized by
 |-----|--------|
 | **1-6** | Trigger animations (idle, walk, run, attack, jump, die) |
 | **8** | Debug: log character positions to console |
-| **Click** | Move to clicked hex (pathfinding) |
+| **Click** | Move to clicked hex (pathfinding); place/remove characters when Spawn Mode is on, mark hexes when Hex Marker Mode is on |
 
 ### Combat Input Phase
 | Key | Action |
 |-----|--------|
 | **1** | Activate Light Attack mode (swallowed while knocked down) |
 | **2** | Activate Heavy Attack mode (swallowed while knocked down) |
+| **Q / E** | Rotate facing one hex step CCW / CW. **Ctrl** doubles to 2 steps. Auto-repeat is swallowed — one press, one step |
 | **Enter** | Repeat last attack (same hex + type). Only available if you have not moved since declaring it; the target hex is outlined in dashed red when available |
 | **Space** | Skip turn (wait) — or **stand up** if knocked down, which is the only action available while prone |
-| **Arrow Left** | Rotate facing counter-clockwise (60°) |
-| **Arrow Right** | Rotate facing clockwise (60°) |
-| **Ctrl+Arrow** | Rotate facing 2 steps (120°) |
-| **Click adjacent hex** | Move to hex (normal) or attack hex (attack mode) |
+| **Click adjacent hex** | Move (move mode, blue hover) or attack (attack mode, red dashed hover) |
+
+**Hover cues:** move mode shows a solid blue highlight on valid empty hexes; attack
+mode shows the red dashed outline on any attackable hex, including empty ones (a
+lead). Corpse hexes get an orange X instead — they cannot be targeted.
+
+**Facing commits on attack declaration** — selecting an attack target immediately
+turns the PC toward it, so you can see which way the swing points you (and whose
+flank you're opening) while there is still a decision to make.
 
 ### Edge Scrolling
 Mouse near canvas edges scrolls camera.
@@ -339,68 +401,123 @@ Mouse near canvas edges scrolls camera.
 2. **COMBAT_INPUT** - Turn-based input, select actions
 3. **COMBAT_EXECUTION** - Sequential action resolution
 
+### Action Declaration
+
+All actions are stored through `GameStateManager.setCharacterAction()` — never via a
+raw `characterActions.set()` — because declaration stamps facts execution cannot
+recover:
+
+- **`wasOccupied`** on attacks: whether someone stood on the target hex at
+  declaration. This is what separates a regular attack from a **lead**.
+
+| Declared at | Hex at resolution | Result |
+|---|---|---|
+| Occupied hex | target still there | Normal attack (hits whoever is there — even an ally who stepped in) |
+| Occupied hex | target left | **Called off**: no turn, no swing, no whiff. Logged `(Blocked) - target left the hex`. Once Stamina lands, this branch must not charge |
+| Empty hex (lead) | someone arrived | Normal attack |
+| Empty hex (lead) | still empty | Swings and whiffs — a lead commits to striking open ground |
+
+The called-off check runs *before* facing and the attack animation. An action that
+never happens must not reposition its owner — facing is worth `FLANK_THC_BONUS` to
+whoever ends up behind them.
+
+**Planned (not yet implemented):** a READY action — resolves last, only swings at a
+valid hostile target, never whiffs or hits allies; a led ready gains the flank THC
+bonus against a target arriving mid-move. Stamina costs for moving/acting also
+planned; turning and waiting will stay free.
+
 ### Combat Execution Order
 
-**Move Phase:**
-1. Filter characters with MOVE actions
-2. Sort by moveSpeed (armor.mobility - str), then initiative
-3. Execute moves sequentially with animation
-4. Real-time occupancy check (move cancelled if target occupied)
+**Move Phase** (all MOVE actions, speed-sorted):
+1. Occupancy check at execution — move cancelled `(Blocked)` if the hex was taken
+2. Move animates; on completion, engagement updates and the mover auto-faces the
+   first adjacent enemy (`getNeighbors` order)
+3. Facing set by travel direction *during* the move — a mover can present their back
+   between departing and the auto-face
 
-**Action Phase:**
-1. Filter characters with ATTACK actions
-2. Sort by actionSpeed (weapon + shield + attack type modifier - dex), then initiative
-3. Execute attacks sequentially
-4. Apply damage through buffer → health
-5. Defeated characters play die animation
+**Action Phase** (all ATTACK and STAND actions, speed-sorted):
+1. Knocked-down attacker → declared attack cancelled (`knocked down before the swing`)
+2. STAND: clears knockdown, drops the prone pose, costs the action
+3. ATTACK: called-off / lead / normal resolution per the declaration table above,
+   then the CombatSystem pipeline (THC → crit → resist/vuln → ADR → crit multiplier
+   → buffer → health)
+4. Hostility trigger: the target becomes mutual enemies with the attacker, even on a
+   miss
+5. Defeated characters hold the die pose; the body stays on its hex as an obstacle
+   and keeps holding its grudges
+
+One character resolves at a time (windup → resolve → recovery), so every attack
+reads live state — facing changes and knockdowns from earlier in the phase are
+visible to later attacks. Flanking is computed at resolution, not at declaration.
 
 ### Engagement System
-- Characters track who is engaging them (`engagedBy` Set)
-- Capacity limited by `engagedMax` (Cerebral Presence / 6)
-- Flanking applies when defender at max engagement and attacker not in engagedBy
-- Cleared when characters separate (non-adjacent)
+- Characters track who is engaging them (`engagedBy` Set), capacity `engagedMax`
+  (Cerebral Presence / 6), filled first-come-first-serve **on movement completion**
+- A defender at max capacity who cannot engage an attacker back is treated as
+  flanked by that attacker (the overload half of the flanking OR)
+- `clearStaleEngagements` releases slots held by the non-adjacent **and the dead**,
+  and freed slots are re-offered to characters already standing adjacent — a corpse
+  or a departed attacker cannot lock a defender into permanent overload
+- All engagements clear on combat exit
+- Engagement is still **faction-based, not hostility-based**: a neutral guard
+  adjacent to you occupies one of your slots. Known asymmetry with the
+  hostility-gated threat display; revisit if neutral bodies distracting defenders
+  feels wrong in play
 
 ### Combat Timing (const.js)
 ```javascript
 COMBAT_PHASE_TRANSITION: 100   // ms between move and action phases
-COMBAT_ATTACK_WINDUP: 100      // ms before attack resolves
-COMBAT_ATTACK_RECOVERY: 500    // ms after attack before next character
+COMBAT_ATTACK_WINDUP: 100      // fallback — prefer calculateAttackTiming()
+COMBAT_ATTACK_RECOVERY: 500    // fallback — prefer calculateAttackTiming()
 ```
+`calculateAttackTiming(spriteSet)` derives windup/recovery from the actual attack
+animation (impact lands ~40% through the frames).
 
-## Debug Features
+## Debug & Dev Tools
 
 ### Debug Panel
-- Mouse position (world coordinates)
-- Current hex (q, r)
-- Asset loading status
-- Camera position
-- PC facing direction
-- Current animation state
+Mouse position, current hex, camera position, PC facing, animation state, and the
+mode checkboxes below.
 
 ### Grid Toggle
 Checkbox enables/disables hex grid overlay.
 
-### Hex Marker Mode
-Debug checkbox for map editing:
+### Spawn Mode (exploration only)
+Checkbox plus two dropdowns (build, faction):
+- Click an empty hex → place a test character from the selected build/faction
+- Click a spawned character → remove them
+- Placements persist into `area.json`; **Clear All Spawned** removes every spawned
+  character at once (living and dead), scrubbing them from everyone's
+  enemies/engagement/buffer maps so no ghost references linger
+
+### Hex Marker Mode (exploration only)
 - Click hexes to mark/unmark as blocked
 - Pre-populates with existing blocked hexes
 - **Export Hexes** - outputs JSON to console
 - **Clear Hexes** - removes all marks
-- Disabled during combat
 
-### Dev Logging
-Set `DEV_LOG = true` in GameStateManager.js or AISystem.js for detailed combat logs with `[COMBAT DEV]` prefix.
+### Logging
+`Logger` routes combat lines to the on-screen combat log (with semantic
+`{{token}}` markup — see `COMBAT_TAGS` / `WRAPPER_TAGS` in const.js) and
+`logger.debug` lines to the browser console (`[AI]`, `[ENGAGEMENT]`, `[BUFFER]`,
+`[DEFEAT]` prefixes).
 
 ## Sprite System
 
 ### Sprite Sets
-Three sprite sets available, each with 8-directional sprite sheets (only 6 used by hex grid):
 
-| Set Key | Folder | Used By |
-|---------|--------|---------|
-| baseKnight | KnightBasic | Hero, Guards |
-| swordShieldKnight | KnightSwordShield | Companion |
-| swordKnight | KnightSword | Bandits |
+Appearance follows gear: `deriveSpriteSet(equipment)` picks the set at creation, so
+changing a weapon in the character creator changes how the character looks.
+
+| Rule (first match wins) | Set | Folder |
+|---|---|---|
+| offHand is a shield | swordShieldKnight | KnightSwordShield |
+| any weapon except unarmed | swordKnight | KnightSword |
+| otherwise (unarmed) | baseKnight | KnightBasic |
+
+Only three sets exist, so every armed character reads as "sword" — spears and
+hammers included — until more art lands. An explicit `spriteSet` on a template or
+area placement overrides the derivation.
 
 ### Animations
 | Animation | Frames | Speed | Notes |
@@ -410,13 +527,13 @@ Three sprite sets available, each with 8-directional sprite sheets (only 6 used 
 | run | 8 | default | Looping |
 | attack | 15 | default | oneShot |
 | jump | 9-11 | default | Looping |
-| die | 16-27 | 60ms | Plays once, holds final frame (special-cased in MovementSystem) |
+| die | 16-27 | 60ms | Plays once, holds final frame — for the dead *and the prone* (knockdown borrows it) |
 | impact | 9 | default | oneShot |
 | idle2 | 25 | 142ms | oneShot |
 
 - Default speed: 17ms per frame (ANIMATION_SPEED)
 - Frame size: 256x256 pixels
-- Sprite sheets have 8 directions; hex grid uses 6: dir1, dir2, dir3, dir5, dir6, dir7 (dir4, dir8 unused)
+- Sprite sheets have 8 directions; hex grid uses 6: dir1, dir2, dir3, dir5, dir6, dir7 (dir4, dir8 must never be assigned as a facing)
 
 ## Coordinate Systems
 
@@ -454,7 +571,12 @@ dir3 = 240° (Northwest)
 dir5 = 300° (Northeast)
 ```
 
-Opposites: dir1↔dir5, dir2↔dir6, dir3↔dir7
+Opposites: dir1↔dir5, dir2↔dir6, dir3↔dir7 — `isFlanking` compares the attack
+direction against the opposite of the defender's facing, so a valid six-way facing
+is what makes a character flankable at all.
+
+`rotateFacing` cycles dir6→dir7→dir1→dir2→dir3→dir5; an off-cycle facing snaps to
+dir6 rather than freezing.
 
 ## Area System
 
@@ -484,9 +606,22 @@ areas/
         "target": "forest_path",
         "spawn": "south"
     }],
-    "npcs": [{"templateId": "bandit", "hexQ": 3, "hexR": -7, "name": "Bandit"}]
+    "npcs": [
+        // Template-backed placement (identity from NPC_TEMPLATES)
+        {"templateId": "bandit", "hexQ": 3, "hexR": -7, "name": "Bandit"},
+        // Build-backed placement (identity carried inline; used by Spawn Mode)
+        {"buildId": "guard_novice", "name": "Guard Novice 2", "faction": "guard",
+         "mode": "aggressive", "hexQ": 4, "hexR": -3,
+         "facing": "dir2", "animationFrame": 2, "animationTimer": 100}
+    ]
 }
 ```
+
+An npc entry needs `templateId` **or** `buildId`. Template placements pull identity
+from `NPC_TEMPLATES` (build files can still override the editable parts); build-only
+placements must carry their own `faction`/`mode`. Optional per-placement fields:
+`name`, `facing`, `spriteSet`, `animationFrame`/`animationTimer` (desynchronizes
+idle loops so a row of guards doesn't breathe in unison).
 
 ### AreaManager API
 ```javascript
