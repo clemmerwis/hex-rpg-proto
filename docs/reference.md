@@ -158,22 +158,28 @@ engagedMax = floor((per + wis + int) / 6)  // Cerebral Presence
 
 ### Combat Formulas
 
+**Naming:** three separate numbers that used to blur together —
+- **AttkR** / **DefR** — Attack and Defense Rating, the to-hit pair
+- **ADR** — Armor Damage Reduction, flat damage subtracted by armor
+- **resist / vuln** — armor's 0.5x / 1.5x multipliers, applied *before* ADR
+
 **Attack Rating:**
 ```
 synergy = floor(partnerSkill / 3)  // partner = same damage type, different size
-attackR = ((weaponSkill + synergy) * 5) + (str * 3) + (dex * 2) + weapon.attackR
+attkR = ((weaponSkill + synergy) * 5) + (str * 3) + (dex * 2) + passives.attkR
 ```
 
 **Defense Rating:**
 ```
-defenseR = (skill * 5) + (dex * 3) + (instinct * 2) + equipment.defenseR + 5
+defR = (skill * 5) + (dex * 3) + (instinct * 2) + passives.defR + 5
 // Uses block skill if shield, dodge skill otherwise
-// +5 base defense bonus makes hitting slightly harder
+// +5 base defence bonus makes hitting slightly harder
+// Halved-ish while prone: floor(defR * KNOCKDOWN_DR_MULT) — see Conditions
 ```
 
 **To-Hit Chance (integer percentage, 0-100%):**
 ```
-THC = clamp(0, 100, (attackR - defenseR) + (50 - evasionBonus) + flankBonus)
+THC = clamp(0, 100, (attkR - defR) + (50 - evasionBonus) + flankBonus)
 // evasionBonus reduces base hit chance (from equipment passives)
 // flankBonus: +15 when flanking (COMBAT_MODIFIERS.FLANK_THC_BONUS), else 0
 // Roll d100 (1-100), hit if roll <= THC
@@ -182,26 +188,29 @@ THC = clamp(0, 100, (attackR - defenseR) + (50 - evasionBonus) + flankBonus)
 **Flanking:** granted by attacking from behind the defender's facing **or** by the
 defender being at `engagedMax` and unable to engage the attacker back. The two
 sources do not stack — either alone gives the same `+15` THC and the same armor
-DR scaling. Resolved by `CombatSystem.determineFlanking()` *before* the hit roll,
+ADR scaling. Resolved by `CombatSystem.determineFlanking()` *before* the hit roll,
 since the roll spends it. `HexGridRenderer.holdsFlankAdvantage()` mirrors the
 same boolean to colour the shared hex edge; keep the two in step.
 
-**Critical Strike Ratings (integer percentage, 0-100%):**
+**Critical Ratings (integer percentage, 0-100%):**
 ```
-CSA_R = (criticalStrike * 5) + (int * 3) + (str * 2)
-CSD_R = (criticalDefense * 5) + (dex * 3) + (per * 2) + instinct
-CSC = clamp(0, 100, (CSA_R - CSD_R) + 50 + critMod)
-// critMod: flat modifier from equipment passives (e.g., unarmed: -25, hammers: -15)
+critAttkR = (criticalStrike * 5) + (int * 3) + (str * 2)
+critDefR  = (criticalDefense * 5) + (dex * 3) + (per * 2) + instinct
+CSC = clamp(0, 100, (critAttkR - critDefR) + CRIT_BASE + critMod)
+// CRIT_BASE = 25. Two even fighters land ~21%, so crit is a minority outcome.
+// This leaves only ~21 points of room below: a critMod steeper than about -20
+// clamps to a flat 0% and the weapon can never crit at all.
+// critMod: flat modifier from passives (unarmed -15, hammers -10, swords +10)
 // Roll d100 (1-100), crit if roll <= CSC
 ```
 
-**Damage Calculation (base → vuln/resist → DR → crit):**
+**Damage Calculation (base → vuln/resist → ADR → crit):**
 1. Base: `weapon.base + ceil(weapon.force * MULTIPLIER[str]) + attackType.damageMod`
-2. Resistance/Vulnerability: Multiply by 0.5 (resistant) or 1.5 (vulnerable). Weapon enhancements can increase vulnerable multiplier (see Weapon Effects below)
-3. Flanking Check: Attacker behind defender OR defender over-engaged (at max capacity)
-4. Armor Defense: `effectiveDR = flanking ? floor(armor.defense * armor.flankingDefense) : armor.defense`
-5. Subtract DR: `damage = max(0, damage - effectiveDR)`
-6. Critical Hit: Multiply by 1.5, then by weapon.critMultiplier if present
+2. **Crit is rolled here**, before ADR — a concussive crit decides whether ADR applies at all. The multiplier itself is still applied last, at step 6.
+3. Resistance/Vulnerability: Multiply by 0.5 (resistant) or 1.5 (vulnerable). Weapon enhancements can increase the vulnerable multiplier (see Weapon Effects below)
+4. Flanking Check: Attacker behind defender OR defender over-engaged (at max capacity)
+5. Armor Damage Reduction: `effectiveADR = flanking ? floor(armor.adr * armor.flankingDefense) : armor.adr`, then `damage = max(0, damage - effectiveADR)`. Skipped entirely when step 2 crit on a `bypassADROnCrit` damage type (concussive).
+6. Critical Hit: Multiply by `getCritMultiplier(attacker)` — a weapon's `passives.critMultiplier` **replaces** the 1.5x default rather than stacking with it (unarmed: 2x)
 
 ### Speed & Turn Order
 
@@ -236,15 +245,15 @@ Each attacker must deplete a character's buffer individually before dealing real
 ### Weapons
 | Weapon | Base | Type | Force | Speed | Grip | Special |
 |--------|------|------|-------|-------|------|---------|
-| Unarmed | 2 | concussive | 1 | 16 | two | evasionBonus: 5, bypasses buffer |
+| Unarmed | 2 | concussive | 1 | 16 | two | evasionBonus: 5, critMod: -15, critMultiplier: 2, bypasses buffer, crit bypasses ADR + knocks down |
 | Short Spear | 3 | piercing | 1 | 19 | one | vulnerableEnhancementLight |
-| Short Sword | 4 | slash | 2 | 18 | one | bleedingLight |
-| Short Hammer | 6 | blunt | 3 | 26 | one | critMod: -15, armorDamageEnhancementLight |
-| Long Sword | 8 | slash | 4 | 20 | two | bleedingHeavy |
+| Short Sword | 4 | slash | 2 | 18 | one | critMod: 10, bleedingLight |
+| Short Hammer | 6 | blunt | 3 | 26 | one | critMod: -10, armorDamageEnhancementLight |
+| Long Sword | 8 | slash | 4 | 20 | two | critMod: 10, bleedingHeavy |
 | Long Spear | 6 | piercing | 4 | 20 | two | vulnerableEnhancementHeavy |
-| Long Hammer | 10 | blunt | 6 | 31 | two | critMod: -15, armorDamageEnhancementHeavy |
-| Small Shield | 1 | blunt | 2 | 17 | off | defenseR: 4 |
-| Large Shield | 1 | blunt | 3 | 20 | off | defenseR: 8 |
+| Long Hammer | 10 | blunt | 6 | 31 | two | critMod: -10, armorDamageEnhancementHeavy |
+| Small Shield | 1 | blunt | 2 | 17 | off | defR: 4 |
+| Large Shield | 1 | blunt | 3 | 20 | off | defR: 8 |
 
 **Grip types:** `one` (mainHand only), `two` (both hands), `off` (offHand only)
 
@@ -254,6 +263,8 @@ Each attacker must deplete a character's buffer individually before dealing real
 |--------|-------------|-------------|
 | evasionBonus | - | Reduces enemy to-hit chance (passive) |
 | bypasses buffer | - | Concussive damage goes directly to HP |
+| bypassADROnCrit | - | Concussive **crits** ignore armor ADR entirely (damage type property, not a weapon effect) |
+| knockdown | - | Applied on every crit from a weapon carrying it. No second roll — the crit *is* the roll |
 | vulnerableEnhancementLight | Light | Replaces 1.5x vulnerable multiplier with 2.0x |
 | vulnerableEnhancementHeavy | Heavy | Replaces 1.5x vulnerable multiplier with 2.5x |
 | bleedingLight/Heavy | - | Not yet implemented |
@@ -268,14 +279,27 @@ Each attacker must deplete a character's buffer individually before dealing real
 | Heavy | +22 | +6 |
 
 ### Armor
-| Armor | Defense | Mobility | Resistant | Vulnerable | Flank Def |
-|-------|---------|----------|-----------|------------|-----------|
-| None | 0 | 20 | - | - | 1.0 |
+`adr` is the flat Armor Damage Reduction. Resistant/Vulnerable are the multipliers, applied *before* it.
+
+| Armor | ADR | Mobility | Resistant | Vulnerable | Flank Def |
+|-------|-----|----------|-----------|------------|-----------|
+| None | 0 | 20 | - | slash, piercing, blunt | 1.0 |
 | Leather | 6 | 20 | piercing | blunt | 1.5 |
 | Scale | 8 | 25 | slash | piercing | 0.0 |
 | Brigandine | 10 | 23 | piercing, slash | blunt | 0.5 |
-| Chain | 10 | 28 | slash | blunt, piercing | 0.25 |
+| Chain | 10 | 28 | slash | - | 0.25 |
 | Plate | 12 | 30 | slash, blunt | piercing | 0.75 |
+
+Concussive is deliberately absent from every resist/vuln list — it has its own
+mechanics (buffer bypass, ADR bypass on crit) instead.
+
+### Conditions
+Live on `character.conditions` (a `Set` of `CONDITIONS.*` keys), initialized by
+`CharacterFactory` and cleared wholesale by `GameStateManager.exitCombat()`.
+
+| Condition | Applied by | Effect |
+|-----------|-----------|--------|
+| knockdown | Any crit from a weapon with the `knockdown` effect (currently unarmed) | Prone. Defends at `floor(defR * KNOCKDOWN_DR_MULT)` (0.7) against adjacent melee. Cannot move or attack; the only action is `COMBAT_ACTIONS.STAND`, which costs the round. An attack already declared but not yet resolved is **cancelled** if the attacker is knocked down first. Borrows the final frame of the `die` animation until a prone sprite exists. |
 
 ## Keyboard Controls
 
@@ -296,10 +320,10 @@ Each attacker must deplete a character's buffer individually before dealing real
 ### Combat Input Phase
 | Key | Action |
 |-----|--------|
-| **1** | Activate Light Attack mode |
-| **2** | Activate Heavy Attack mode |
+| **1** | Activate Light Attack mode (swallowed while knocked down) |
+| **2** | Activate Heavy Attack mode (swallowed while knocked down) |
 | **Enter** | Repeat last attack (same hex + type). Only available if you have not moved since declaring it; the target hex is outlined in dashed red when available |
-| **Space** | Skip turn (wait) |
+| **Space** | Skip turn (wait) — or **stand up** if knocked down, which is the only action available while prone |
 | **Arrow Left** | Rotate facing counter-clockwise (60°) |
 | **Arrow Right** | Rotate facing clockwise (60°) |
 | **Ctrl+Arrow** | Rotate facing 2 steps (120°) |

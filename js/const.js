@@ -286,8 +286,8 @@ export function validateStats(stats) {
 // Passive bonus properties on equipment (direct numeric values)
 // All of these are summed across mainHand + offHand + armor by getEquipmentBonus()
 export const PASSIVE_BONUSES = {
-	defenseR: 'Applied to Defense Rating via calculateDefenseRating() — NOT armor ADR',
-	attackR: 'Applied to Attack Rating via calculateAttackRating()',
+	defR: 'Applied to Defense Rating via calculateDefR() — NOT armor ADR',
+	attkR: 'Applied to Attack Rating via calculateAttkR()',
 	critMod: 'Flat +/- to Critical Strike Chance via calculateCSC()',
 	evasionBonus: 'Subtracted from an attacker\'s to-hit chance in resolveHitRoll()',
 	critMultiplier: 'REPLACES the default 1.5x crit damage multiplier (does not stack with it)',
@@ -318,7 +318,7 @@ export const WEAPON_EFFECTS = {
 export const DAMAGE_TYPE_PROPERTIES = {
 	concussive: {
 		bypassBuffer: true,
-		bypassDROnCrit: true,
+		bypassADROnCrit: true,
 		description: 'Impact damage that bypasses HP buffer. On a crit it also lands inside the guard, ignoring Armor Damage Reduction entirely'
 	},
 	blunt: {},
@@ -338,8 +338,8 @@ export const WEAPONS = {
 	longSword: { name: 'Long Sword', base: 8, type: 'slash', force: 4, speed: 20, grip: 'two', passives: { critMod: 10 }, effects: ['bleedingHeavy'] },
 	longSpear: { name: 'Long Spear', base: 6, type: 'piercing', force: 4, speed: 20, grip: 'two', passives: {}, effects: ['vulnerableEnhancementHeavy'] },
 	longHammer: { name: 'Long Hammer', base: 10, type: 'blunt', force: 6, speed: 31, grip: 'two', passives: { critMod: -10 }, effects: ['armorDamageEnhancementHeavy'] },
-	smallShield: { name: 'Small Shield', base: 1, type: 'blunt', force: 2, speed: 17, grip: 'off', passives: { defenseR: 4 }, effects: [] },
-	largeShield: { name: 'Large Shield', base: 1, type: 'blunt', force: 3, speed: 20, grip: 'off', passives: { defenseR: 8 }, effects: [] },
+	smallShield: { name: 'Small Shield', base: 1, type: 'blunt', force: 2, speed: 17, grip: 'off', passives: { defR: 4 }, effects: [] },
+	largeShield: { name: 'Large Shield', base: 1, type: 'blunt', force: 3, speed: 20, grip: 'off', passives: { defR: 8 }, effects: [] },
 };
 
 // Attack types - affect action speed and damage
@@ -357,12 +357,12 @@ export const ATTACK_TYPES = {
 // mobility affects move speed (reduced by Str), flankingDefense scales ADR when flanked
 // passives: { ... } - gathered via getEquipmentBonus() along with weapon/shield passives
 export const ARMOR_TYPES = {
-	none: { name: 'Unarmored', defense: 0, mobility: 20, weight: 'none', noise: 'none', resistantAgainst: [], vulnerableAgainst: ['slash', 'piercing', 'blunt'], flankingDefense: 1.0, passives: {} },
-	leather: { name: 'Leather', defense: 6, mobility: 20, weight: 'light', noise: 'none', resistantAgainst: ['piercing'], vulnerableAgainst: ['blunt'], flankingDefense: 1.5, passives: {} },
-	scale: { name: 'Scale', defense: 8, mobility: 25, weight: 'medium', noise: 'medium', resistantAgainst: ['slash'], vulnerableAgainst: ['piercing'], flankingDefense: 0.0, passives: {} },
-	brigandine: { name: 'Brigandine', defense: 10, mobility: 23, weight: 'medium', noise: 'low', resistantAgainst: ['piercing', 'slash'], vulnerableAgainst: ['blunt'], flankingDefense: 0.5, passives: {} },
-	chain: { name: 'Chain (Heavy)', defense: 10, mobility: 28, weight: 'heavy', noise: 'medium', resistantAgainst: ['slash'], vulnerableAgainst: [], flankingDefense: 0.25, passives: {} },
-	plate: { name: 'Plate', defense: 12, mobility: 30, weight: 'heavy', noise: 'high', resistantAgainst: ['slash', 'blunt'], vulnerableAgainst: ['piercing'], flankingDefense: 0.75, passives: {} },
+	none: { name: 'Unarmored', adr: 0, mobility: 20, weight: 'none', noise: 'none', resistantAgainst: [], vulnerableAgainst: ['slash', 'piercing', 'blunt'], flankingDefense: 1.0, passives: {} },
+	leather: { name: 'Leather', adr: 6, mobility: 20, weight: 'light', noise: 'none', resistantAgainst: ['piercing'], vulnerableAgainst: ['blunt'], flankingDefense: 1.5, passives: {} },
+	scale: { name: 'Scale', adr: 8, mobility: 25, weight: 'medium', noise: 'medium', resistantAgainst: ['slash'], vulnerableAgainst: ['piercing'], flankingDefense: 0.0, passives: {} },
+	brigandine: { name: 'Brigandine', adr: 10, mobility: 23, weight: 'medium', noise: 'low', resistantAgainst: ['piercing', 'slash'], vulnerableAgainst: ['blunt'], flankingDefense: 0.5, passives: {} },
+	chain: { name: 'Chain (Heavy)', adr: 10, mobility: 28, weight: 'heavy', noise: 'medium', resistantAgainst: ['slash'], vulnerableAgainst: [], flankingDefense: 0.25, passives: {} },
+	plate: { name: 'Plate', adr: 12, mobility: 30, weight: 'heavy', noise: 'high', resistantAgainst: ['slash', 'blunt'], vulnerableAgainst: ['piercing'], flankingDefense: 0.75, passives: {} },
 };
 
 // Turn speed tiers - lower total speed = faster tier
@@ -433,7 +433,7 @@ export function calculateInitiative(character) {
  * Calculate Critical Attack Rating
  * Formula: (criticalStrike skill * 5) + (Int * 3) + (Str * 2)
  */
-export function calculateCSA_R(character) {
+export function calculateCritAttkR(character) {
 	const skillLevel = character.skills.criticalStrike || 1;
 	return (skillLevel * 5) + (character.stats.int * 3) + (character.stats.str * 2);
 }
@@ -442,21 +442,21 @@ export function calculateCSA_R(character) {
  * Calculate Critical Defense Rating
  * Formula: (criticalDefense skill * 5) + (Dex * 3) + (Per * 2) + Instinct
  */
-export function calculateCSD_R(character) {
+export function calculateCritDefR(character) {
 	const skillLevel = character.skills.criticalDefense || 1;
 	return (skillLevel * 5) + (character.stats.dex * 3) + (character.stats.per * 2) + character.stats.instinct;
 }
 
 /**
  * Calculate Critical Strike Chance as integer percentage (0-100%)
- * Formula: (CSA_R - CSD_R) + CRIT_BASE + critMod (from passives), clamped to 0-100
+ * Formula: (CritAttkR - CritDefR) + CRIT_BASE + critMod (from passives), clamped to 0-100
  * critMod is a flat modifier from equipment passives (negative = penalty, positive = bonus)
  */
 export function calculateCSC(attacker, defender) {
-	const csaR = calculateCSA_R(attacker);
-	const csdR = calculateCSD_R(defender);
+	const critAttkR = calculateCritAttkR(attacker);
+	const critDefR = calculateCritDefR(defender);
 	const critMod = getEquipmentBonus(attacker, 'critMod');
-	return Math.max(0, Math.min(100, (csaR - csdR) + COMBAT_MODIFIERS.CRIT_BASE + critMod));
+	return Math.max(0, Math.min(100, (critAttkR - critDefR) + COMBAT_MODIFIERS.CRIT_BASE + critMod));
 }
 
 /**
@@ -522,14 +522,14 @@ export function getWeaponSynergy(character, weaponKey) {
  * Calculate Attack Rating (AttkR)
  * Formula: ((skill + synergy) * 5) + (Str * 3) + (Dex * 2) + attkR (from passives)
  */
-export function calculateAttackRating(character) {
+export function calculateAttkR(character) {
 	const weaponKey = character.equipment.mainHand;
 	const weapon = WEAPONS[weaponKey];
 	const skillLevel = character.skills[weaponKey] || 1;
 	const synergy = getWeaponSynergy(character, weaponKey);
 	// attkR used to be read off the weapon root, which meant a passives.attkR
 	// would have been silently ignored and shields/armor could never contribute.
-	const attrBonus = getEquipmentBonus(character, 'attackR');
+	const attrBonus = getEquipmentBonus(character, 'attkR');
 	return ((skillLevel + synergy) * 5) + (character.stats.str * 3) + (character.stats.dex * 2) + attrBonus;
 }
 
@@ -553,12 +553,12 @@ export function getEquipmentBonus(character, bonusName) {
  * Formula: (skill * 5) + (Dex * 3) + (Instinct * 2) + defR (from passives) + 5 (base defence bonus)
  * Uses block skill if holding shield, dodge skill otherwise
  */
-export function calculateDefenseRating(character) {
+export function calculateDefR(character) {
 	const offHandKey = character.equipment.offHand;
 	const offHand = offHandKey ? WEAPONS[offHandKey] : null;
 	const hasShield = offHand && offHand.grip === 'off';
 	const skillLevel = hasShield ? character.skills.block : character.skills.dodge;
-	const defenseBonus = getEquipmentBonus(character, 'defenseR');
+	const defenseBonus = getEquipmentBonus(character, 'defR');
 	return (skillLevel * 5) + (character.stats.dex * 3) + (character.stats.instinct * 2) + defenseBonus + 5;
 }
 
@@ -615,7 +615,7 @@ export const FACTIONS = {
 // EngagementManager.canEngageBack().
 export const COMBAT_MODIFIERS = {
 	FLANK_THC_BONUS: 15,
-	// Baseline crit chance, before the CSA_R - CSD_R difference and equipment critMod.
+	// Baseline crit chance, before the CritAttkR - CritDefR difference and equipment critMod.
 	// Was 50, which made two evenly-matched fighters crit about half their swings -
 	// "critical" was the default outcome, and the negative critMods on hammers and
 	// unarmed were the only thing holding it down. At 25 the modifiers move a
@@ -675,13 +675,13 @@ export const WRAPPER_TAGS = {
 	'buf': (content) => `<span style="color: #9932CC;">${content}</span>`,
 	'buf_depleted': (content) => `<span style="color: #9932CC;">${content}</span>`,
 	'buf_bypassed': (content) => `<span class="log-buf-bypassed" data-tooltip="Unarmed attacks bypass Instinct HP buffer">${content}</span>`,
-	'dr_bypassed': (content) => `<span class="log-buf-bypassed" data-tooltip="A critical concussive hit lands inside the guard - Armor Damage Reduction does not apply">${content}</span>`,
+	'adr_bypassed': (content) => `<span class="log-buf-bypassed" data-tooltip="A critical concussive hit lands inside the guard - Armor Damage Reduction does not apply">${content}</span>`,
 	'hp': (content) => `<span class="log-hp">${content}</span>`,
 	'dmg': (content) => `<span class="log-damage">${content}</span>`,
 	'thc': (content) => `<span class="log-thc">${content}</span>`,
 	'csc': (content) => `<span class="log-csc">${content}</span>`,
 	'roll': (content) => `<span class="log-thc">${content}</span>`,
-	'dr': (content) => `<span style="color: #1a1a1a;">${content}</span>`,
+	'adr': (content) => `<span style="color: #1a1a1a;">${content}</span>`,
 	'vuln': (content) => `<span style="color: #9932CC;">${content}</span>`,
 	'resist': (content) => `<span style="color: #505050;">${content}</span>`,
 	'heavy': (content) => `<span class="log-heavy">${content}</span>`,
