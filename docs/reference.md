@@ -289,7 +289,13 @@ actionSpeed = weapon.speed + shield.speed (if not 2h) + attackType.speedMod - de
 | 4 | 56+ | 4/4 (slowest) |
 
 **Ordering within a phase:** speed tier, then `initiative = will + instinct`
-(higher first), then a per-round d100 roll breaks remaining ties.
+(higher first), then a per-round d100 roll breaks remaining ties. Raw speed score
+never competes inside a tier — a 42 can act after a 55 in the same tier if its
+initiative is lower.
+
+Every phase line in the combat log carries the full ordering bracket
+`[speed Ttier Iinit]` (`CombatSystem.formatSpeedBracket`), with the speed and
+initiative formulas in its hover tooltip.
 
 ### HP Buffer System
 Each attacker must deplete a character's buffer individually before dealing real HP damage. Represents composure that resets per-opponent. Unrelated to the (future) Stamina resource — the buffer is derived from Instinct and Will, not spent by moving or acting.

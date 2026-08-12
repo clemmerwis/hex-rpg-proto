@@ -158,9 +158,8 @@ export class CombatExecutor {
             const blockedSpeed = calculateMoveSpeed(character);
             const bArmorKey = character.equipment.armor || 'none';
             const bArmor = ARMOR_TYPES[bArmorKey];
-            const bTier = getSpeedTier(blockedSpeed).tier;
-            const bTip = `${bArmor.name} mobility(${bArmor.mobility}) - Str(${character.stats.str})`;
-            this.logger.combat(`{{char:${character.name}}}: Move {{blocked}} {{tip:${bTip}}}{{spd}}[${blockedSpeed} T${bTier}]{{/spd}}{{/tip}}`);
+            const bTip = `${bArmor.name} mobility(${bArmor.mobility}) - Str(${character.stats.str}) | init: Will(${character.stats.will}) + Inst(${character.stats.instinct})`;
+            this.logger.combat(`{{char:${character.name}}}: Move {{blocked}} {{tip:${bTip}}}{{spd}}${this.combatSystem.formatSpeedBracket(blockedSpeed, character)}{{/spd}}{{/tip}}`);
             this.currentMoveIndex++;
             this.executeNextMove();
             return;
@@ -173,9 +172,8 @@ export class CombatExecutor {
         const moveSpeed = calculateMoveSpeed(character);
         const mArmorKey = character.equipment.armor || 'none';
         const mArmor = ARMOR_TYPES[mArmorKey];
-        const mTier = getSpeedTier(moveSpeed).tier;
-        const mTip = `${mArmor.name} mobility(${mArmor.mobility}) - Str(${character.stats.str})`;
-        this.logger.combat(`{{char:${character.name}}}: Move {{tip:${mTip}}}{{spd}}[${moveSpeed} T${mTier}]{{/spd}}{{/tip}}`);
+        const mTip = `${mArmor.name} mobility(${mArmor.mobility}) - Str(${character.stats.str}) | init: Will(${character.stats.will}) + Inst(${character.stats.instinct})`;
+        this.logger.combat(`{{char:${character.name}}}: Move {{tip:${mTip}}}{{spd}}${this.combatSystem.formatSpeedBracket(moveSpeed, character)}{{/spd}}{{/tip}}`);
 
         // Execute move with callback
         character.movementQueue = [action.target];
@@ -222,8 +220,7 @@ export class CombatExecutor {
         character.currentAnimation = 'idle';
 
         const standSpeed = calculateActionSpeed(character, 'light');
-        const tier = getSpeedTier(standSpeed).tier;
-        this.logger.combat(`{{char:${character.name}}}: Stands up {{spd}}[${standSpeed} T${tier}]{{/spd}}`);
+        this.logger.combat(`{{char:${character.name}}}: Stands up {{spd}}${this.combatSystem.formatSpeedBracket(standSpeed, character)}{{/spd}}`);
     }
 
     executeNextAttack() {

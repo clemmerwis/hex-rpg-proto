@@ -1,4 +1,4 @@
-import { calculateDamage, calculateAttkR, calculateDefR, calculateCSC, getEquipmentBonus, getCritMultiplier, calculateActionSpeed, getSpeedTier, WEAPONS, ARMOR_TYPES, ATTACK_TYPES, STAT_BONUSES, COMBAT_MODIFIERS, CONDITIONS, DAMAGE_TYPE_PROPERTIES, isFlanking, getFacingFromDelta } from './const.js';
+import { calculateDamage, calculateAttkR, calculateDefR, calculateCSC, getEquipmentBonus, getCritMultiplier, calculateActionSpeed, getSpeedTier, calculateInitiative, WEAPONS, ARMOR_TYPES, ATTACK_TYPES, STAT_BONUSES, COMBAT_MODIFIERS, CONDITIONS, DAMAGE_TYPE_PROPERTIES, isFlanking, getFacingFromDelta } from './const.js';
 
 export class CombatSystem {
     constructor(hexGrid, getCharacterAtHex, gameStateManager, logger) {
@@ -308,7 +308,9 @@ export class CombatSystem {
     }
 
     /**
-     * Build action speed tooltip string showing formula breakdown
+     * Build action speed tooltip string showing formula breakdown.
+     * Ends with the initiative formula — raw score only orders across tiers,
+     * so the tooltip has to show the number that breaks ties inside one.
      */
     buildActionSpeedTip(attacker, attackType) {
         const weaponKey = attacker.equipment.mainHand;
@@ -324,7 +326,18 @@ export class CombatSystem {
             tip += ` + ${offName} speed(${offHand.speed})`;
         }
         tip += ` + ${attackType}(${attackMod}) - Dex(${attacker.stats.dex})`;
+        tip += ` | init: Will(${attacker.stats.will}) + Inst(${attacker.stats.instinct})`;
         return tip;
+    }
+
+    /**
+     * The ordering bracket shown on every phase line: [speed Ttier Iinit].
+     * Tier orders first, initiative breaks ties inside a tier, raw speed only
+     * matters at tier boundaries — showing all three is what stops "55 acted
+     * before 42" from reading as a bug.
+     */
+    formatSpeedBracket(speed, character) {
+        return `[${speed} T${getSpeedTier(speed).tier} I${calculateInitiative(character)}]`;
     }
 
     /**
@@ -389,8 +402,7 @@ export class CombatSystem {
      */
     buildCombatLogLines(attacker, defender, attackTypeName, thc, thcRoll, crit, flanking, friendlyFire, csc, cscRoll, damageBreakdown, actionSpeed, spdTip, prone = false) {
         let logParts = [];
-        const spdTier = getSpeedTier(actionSpeed).tier;
-        logParts.push(`{{char:${attacker.name}}}: ${attackTypeName} {{char:${defender.name}}} (THC= {{thc}}${thc}%{{/thc}}, Roll= {{roll}}${thcRoll}{{/roll}}, {{hit}}) {{tip:${spdTip}}}{{spd}}[${actionSpeed} T${spdTier}]{{/spd}}{{/tip}}`);
+        logParts.push(`{{char:${attacker.name}}}: ${attackTypeName} {{char:${defender.name}}} (THC= {{thc}}${thc}%{{/thc}}, Roll= {{roll}}${thcRoll}{{/roll}}, {{hit}}) {{tip:${spdTip}}}{{spd}}${this.formatSpeedBracket(actionSpeed, attacker)}{{/spd}}{{/tip}}`);
         if (crit) logParts.push("{{critical}}");
         if (flanking) logParts.push("{{flanking}}");
         // Prone inflated the THC above, same as flanking — tag it or the number reads as unexplained
@@ -437,8 +449,7 @@ export class CombatSystem {
         const whiffAttackName = this.formatAttackTypeName(weaponKey, attackType, "attacks");
         const actionSpeed = calculateActionSpeed(attacker, attackType);
         const spdTip = this.buildActionSpeedTip(attacker, attackType);
-        const spdTier = getSpeedTier(actionSpeed).tier;
-        this.logger.combat(`{{char:${attacker.name}}}: ${whiffAttackName} at empty hex (${targetHex.q}, ${targetHex.r}) - {{whiff}} {{tip:${spdTip}}}{{spd}}[${actionSpeed} T${spdTier}]{{/spd}}{{/tip}}`);
+        this.logger.combat(`{{char:${attacker.name}}}: ${whiffAttackName} at empty hex (${targetHex.q}, ${targetHex.r}) - {{whiff}} {{tip:${spdTip}}}{{spd}}${this.formatSpeedBracket(actionSpeed, attacker)}{{/spd}}{{/tip}}`);
         return { hit: false, damage: 0, crit: false, defenderDefeated: false, whiff: true };
     }
 
@@ -451,8 +462,7 @@ export class CombatSystem {
         const { thc, thcRoll } = hitResult;
         const actionSpeed = calculateActionSpeed(attacker, attackType);
         const spdTip = this.buildActionSpeedTip(attacker, attackType);
-        const spdTier = getSpeedTier(actionSpeed).tier;
-        const logParts = [`{{char:${attacker.name}}}: ${attackTypeName} {{char:${defender.name}}} (THC= {{thc}}${thc}%{{/thc}}, Roll= {{roll}}${thcRoll}{{/roll}}, {{miss}}) {{tip:${spdTip}}}{{spd}}[${actionSpeed} T${spdTier}]{{/spd}}{{/tip}}`];
+        const logParts = [`{{char:${attacker.name}}}: ${attackTypeName} {{char:${defender.name}}} (THC= {{thc}}${thc}%{{/thc}}, Roll= {{roll}}${thcRoll}{{/roll}}, {{miss}}) {{tip:${spdTip}}}{{spd}}${this.formatSpeedBracket(actionSpeed, attacker)}{{/spd}}{{/tip}}`];
         // Flanking already inflated the THC above. Tag it here too, or the
         // number reads as unexplained on the one line that shows no damage.
         if (flanking) logParts.push("{{flanking}}");
