@@ -89,8 +89,9 @@ export class AreaManager {
                 console.warn(`[AreaManager] Area '${areaId}': 'npcs' should be an array, got ${typeof areaDef.npcs}`);
             } else {
                 areaDef.npcs.forEach((entry, i) => {
-                    if (typeof entry.templateId !== "string") {
-                        console.warn(`[AreaManager] Area '${areaId}': npcs[${i}] missing string 'templateId'`);
+                    // Either backing is legal - see instantiateNPC()
+                    if (typeof entry.templateId !== "string" && typeof entry.buildId !== "string") {
+                        console.warn(`[AreaManager] Area '${areaId}': npcs[${i}] missing string 'templateId' or 'buildId'`);
                     }
                     if (typeof entry.hexQ !== "number" || typeof entry.hexR !== "number") {
                         console.warn(`[AreaManager] Area '${areaId}': npcs[${i}] missing numeric hexQ/hexR`);
@@ -151,6 +152,28 @@ export class AreaManager {
     }
 
     /**
+     * Load the spawned.json sidecar - test characters placed by Spawn Mode.
+     *
+     * Kept out of area.json so playtest spawns never dirty hand-authored level
+     * data (the file is gitignored). Missing file is the normal case, not an
+     * error: it means nobody has spawned anything here.
+     */
+    async loadSpawnedPlacements(areaId) {
+        try {
+            const response = await fetch(`areas/${areaId}/spawned.json`);
+            if (!response.ok) return [];
+            const list = await response.json();
+            if (!Array.isArray(list)) {
+                console.warn(`[AreaManager] Area '${areaId}': spawned.json should be an array, got ${typeof list} - ignoring`);
+                return [];
+            }
+            return list;
+        } catch {
+            return [];
+        }
+    }
+
+    /**
      * Load a background image for an area
      * @param {string} imagePath - Path to the background image
      * @returns {Promise<HTMLImageElement>}
@@ -180,6 +203,17 @@ export class AreaManager {
      */
     async loadArea(areaId, spawnId = 'default') {
         const areaDef = await this.loadAreaDefinition(areaId);
+
+        // Merge in test spawns from the sidecar (guarded so a cached areaDef
+        // that already carries its spawns doesn't gain duplicates)
+        if (!areaDef._spawnedMerged) {
+            const spawned = await this.loadSpawnedPlacements(areaId);
+            if (spawned.length) {
+                areaDef.npcs = [...(areaDef.npcs || []), ...spawned];
+            }
+            areaDef._spawnedMerged = true;
+        }
+
         // Background path is relative to area folder
         const bgPath = `areas/${areaId}/${areaDef.background}`;
         const background = await this.loadBackgroundImage(bgPath);
@@ -323,10 +357,15 @@ export class AreaManager {
 
     // --- Live placement editing (dev) ---
     //
-    // Placements live in area.json's npcs[] and are written back via WebDAV, so
-    // characters placed in-game survive a refresh. A placement entry overrides
-    // its template (see instantiateNPCs' {...template, ...npcSpec}), which is
-    // what lets the same build spawn under any faction.
+    // Placements are written back via WebDAV so characters placed in-game
+    // survive a refresh, but they split by backing: hand-authored (templateId)
+    // entries live in area.json, spawn-mode (buildId) entries in the gitignored
+    // spawned.json sidecar - so playtesting never dirties level data. Both are
+    // merged into currentArea.npcs at load. A placement entry overrides its
+    // template (see instantiateNPCs' {...template, ...npcSpec}), which is what
+    // lets the same build spawn under any faction. Promoting a test spawn into
+    // the real level is a deliberate act: move its entry from spawned.json into
+    // area.json's npcs[] by hand.
 
     /**
      * Place a character's pixel position from its hex coordinates.
@@ -366,7 +405,9 @@ export class AreaManager {
         this.positionCharacter(character);
         this.getNPCs().push(character);
 
-        await this.saveArea();
+        // Spawn-mode placements (buildId) persist to the sidecar; only a
+        // hand-authored placement would rewrite area.json itself
+        await (spec.buildId ? this.saveSpawned() : this.saveArea());
         return character;
     }
 
@@ -388,10 +429,10 @@ export class AreaManager {
             : n.hexQ === character.hexQ && n.hexR === character.hexR);
         if (index === -1) return false;
 
-        specs.splice(index, 1);
+        const [removedSpec] = specs.splice(index, 1);
         this.dropCharacters(c => c === character);
 
-        await this.saveArea();
+        await (removedSpec.buildId ? this.saveSpawned() : this.saveArea());
         return true;
     }
 
@@ -445,7 +486,7 @@ export class AreaManager {
         // would miss anyone who has moved since being placed
         this.dropCharacters(c => !!c.buildId);
 
-        await this.saveArea();
+        await this.saveSpawned();
         return removed;
     }
 
@@ -474,6 +515,11 @@ export class AreaManager {
             Object.entries(this.currentArea).filter(([key]) => !key.startsWith('_'))
         );
 
+        // Test spawns (buildId placements) live in spawned.json, never here -
+        // area.json is hand-authored level data and stays git-clean through a
+        // playtest session. See saveSpawned().
+        areaDef.npcs = (areaDef.npcs || []).filter(n => !n.buildId);
+
         try {
             const res = await fetch(`areas/${areaDef.id}/area.json`, {
                 method: 'PUT',
@@ -483,7 +529,33 @@ export class AreaManager {
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             return true;
         } catch (e) {
-            console.error(`[AreaManager] Failed to save area '${areaDef.id}':`, e.message);
+            console.error(`[AreaManager] Failed to save area '${areaDef.id}':`, e);
+            return false;
+        }
+    }
+
+    /**
+     * Persist the spawn-mode placements to areas/{id}/spawned.json.
+     * DEV ONLY - same WebDAV PUT as saveArea(), different file: the sidecar is
+     * gitignored, so playtest spawns never show up as area.json churn. An empty
+     * list is written as [] rather than deleting the file - simpler than
+     * handling a 404 on the next load.
+     */
+    async saveSpawned() {
+        if (!this.currentArea) return false;
+
+        const spawned = (this.currentArea.npcs || []).filter(n => n.buildId);
+
+        try {
+            const res = await fetch(`areas/${this.currentArea.id}/spawned.json`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(spawned, null, 4) + '\n',
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return true;
+        } catch (e) {
+            console.error(`[AreaManager] Failed to save spawned.json for '${this.currentArea.id}':`, e);
             return false;
         }
     }

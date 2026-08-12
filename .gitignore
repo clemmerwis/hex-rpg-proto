@@ -32,3 +32,5 @@ sprites/Items/**
 
 # Re-ignore after !*/ (order matters)
 .claude-marked/
+# Spawn-mode test characters (written by the in-game spawn tool; area.json stays hand-authored)
+areas/*/spawned.json

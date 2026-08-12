@@ -497,9 +497,13 @@ Checkbox enables/disables hex grid overlay.
 Checkbox plus two dropdowns (build, faction):
 - Click an empty hex → place a test character from the selected build/faction
 - Click a spawned character → remove them
-- Placements persist into `area.json`; **Clear All Spawned** removes every spawned
-  character at once (living and dead), scrubbing them from everyone's
-  enemies/engagement/buffer maps so no ghost references linger
+- Placements persist into `areas/{id}/spawned.json` — a **gitignored sidecar**,
+  merged into the roster at load, so playtest spawns survive a refresh without
+  ever dirtying the hand-authored `area.json`. Promoting a test spawn into the
+  real level means moving its entry into `area.json`'s `npcs[]` by hand.
+- **Clear All Spawned** removes every spawned character at once (living and
+  dead), scrubbing them from everyone's enemies/engagement/buffer maps so no
+  ghost references linger, and empties the sidecar
 
 ### Hex Marker Mode (exploration only)
 - Click hexes to mark/unmark as blocked
@@ -633,6 +637,11 @@ from `NPC_TEMPLATES` (build files can still override the editable parts); build-
 placements must carry their own `faction`/`mode`. Optional per-placement fields:
 `name`, `facing`, `spriteSet`, `animationFrame`/`animationTimer` (desynchronizes
 idle loops so a row of guards doesn't breathe in unison).
+
+Spawn Mode's `buildId` placements are NOT written here — they live in a
+`spawned.json` sidecar next to `area.json` (same array-of-specs shape, gitignored,
+merged at load). `saveArea()` strips `buildId` entries defensively, so even a
+hand-authored area save cannot leak test spawns into level data.
 
 ### AreaManager API
 ```javascript
