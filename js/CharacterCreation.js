@@ -49,11 +49,36 @@ class CharacterCreator {
 
 	init() {
 		this.cacheElements();
+		this.renderFormulaCaptions();
 		this.bindEvents();
 		this.bindFooterEvents();
 		this.updateOffHandAvailability();
 		this.updateAllDisplays();
 		this.autoLoadTemplate();
+	}
+
+	/**
+	 * Fill the section formula captions from COMBAT_MODIFIERS so the baselines
+	 * live in exactly one place. The CSC caption sat stale at "+ 50" after
+	 * CRIT_BASE moved to 25 because the markup carried its own copy; rendering
+	 * from the constant makes that class of drift impossible. The markup text
+	 * is only a no-JS fallback. (Attribute is data-formula-const, NOT
+	 * data-formula - that one is the hover-tooltip mechanism.)
+	 */
+	renderFormulaCaptions() {
+		const captions = {
+			// Stats-only column: no equipment or situation, so no mod buckets
+			'thc-base': `THC = Atk - Def + ${COMBAT_MODIFIERS.THC_BASE}`,
+			// The live formula from CombatSystem.resolveHitRoll(): atkMods =
+			// attacker-side bonuses (flanking), defMods = defender-side
+			// (equipment evasion)
+			'thc': `THC = (Atk + AtkMods) - (Def + DefMods) + ${COMBAT_MODIFIERS.THC_BASE}`,
+			'csc': `CSC = CritAtk - CritDef + ${COMBAT_MODIFIERS.CRIT_BASE}`,
+		};
+		for (const [key, text] of Object.entries(captions)) {
+			document.querySelectorAll(`[data-formula-const="${key}"]`)
+				.forEach(el => { el.textContent = text; });
+		}
 	}
 
 	cacheElements() {
@@ -244,27 +269,6 @@ class CharacterCreator {
 		return (dex * 3) + (instinct * 2) + 5;
 	}
 
-	calculateBaseHitChance() {
-		// vs average defender (defense 25)
-		const baseAttack = this.calculateBaseAttkR();
-		return Math.max(0, Math.min(100, baseAttack - 25 + 50));
-	}
-
-	calculateBaseDodgeChance() {
-		// vs average attacker (attack 20)
-		const baseDefense = this.calculateBaseDefR();
-		return Math.max(0, Math.min(100, 100 - (20 - baseDefense + 50)));
-	}
-
-	calculateBaseCritChance() {
-		const { str, int, dex, per, instinct } = this.character.stats;
-		const critAttkBase = (int * 3) + (str * 2);
-		const critDefBase = (dex * 3) + (per * 2) + instinct;
-		// Reads CRIT_BASE rather than a literal - this used to hardcode 50 and
-		// silently disagreed with calculateCSC() the moment the baseline moved
-		return Math.max(0, Math.min(100, (critAttkBase - critDefBase) + COMBAT_MODIFIERS.CRIT_BASE));
-	}
-
 	calculateDamageMultiplier() {
 		// STR multiplier for damage calculation
 		return STAT_BONUSES.MULTIPLIER[this.character.stats.str];
@@ -278,19 +282,6 @@ class CharacterCreator {
 
 	calculateFullDefR() {
 		return calculateDefR(this.character);
-	}
-
-	calculateFullHitChance() {
-		// vs average defender (defense 25, no evasion)
-		const attkR = this.calculateFullAttkR();
-		return Math.max(0, Math.min(100, attkR - 25 + 50));
-	}
-
-	calculateFullDodgeChance() {
-		// vs average attacker (attack 20), including our evasion
-		const defR = this.calculateFullDefR();
-		const evasionBonus = getEquipmentBonus(this.character, 'evasionBonus');
-		return Math.max(0, Math.min(100, 100 - (20 - defR + 50 - evasionBonus)));
 	}
 
 	// --- DOM Updates ---

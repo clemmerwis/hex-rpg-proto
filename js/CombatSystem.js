@@ -171,10 +171,16 @@ export class CombatSystem {
             defR = Math.floor(defR * COMBAT_MODIFIERS.KNOCKDOWN_DR_MULT);
         }
 
-        // Calculate to-hit chance as integer percentage (0-100%)
-        const evasionBonus = getEquipmentBonus(defender, 'evasionBonus');
-        const flankBonus = flanking ? COMBAT_MODIFIERS.FLANK_THC_BONUS : 0;
-        const thc = Math.max(0, Math.min(100, attkR - defR + (50 - evasionBonus) + flankBonus));
+        // THC = (AttkR + atkMods) - (DefR + defMods) + THC_BASE, clamped 0-100.
+        // Two buckets split by SIDE, not by nature: atkMods is everything
+        // helping the attacker land the blow, defMods everything helping the
+        // defender not be there. One occupant each today (flanking / equipment
+        // evasion); range, cover, stance etc. slot into a bucket without the
+        // formula changing shape. Knockdown is NOT a defMod - it multiplies
+        // DefR above instead of adding to it.
+        const atkMods = flanking ? COMBAT_MODIFIERS.FLANK_THC_BONUS : 0;
+        const defMods = getEquipmentBonus(defender, 'evasionBonus');
+        const thc = Math.max(0, Math.min(100, (attkR + atkMods) - (defR + defMods) + COMBAT_MODIFIERS.THC_BASE));
 
         // Roll d100 (1-100), hit if roll <= THC — THC% of rolls land in the hit band
         const thcRoll = Math.floor(Math.random() * 100) + 1;

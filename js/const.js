@@ -614,6 +614,13 @@ export const FACTIONS = {
 // engagement overload) grant it, and they do not stack - see isFlanking() and
 // EngagementManager.canEngageBack().
 export const COMBAT_MODIFIERS = {
+	// Baseline to-hit before the rating difference: two dead-even fighters land
+	// half their swings. The single source for the "+ 50" in
+	//   THC = (AttkR + atkMods) - (DefR + defMods) + THC_BASE
+	// resolveHitRoll() and the builder's formula captions both read it from
+	// here - CRIT_BASE moved once and its hardcoded HTML copy went stale, so
+	// this number never gets a second home.
+	THC_BASE: 50,
 	FLANK_THC_BONUS: 15,
 	// Baseline crit chance, before the CritAttkR - CritDefR difference and equipment critMod.
 	// Was 50, which made two evenly-matched fighters crit about half their swings -

@@ -646,7 +646,7 @@
 					</dl>
 
 					<dl class="derived-group">
-						<dt>Combat <span class="formula">THC = Atk - Def + 50</span></dt>
+						<dt>Combat <span class="formula" data-formula-const="thc-base">THC = Atk - Def + 50</span></dt>
 						<dd>
 							<div class="derived-row"><span>Attack Rating</span> <data data-derived="attkR" value="17">17</data></div>
 							<div class="derived-row"><span>Defense Rating</span> <data data-derived="defR" value="22">22</data></div>
@@ -669,7 +669,7 @@
 					</dl>
 
 					<dl class="derived-group">
-						<dt>Critical <span class="formula">CSC = CritAtk - CritDef + 50</span></dt>
+						<dt>Critical <span class="formula" data-formula-const="csc">CSC = CritAtk - CritDef + 25</span></dt>
 						<dd>
 							<div class="derived-row"><span>Crit Attack</span> <data data-derived="critAttkR" value="15">15</data></div>
 							<div class="derived-row"><span>Crit Defense</span> <data data-derived="critDefR" value="18">18</data></div>
@@ -797,7 +797,7 @@
 				</div>
 				<div class="sub-panel-content">
 					<section>
-						<h3>Combat <span class="formula">THC = Atk - Def + (50 - Evasion)</span></h3>
+						<h3>Combat <span class="formula" data-formula-const="thc">THC = (Atk + AtkMods) - (Def + DefMods) + 50</span></h3>
 						<div class="stat-row">
 							<label>Total Damage</label>
 							<span class="value" data-total="totalDamage">3</span>
@@ -812,7 +812,7 @@
 						</div>
 					</section>
 					<section>
-						<h3>Critical <span class="formula">CSC = CritAtk - CritDef + 50</span></h3>
+						<h3>Critical <span class="formula" data-formula-const="csc">CSC = CritAtk - CritDef + 25</span></h3>
 						<div class="stat-row">
 							<label>Crit Attack</label>
 							<span class="value" data-total="critAttkR">20</span>

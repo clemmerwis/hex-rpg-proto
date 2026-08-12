@@ -206,6 +206,7 @@ Three separate numbers that used to blur together:
 
 | Constant | Value | Meaning |
 |----------|-------|---------|
+| `THC_BASE` | 50 | Baseline to-hit before ratings and mods — even fighters land half their swings |
 | `FLANK_THC_BONUS` | 15 | THC bonus while flanking (worth 3 skill levels or 5 stat points of DefR) |
 | `CRIT_BASE` | 25 | Baseline crit chance before ratings and critMod |
 | `CRIT_DAMAGE_MULT` | 1.5 | Default crit multiplier — a weapon's `passives.critMultiplier` REPLACES it |
@@ -229,9 +230,13 @@ defR = (skill * 5) + (dex * 3) + (instinct * 2) + passives.defR + 5
 
 **To-Hit Chance (integer percentage, 0-100%):**
 ```
-THC = clamp(0, 100, (attkR - defR) + (50 - evasionBonus) + flankBonus)
-// evasionBonus reduces base hit chance (from equipment passives)
-// flankBonus: +15 when flanking (COMBAT_MODIFIERS.FLANK_THC_BONUS), else 0
+THC = clamp(0, 100, (attkR + atkMods) - (defR + defMods) + THC_BASE)
+// THC_BASE = 50 (COMBAT_MODIFIERS) — two dead-even fighters land half their swings
+// atkMods: attacker-side bonuses. Today: flanking (+15, FLANK_THC_BONUS), else 0
+// defMods: defender-side bonuses. Today: equipment evasionBonus (unarmed +5), else 0
+// The buckets split by SIDE, not nature — future range/cover/stance mods join a
+// bucket without the formula changing shape
+// Knockdown is NOT a defMod: it multiplies defR (KNOCKDOWN_DR_MULT) before this
 // Roll d100 (1-100), hit if roll <= THC
 ```
 
