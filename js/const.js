@@ -178,8 +178,7 @@ export function calculateAttackTiming(spriteSet) {
 }
 
 // Character stat system
-// 12 stats: 10 across 5 categories (Physical/Cerebral columns) + 2 special stats
-// Special stats (source, luck) belong to no category - they sit outside the column grid
+// 12 stats across 6 categories, each a Physical/Cerebral column pair
 // Each character: min 3 per stat (36 base) + 33 distributable = 69 total
 export const STATS = {
 	categories: {
@@ -187,10 +186,10 @@ export const STATS = {
 		prowess: { physical: 'dex', cerebral: 'per' },
 		resistance: { physical: 'con', cerebral: 'will' },
 		appearance: { physical: 'beauty', cerebral: 'cha' },
-		spirit: { physical: 'instinct', cerebral: 'wis' }
+		spirit: { physical: 'instinct', cerebral: 'wis' },
+		// Luck is cerebral: people rationalize what they can't understand
+		destiny: { physical: 'source', cerebral: 'luck' }
 	},
-	// Uncategorized - no Physical/Cerebral pairing. No attached systems yet.
-	special: ['source', 'luck'],
 	all: [
 		'str', 'int', 'dex', 'per', 'con', 'will', 'beauty', 'cha', 'instinct', 'wis',
 		'source', 'luck'
@@ -552,13 +551,22 @@ export function getEquipmentBonus(character, bonusName) {
  * NOT to be confused with ADR, an armor's flat damage reduction.
  * Formula: (skill * 5) + (Dex * 3) + (Instinct * 2) + defR (from passives) + 5 (base defence bonus)
  * Uses block skill if holding shield, dodge skill otherwise
+ *
+ * mode overrides which defence is being made - for sheets that want to show both
+ * sides of the shield trade-off. 'dodge' also drops the off-hand's passives,
+ * since a character who isn't blocking with the shield isn't getting its bonus.
+ *   'auto'  - block with a shield equipped, dodge otherwise (what combat uses)
+ *   'block' - block skill, off-hand passives counted
+ *   'dodge' - dodge skill, off-hand passives dropped
  */
-export function calculateDefR(character) {
+export function calculateDefR(character, mode = 'auto') {
 	const offHandKey = character.equipment.offHand;
 	const offHand = offHandKey ? WEAPONS[offHandKey] : null;
-	const hasShield = offHand && offHand.grip === 'off';
-	const skillLevel = hasShield ? character.skills.block : character.skills.dodge;
-	const defenseBonus = getEquipmentBonus(character, 'defR');
+	const hasShield = !!(offHand && offHand.grip === 'off');
+	const isBlocking = mode === 'auto' ? hasShield : mode === 'block';
+	const skillLevel = isBlocking ? character.skills.block : character.skills.dodge;
+	const defenseBonus = getEquipmentBonus(character, 'defR')
+		- (isBlocking ? 0 : (offHand?.passives?.defR || 0));
 	return (skillLevel * 5) + (character.stats.dex * 3) + (character.stats.instinct * 2) + defenseBonus + 5;
 }
 
@@ -637,8 +645,14 @@ export const COMBAT_MODIFIERS = {
 	// this rather than compounding with it - see getCritMultiplier().
 	CRIT_DAMAGE_MULT: 1.5,
 	// Defense Rating multiplier while knocked down, applied against adjacent melee.
-	// Multiplicative rather than flat: DR only spans roughly 40-60, so a flat -30
-	// would be close to an auto-hit.
+	// A state mod, not a THC mod - situation goes in the atkMods/defMods buckets,
+	// state changes what a rating IS (same category as DefR's block-vs-dodge
+	// branch). Multiplicative rather than flat for two reasons: it impairs
+	// capability, so everyone keeps 70% of whatever they had rather than losing
+	// a fixed chunk; and it rides rating inflation - a flat penalty sized for
+	// today's DefR 44-69 roster (x0.7 ~ flat -15) goes trivial at the ~113 a
+	// max block build reaches. See docs/reference.md "The formula never
+	// changes shape".
 	KNOCKDOWN_DR_MULT: 0.7,
 };
 

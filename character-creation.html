@@ -289,6 +289,12 @@
 			font-size: 12px;
 		}
 
+		/* Dimmed: a row showing a value the current equipment isn't using */
+		.stat-row[data-inactive] label,
+		.stat-row[data-inactive] > .value {
+			opacity: 0.45;
+		}
+
 		/* Radio lists (equipment) */
 		.radio-list {
 			display: flex;
@@ -611,9 +617,9 @@
 					</div>
 				</section>
 
-				<!-- Special (uncategorized - no Physical/Cerebral pairing) -->
+				<!-- Destiny -->
 				<section>
-					<h3>Special <span class="formula">no category</span></h3>
+					<h3>Destiny</h3>
 					<div class="stat-row" data-stat="source">
 						<label>Source</label>
 						<div class="controls">
@@ -807,8 +813,12 @@
 							<span class="value" data-total="attkR">20</span>
 						</div>
 						<div class="stat-row">
-							<label>Defense Rating</label>
-							<span class="value" data-total="defR">25</span>
+							<label>Defense Rating (block)</label>
+							<span class="value" data-total="defRBlock">25</span>
+						</div>
+						<div class="stat-row">
+							<label>Defense Rating (dodge)</label>
+							<span class="value" data-total="defRDodge">25</span>
 						</div>
 					</section>
 					<section>

@@ -123,7 +123,8 @@ class CharacterCreator {
 			actionSpeed: document.querySelector('[data-total="actionSpeed"]'),
 			totalDamage: document.querySelector('[data-total="totalDamage"]'),
 			attkR: document.querySelector('[data-total="attkR"]'),
-			defR: document.querySelector('[data-total="defR"]'),
+			defRBlock: document.querySelector('[data-total="defRBlock"]'),
+			defRDodge: document.querySelector('[data-total="defRDodge"]'),
 			critAttkR: document.querySelector('[data-total="critAttkR"]'),
 			critDefR: document.querySelector('[data-total="critDefR"]')
 		};
@@ -278,10 +279,6 @@ class CharacterCreator {
 
 	calculateFullAttkR() {
 		return calculateAttkR(this.character);
-	}
-
-	calculateFullDefR() {
-		return calculateDefR(this.character);
 	}
 
 	// --- DOM Updates ---
@@ -445,7 +442,7 @@ class CharacterCreator {
 		const weapon = WEAPONS[this.character.equipment.mainHand];
 		const armor = ARMOR_TYPES[this.character.equipment.armor || 'none'];
 		const offHand = this.character.equipment.offHand ? WEAPONS[this.character.equipment.offHand] : null;
-		const hasShield = offHand && offHand.grip === 'off';
+		const hasShield = !!(offHand && offHand.grip === 'off');
 
 		// Helper to get the label element (previous sibling)
 		const getLabel = (el) => el?.previousElementSibling;
@@ -485,16 +482,19 @@ class CharacterCreator {
 			getLabel(t.attkR).dataset.formula = `(${weapon.name} skill(${weaponSkill})${synergyPart} × 5) + (Str(${stats.str}) × 3) + (Dex(${stats.dex}) × 2)`;
 		}
 
-		// Defense Rating
-		if (t.defR) {
-			const defSkill = hasShield ? this.character.skills.block : this.character.skills.dodge;
-			const skillName = hasShield ? 'Block' : 'Dodge';
-			const defenseBonus = getEquipmentBonus(this.character, 'defR');
-			const defR = this.calculateFullDefR();
-			t.defR.textContent = defR;
-			const bonusPart = defenseBonus > 0 ? ` + equip(${defenseBonus})` : '';
-			getLabel(t.defR).dataset.formula = `(${skillName}(${defSkill}) × 5) + (Dex(${stats.dex}) × 3) + (Inst(${stats.instinct}) × 2) + 5${bonusPart}`;
-		}
+		// Defense Rating - both sides of the shield trade-off, block vs dodge.
+		// The row the current off-hand actually uses stays lit; the other dims.
+		const blockBonus = getEquipmentBonus(this.character, 'defR');
+		const dodgeBonus = blockBonus - (offHand?.passives?.defR || 0);
+		const renderDefR = (el, mode, skill, skillName, equipBonus) => {
+			if (!el) return;
+			el.textContent = calculateDefR(this.character, mode);
+			const bonusPart = equipBonus > 0 ? ` + equip(${equipBonus})` : '';
+			getLabel(el).dataset.formula = `(${skillName}(${skill}) × 5) + (Dex(${stats.dex}) × 3) + (Inst(${stats.instinct}) × 2) + 5${bonusPart}`;
+			el.parentElement.toggleAttribute('data-inactive', hasShield !== (mode === 'block'));
+		};
+		renderDefR(t.defRBlock, 'block', this.character.skills.block, 'Block', blockBonus);
+		renderDefR(t.defRDodge, 'dodge', this.character.skills.dodge, 'Dodge', dodgeBonus);
 
 		// Crit Attack (full - with skill)
 		if (t.critAttkR) {

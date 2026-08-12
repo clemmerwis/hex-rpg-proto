@@ -33,7 +33,7 @@ All characters (PC and NPCs) share this structure:
         con, will,                 // Resistance (Physical/Cerebral)
         beauty, cha,               // Appearance (Physical/Cerebral)
         instinct, wis,             // Spirit (Physical/Cerebral)
-        source, luck               // Special (uncategorized - no column pairing)
+        source, luck               // Destiny (Physical/Cerebral)
     },
 
     // Equipment
@@ -169,8 +169,7 @@ at that size).
 ## Stats & Combat Calculations
 
 ### Stat System
-- 10 stats in 5 categories (Physical/Cerebral pairs)
-- 2 special stats (`source`, `luck`) that belong to no category — listed in `STATS.special`
+- 12 stats in 6 categories (Physical/Cerebral pairs) — listed in `STATS.categories`
 - Each stat: min 3, max 10
 - Total points per character: 69 (36 base + 33 distributable)
 
@@ -224,6 +223,9 @@ attkR = ((weaponSkill + synergy) * 5) + (str * 3) + (dex * 2) + passives.attkR
 ```
 defR = (skill * 5) + (dex * 3) + (instinct * 2) + passives.defR + 5
 // Uses block skill if shield, dodge skill otherwise
+// calculateDefR(character, mode): 'auto' (combat), or 'block' / 'dodge' to
+//   force a branch — 'dodge' also drops the off-hand's passives.
+//   The character sheet shows both, dimming whichever the equipped off-hand isn't using.
 // +5 base defence bonus makes hitting slightly harder
 // While prone: floor(defR * KNOCKDOWN_DR_MULT) — see Conditions
 ```
@@ -234,11 +236,31 @@ THC = clamp(0, 100, (attkR + atkMods) - (defR + defMods) + THC_BASE)
 // THC_BASE = 50 (COMBAT_MODIFIERS) — two dead-even fighters land half their swings
 // atkMods: attacker-side bonuses. Today: flanking (+15, FLANK_THC_BONUS), else 0
 // defMods: defender-side bonuses. Today: equipment evasionBonus (unarmed +5), else 0
-// The buckets split by SIDE, not nature — future range/cover/stance mods join a
-// bucket without the formula changing shape
-// Knockdown is NOT a defMod: it multiplies defR (KNOCKDOWN_DR_MULT) before this
 // Roll d100 (1-100), hit if roll <= THC
 ```
+
+**The formula never changes shape.** One rule decides where anything new lands:
+
+- **Situation → mods.** Circumstances of the exchange (position, cover, range,
+  stance) are signed entries in `atkMods`/`defMods`. Positive helps the bucket's
+  owner; debuffs are just negative entries. Flat on purpose — being behind
+  someone is worth the same +15 no matter who they are.
+- **State → ratings.** Conditions of the *character* change what a rating **is**;
+  they never touch the formula. Precedent: DefR already branches block-vs-dodge
+  on equipment, and nobody calls that a second THC formula. Prone is the same
+  move — `floor(defR × KNOCKDOWN_DR_MULT)` against adjacent melee. Multiplicative
+  because it impairs capability (a master dodger has more to lose), and because
+  it rides rating inflation: flat −15 matches ×0.7 on today's DefR 44–69 roster
+  but goes trivial at the ~113 a max block build reaches.
+
+Flanking itself already obeys the rule in both directions: flat +15 on the roll
+(situation), but armor ADR × `flankingDefense` (a capability, degraded
+multiplicatively).
+
+When ranged attacks arrive, the prone transform should move into a
+`calculateEffectiveDefR(defender, attackContext)` so the rating layer owns all
+of its own derivations (prone classically *helps* at range) and
+`resolveHitRoll()` stays pure formula.
 
 **Flanking:** granted by attacking from behind the defender's facing **or** by the
 defender being at `engagedMax` and unable to engage the attacker back. The two

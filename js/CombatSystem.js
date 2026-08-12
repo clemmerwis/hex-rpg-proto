@@ -176,8 +176,10 @@ export class CombatSystem {
         // helping the attacker land the blow, defMods everything helping the
         // defender not be there. One occupant each today (flanking / equipment
         // evasion); range, cover, stance etc. slot into a bucket without the
-        // formula changing shape. Knockdown is NOT a defMod - it multiplies
-        // DefR above instead of adding to it.
+        // formula changing shape. Knockdown is NOT a defMod - situation goes
+        // in the mods, state goes in the ratings (it multiplies DefR above,
+        // like DefR's own block-vs-dodge branch). Canonical statement of the
+        // rule: docs/reference.md, "The formula never changes shape".
         const atkMods = flanking ? COMBAT_MODIFIERS.FLANK_THC_BONUS : 0;
         const defMods = getEquipmentBonus(defender, 'evasionBonus');
         const thc = Math.max(0, Math.min(100, (attkR + atkMods) - (defR + defMods) + COMBAT_MODIFIERS.THC_BASE));
