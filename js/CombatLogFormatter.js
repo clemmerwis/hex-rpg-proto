@@ -6,8 +6,8 @@ import { FACTIONS, GAME_CONSTANTS, ARMOR_TYPES, WEAPONS, COMBAT_TAGS, WRAPPER_TA
  * and produces final HTML strings for display in the combat log UI.
  */
 export class CombatLogFormatter {
-	constructor(game) {
-		this.game = game;
+	constructor(world) {
+		this.world = world;
 	}
 
 	/**
@@ -59,7 +59,7 @@ export class CombatLogFormatter {
 
 		for (const char of characters) {
 			let color = '#ffffff';
-			if (char === this.game.pc) {
+			if (char === this.world.pc) {
 				color = '#2E7D32'; // Darker green for hero
 			} else if (char.faction === 'pc') {
 				color = FACTIONS.pc_ally.nameplateColor;
@@ -233,10 +233,10 @@ export class CombatLogFormatter {
 	 * Get all characters (player + NPCs)
 	 */
 	getAllCharacters() {
-		if (!this.game || !this.game.pc) {
+		if (!this.world || !this.world.pc) {
 			return [];
 		}
-		return [this.game.pc, ...this.game.npcs];
+		return [this.world.pc, ...this.world.npcs];
 	}
 
 }

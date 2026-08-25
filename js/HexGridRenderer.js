@@ -1,4 +1,4 @@
-import { GAME_CONSTANTS, FACTIONS, ENGAGEMENT_BORDER, hexKey, isFlanking } from "./const.js";
+import { GAME_CONSTANTS, FACTIONS, ENGAGEMENT_BORDER, hexKey } from "./const.js";
 import { areHostile } from "./utils.js";
 import { GAME_STATES, COMBAT_ACTIONS } from "./GameStateManager.js";
 
@@ -8,7 +8,7 @@ export class HexGridRenderer {
         this.hexSize = hexSize;
 
         // Dependencies (injected via setDependencies)
-        this.game = null;
+        this.world = null;
         this.getCharacterAtHex = null;
         this.gameStateManager = null;
         this.inputHandler = null;
@@ -33,7 +33,7 @@ export class HexGridRenderer {
         for (const dep of required) {
             if (!deps[dep]) throw new Error(`HexGridRenderer: missing required dependency '${dep}'`);
         }
-        this.game = deps.game;
+        this.world = deps.world;
         this.getCharacterAtHex = deps.getCharacterAtHex;
         this.gameStateManager = deps.gameStateManager;
         this.inputHandler = deps.inputHandler;
@@ -144,7 +144,7 @@ export class HexGridRenderer {
 
     // Get faction display data (companions use different color than hero)
     getFactionData(character) {
-        if (character === this.game.pc) {
+        if (character === this.world.pc) {
             return FACTIONS.pc;
         }
         if (character.faction === "pc") {
@@ -298,7 +298,7 @@ export class HexGridRenderer {
                 this.gameStateManager?.isInCombatExecution();
 
             // During combat input: highlight PC's hex
-            if (inCombatInput && characterHere === this.game.pc) {
+            if (inCombatInput && characterHere === this.world.pc) {
                 this.drawActiveHexGlow(ctx, hexPoints, center, characterHere);
             }
             // During combat execution: highlight executing character's hex
@@ -328,11 +328,11 @@ export class HexGridRenderer {
         // a move the click will not make.
         if (
             this.gameStateManager.currentState === GAME_STATES.COMBAT_INPUT &&
-            !this.gameStateManager.characterActions.has(this.game.pc)
+            !this.gameStateManager.characterActions.has(this.world.pc)
         ) {
             const hoveredHex = this.inputHandler?.hoveredHex;
             if (hoveredHex && hoveredHex.q === q && hoveredHex.r === r) {
-                const pcHex = { q: this.game.pc.hexQ, r: this.game.pc.hexR };
+                const pcHex = { q: this.world.pc.hexQ, r: this.world.pc.hexR };
                 const distance = this.hexGrid.hexDistance(pcHex, { q, r });
                 const occupant = this.getCharacterAtHex(q, r);
                 const isBlocked = this.pathfinding?.blockedHexes?.has(
@@ -468,24 +468,16 @@ export class HexGridRenderer {
      * purpose: a grudge lives on the body that earned it (see AISystem).
      */
     _roster() {
-        return [this.game.pc, ...(this.game.npcs || [])].filter(Boolean);
+        return [this.world.pc, ...(this.world.npcs || [])].filter(Boolean);
     }
 
     /**
      * Does `attacker` hold the flanking advantage over `defender`?
-     * Mirrors CombatSystem.determineFlanking: attacking from behind the
-     * defender's facing OR the defender being too engaged to answer back.
-     * Kept in lockstep with that boolean so the border never lies about THC.
+     * Delegates to EngagementManager.determineFlanking — the same call
+     * CombatSystem spends on THC, so the border never lies about it.
      */
     holdsFlankAdvantage(attacker, defender) {
-        const behindDefender = isFlanking(
-            { q: attacker.hexQ, r: attacker.hexR },
-            { q: defender.hexQ, r: defender.hexR },
-            defender.facing,
-            this.hexGrid
-        );
-        const canEngageBack = this.engagementManager?.canEngageBack(defender, attacker) ?? true;
-        return behindDefender || !canEngageBack;
+        return this.engagementManager.determineFlanking(attacker, defender).flanking;
     }
 
     /**
@@ -527,13 +519,13 @@ export class HexGridRenderer {
     drawCombatOverlays(ctx) {
         if (this.gameStateManager.currentState !== GAME_STATES.COMBAT_INPUT) return;
         if (!this.combatInputHandler?.attackModeActive) return;
-        if (this.gameStateManager.characterActions.has(this.game.pc)) return;
+        if (this.gameStateManager.characterActions.has(this.world.pc)) return;
 
         const hoveredHex = this.inputHandler?.hoveredHex;
         if (!hoveredHex) return;
 
         // Only adjacent hexes are selectable in the first place
-        const pcHex = { q: this.game.pc.hexQ, r: this.game.pc.hexR };
+        const pcHex = { q: this.world.pc.hexQ, r: this.world.pc.hexR };
         if (this.hexGrid.hexDistance(pcHex, hoveredHex) !== 1) return;
 
         // A body on the hex is the rejection selectPlayerAttackTarget() makes

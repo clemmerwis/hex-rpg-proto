@@ -1,3 +1,5 @@
+import { isFlanking } from './const.js';
+
 export class EngagementManager {
     constructor(hexGrid, getCharacterAtHex, logger) {
         const params = { hexGrid, getCharacterAtHex, logger };
@@ -122,6 +124,28 @@ export class EngagementManager {
         }
         // At max capacity and attacker not in list - cannot engage back
         return false;
+    }
+
+    /**
+     * Determine flanking status: attacker behind the defender's facing, OR the
+     * defender too engaged to answer back. The two sources do not stack — either
+     * one alone yields the same advantage.
+     * Side-effect-free (read-only queries on engagement state and hexGrid), so
+     * it is safe to run before the hit roll, which spends it on THC.
+     * Single source for both consumers: CombatSystem.executeAttack() spends the
+     * boolean on THC and ADR, HexGridRenderer.holdsFlankAdvantage() colours the
+     * shared hex edge with it — so the border can never disagree with the math.
+     * Returns { flanking, behindDefender, cannotEngageBack }
+     */
+    determineFlanking(attacker, defender) {
+        const behindDefender = isFlanking(
+            { q: attacker.hexQ, r: attacker.hexR },
+            { q: defender.hexQ, r: defender.hexR },
+            defender.facing,
+            this.hexGrid
+        );
+        const cannotEngageBack = !this.canEngageBack(defender, attacker);
+        return { flanking: behindDefender || cannotEngageBack, behindDefender, cannotEngageBack };
     }
 
     /**

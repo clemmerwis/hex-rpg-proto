@@ -7,7 +7,7 @@ export class CombatInputHandler {
         this.attackModeActive = false;
 
         // Dependencies (injected)
-        this.game = null;
+        this.world = null;
         this.gameStateManager = null;
     }
 
@@ -16,7 +16,7 @@ export class CombatInputHandler {
         for (const dep of required) {
             if (!deps[dep]) throw new Error(`CombatInputHandler: missing required dependency '${dep}'`);
         }
-        this.game = deps.game;
+        this.world = deps.world;
         this.gameStateManager = deps.gameStateManager;
     }
 
@@ -53,8 +53,8 @@ export class CombatInputHandler {
         // carries it rather than introducing a binding that is dead 99% of the time.
         if (e.key === ' ' && !e.shiftKey) {
             e.preventDefault();
-            if (!this.gameStateManager.characterActions.has(this.game.pc)) {
-                if (isKnockedDown(this.game.pc)) {
+            if (!this.gameStateManager.characterActions.has(this.world.pc)) {
+                if (isKnockedDown(this.world.pc)) {
                     this.gameStateManager.standPlayerUp();
                 } else {
                     this.gameStateManager.skipPlayerTurn();
@@ -65,7 +65,7 @@ export class CombatInputHandler {
 
         // Attacking is off the table while prone — swallow the attack-mode keys
         // rather than arming a mode whose every click would silently fail
-        if ((e.key === '1' || e.key === '2') && isKnockedDown(this.game.pc)) {
+        if ((e.key === '1' || e.key === '2') && isKnockedDown(this.world.pc)) {
             e.preventDefault();
             return true;
         }
@@ -80,7 +80,7 @@ export class CombatInputHandler {
             if (e.repeat) return true;
             const clockwise = e.code === 'KeyE';
             const steps = e.ctrlKey ? 2 : 1;
-            this.game.pc.facing = rotateFacing(this.game.pc.facing, clockwise, steps);
+            this.world.pc.facing = rotateFacing(this.world.pc.facing, clockwise, steps);
             return true;
         }
 

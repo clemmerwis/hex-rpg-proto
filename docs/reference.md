@@ -161,8 +161,8 @@ your shoulder, your companion) and corpses draw no edge at all.
 | faction → violet → faction | Mutual flank — both exposed, +15 both ways |
 
 Violet (`ENGAGEMENT_BORDER.FLANK_COLOR`, #DDA0FF) appears **if and only if flanking
-is live**. `holdsFlankAdvantage()` mirrors `CombatSystem.determineFlanking()` exactly,
-so the border never disagrees with the THC math. The E/W edges compress to ~17px at
+is live**. `holdsFlankAdvantage()` delegates to `EngagementManager.determineFlanking()`,
+the same call the THC math spends, so the border cannot disagree with it. The E/W edges compress to ~17px at
 play zoom — the grammar deliberately carries on hue alone (seams and dashes vanish
 at that size).
 
@@ -265,9 +265,10 @@ of its own derivations (prone classically *helps* at range) and
 **Flanking:** granted by attacking from behind the defender's facing **or** by the
 defender being at `engagedMax` and unable to engage the attacker back. The two
 sources do not stack — either alone gives the same `+15` THC and the same armor
-ADR scaling. Resolved by `CombatSystem.determineFlanking()` *before* the hit roll,
-since the roll spends it. `HexGridRenderer.holdsFlankAdvantage()` mirrors the
-same boolean to colour the shared hex edge; keep the two in step.
+ADR scaling. Resolved by `EngagementManager.determineFlanking()` *before* the hit
+roll, since the roll spends it. Both consumers call that one method:
+`CombatSystem.executeAttack()` for the THC/ADR math, and
+`HexGridRenderer.holdsFlankAdvantage()` to colour the shared hex edge.
 
 **Critical Ratings (integer percentage, 0-100%):**
 ```

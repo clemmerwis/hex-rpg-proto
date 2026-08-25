@@ -26,15 +26,14 @@ export function isKnockedDown(character) {
 }
 
 export class GameStateManager {
-    constructor(game, hexGrid, getCharacterAtHex, movementSystem, combatSystem, pathfinding, logger, gameInstance, combatExecutor, engagementManager) {
-        this.game = game;
+    constructor(world, hexGrid, getCharacterAtHex, movementSystem, combatSystem, pathfinding, logger, combatExecutor, engagementManager) {
+        this.world = world;
         this.hexGrid = hexGrid;
         this.getCharacterAtHex = getCharacterAtHex;
         this.movementSystem = movementSystem;
         this.combatSystem = combatSystem;
         this.pathfinding = pathfinding;
         this.logger = logger;
-        this.gameInstance = gameInstance; // Full Game instance for accessing UI systems
         this.combatExecutor = combatExecutor;
         this.engagementManager = engagementManager;
         this.aiSystem = new AISystem(hexGrid, getCharacterAtHex, pathfinding, logger);
@@ -52,7 +51,7 @@ export class GameStateManager {
         };
         this.combatExecutor.onClearRecentlyHit = () => this.clearRecentlyHitCharacters();
         this.combatExecutor.onClearPlayerSelection = (character) => {
-            if (character === this.game.pc) {
+            if (character === this.world.pc) {
                 this.playerSelectedHex = null;
             }
         };
@@ -108,9 +107,6 @@ export class GameStateManager {
         // Clear recently hit characters from previous turn
         this.clearRecentlyHitCharacters();
 
-        // Show combat log UI
-        this.gameInstance?.combatUILog?.show();
-
         // Log combat start or new round
         if (this.turnNumber === 1) {
             this.logger.combat('=== COMBAT START ===');
@@ -119,20 +115,20 @@ export class GameStateManager {
         }
 
         // Stop any current movement
-        this.game.pc.isMoving = false;
-        this.game.pc.movementQueue = [];
+        this.world.pc.isMoving = false;
+        this.world.pc.movementQueue = [];
         // A prone PC keeps the held death pose — snapping to idle here would make
         // them look like they had already stood up, for free
-        if (!this.game.pc.isDefeated && !isKnockedDown(this.game.pc)) {
-            this.game.pc.currentAnimation = 'idle';
+        if (!this.world.pc.isDefeated && !isKnockedDown(this.world.pc)) {
+            this.world.pc.currentAnimation = 'idle';
         }
 
         // Build list of ALL living characters (not just enemies)
         this.combatCharacters = [];
-        if (!this.game.pc.isDefeated) {
-            this.combatCharacters.push(this.game.pc);
+        if (!this.world.pc.isDefeated) {
+            this.combatCharacters.push(this.world.pc);
         }
-        const livingNPCs = this.game.npcs.filter(npc => !npc.isDefeated);
+        const livingNPCs = this.world.npcs.filter(npc => !npc.isDefeated);
         this.combatCharacters.push(...livingNPCs);
 
         // Reset input data
@@ -147,13 +143,13 @@ export class GameStateManager {
         // The AI needs the FULL roster, defeated included — bodies stay on their
         // hex as obstacles, and a dead ally's grudges still inform its faction.
         // Every consumer that needs living-only filters isDefeated itself.
-        const allCharacters = [this.game.pc, ...this.game.npcs];
+        const allCharacters = [this.world.pc, ...this.world.npcs];
 
         // Build distance matrix once for all AI characters this turn
         this.aiSystem.beginTurn(allCharacters);
 
         // Get all non-player characters
-        const npcs = this.combatCharacters.filter(char => char !== this.game.pc);
+        const npcs = this.combatCharacters.filter(char => char !== this.world.pc);
 
         npcs.forEach(npc => {
             // Get AI decision based on mode and enemies
@@ -205,32 +201,29 @@ export class GameStateManager {
         this.turnNumber = 1;
 
         // Reset HP buffers (temp HP resets after combat)
-        if (this.game.pc.hpBufferByAttacker) {
-            this.game.pc.hpBufferByAttacker.clear();
+        if (this.world.pc.hpBufferByAttacker) {
+            this.world.pc.hpBufferByAttacker.clear();
         }
-        this.game.npcs.forEach(npc => {
+        this.world.npcs.forEach(npc => {
             if (npc.hpBufferByAttacker) {
                 npc.hpBufferByAttacker.clear();
             }
         });
 
         // Clear conditions (knockdown does not survive the fight that caused it)
-        this.game.pc.conditions?.clear();
-        this.game.npcs.forEach(npc => npc.conditions?.clear());
+        this.world.pc.conditions?.clear();
+        this.world.npcs.forEach(npc => npc.conditions?.clear());
 
         // Clear engagement tracking
-        this.engagementManager.clearAllEngagements(this.game.pc, this.game.npcs);
+        this.engagementManager.clearAllEngagements(this.world.pc, this.world.npcs);
 
         // Return all living characters to idle
-        this.game.pc.currentAnimation = 'idle';
-        this.game.npcs.forEach(npc => {
+        this.world.pc.currentAnimation = 'idle';
+        this.world.npcs.forEach(npc => {
             if (!npc.isDefeated) {
                 npc.currentAnimation = 'idle';
             }
         });
-
-        // Hide combat log UI
-        this.gameInstance?.combatUILog?.hide();
     }
 
     canPlayerMove() {
@@ -260,10 +253,10 @@ export class GameStateManager {
 
     skipPlayerTurn() {
         if (this.currentState !== GAME_STATES.COMBAT_INPUT) return false;
-        if (this.characterActions.has(this.game.pc)) return false; // Already chosen
+        if (this.characterActions.has(this.world.pc)) return false; // Already chosen
 
         // Player chooses to wait
-        this.setCharacterAction(this.game.pc, {
+        this.setCharacterAction(this.world.pc, {
             action: COMBAT_ACTIONS.WAIT,
             target: null
         });
@@ -280,10 +273,10 @@ export class GameStateManager {
      */
     standPlayerUp() {
         if (this.currentState !== GAME_STATES.COMBAT_INPUT) return false;
-        if (this.characterActions.has(this.game.pc)) return false; // Already chosen
-        if (!isKnockedDown(this.game.pc)) return false;
+        if (this.characterActions.has(this.world.pc)) return false; // Already chosen
+        if (!isKnockedDown(this.world.pc)) return false;
 
-        this.setCharacterAction(this.game.pc, {
+        this.setCharacterAction(this.world.pc, {
             action: COMBAT_ACTIONS.STAND,
             target: null
         });
@@ -294,12 +287,12 @@ export class GameStateManager {
 
     selectPlayerMoveTarget(hexQ, hexR) {
         if (this.currentState !== GAME_STATES.COMBAT_INPUT) return false;
-        if (this.characterActions.has(this.game.pc)) return false; // Already chosen
-        if (isKnockedDown(this.game.pc)) return false; // Stand up first
+        if (this.characterActions.has(this.world.pc)) return false; // Already chosen
+        if (isKnockedDown(this.world.pc)) return false; // Stand up first
 
         // Check if hex is adjacent to player
         const distance = this.hexGrid.hexDistance(
-            { q: this.game.pc.hexQ, r: this.game.pc.hexR },
+            { q: this.world.pc.hexQ, r: this.world.pc.hexR },
             { q: hexQ, r: hexR }
         );
 
@@ -320,7 +313,7 @@ export class GameStateManager {
 
         // Valid selection
         this.playerSelectedHex = { q: hexQ, r: hexR };
-        this.setCharacterAction(this.game.pc, {
+        this.setCharacterAction(this.world.pc, {
             action: COMBAT_ACTIONS.MOVE,
             target: { q: hexQ, r: hexR }
         });
@@ -336,12 +329,12 @@ export class GameStateManager {
      */
     selectPlayerAttackTarget(hexQ, hexR) {
         if (this.currentState !== GAME_STATES.COMBAT_INPUT) return false;
-        if (this.characterActions.has(this.game.pc)) return false; // Already chosen
-        if (isKnockedDown(this.game.pc)) return false; // Stand up first
+        if (this.characterActions.has(this.world.pc)) return false; // Already chosen
+        if (isKnockedDown(this.world.pc)) return false; // Stand up first
 
         // Check if hex is adjacent to player
         const distance = this.hexGrid.hexDistance(
-            { q: this.game.pc.hexQ, r: this.game.pc.hexR },
+            { q: this.world.pc.hexQ, r: this.world.pc.hexR },
             { q: hexQ, r: hexR }
         );
 
@@ -371,15 +364,15 @@ export class GameStateManager {
         // committed them while there is still a decision to make — facing is
         // worth FLANK_THC_BONUS to whoever ends up behind them.
         const tPx = this.hexGrid.hexToPixel(hexQ, hexR);
-        const aPx = this.hexGrid.hexToPixel(this.game.pc.hexQ, this.game.pc.hexR);
-        this.game.pc.facing = getFacingFromDelta(tPx.x - aPx.x, tPx.y - aPx.y);
+        const aPx = this.hexGrid.hexToPixel(this.world.pc.hexQ, this.world.pc.hexR);
+        this.world.pc.facing = getFacingFromDelta(tPx.x - aPx.x, tPx.y - aPx.y);
 
         this.playerSelectedHex = { q: hexQ, r: hexR };
-        this.setCharacterAction(this.game.pc, attackAction);
+        this.setCharacterAction(this.world.pc, attackAction);
 
         // Save for Enter repeat — origin anchors it so any movement invalidates the repeat
         this.playerLastAttackAction = {
-            origin: { q: this.game.pc.hexQ, r: this.game.pc.hexR },
+            origin: { q: this.world.pc.hexQ, r: this.world.pc.hexR },
             target: { q: hexQ, r: hexR },
             attackType: this.playerSelectedAttackType
         };
@@ -414,15 +407,15 @@ export class GameStateManager {
      */
     canRepeatLastAttack() {
         if (this.currentState !== GAME_STATES.COMBAT_INPUT) return false;
-        if (this.game.pc.isDefeated) return false;
-        if (isKnockedDown(this.game.pc)) return false;
-        if (this.characterActions.has(this.game.pc)) return false;
+        if (this.world.pc.isDefeated) return false;
+        if (isKnockedDown(this.world.pc)) return false;
+        if (this.characterActions.has(this.world.pc)) return false;
 
         const last = this.playerLastAttackAction;
         if (!last) return false;
 
-        if (last.origin.q !== this.game.pc.hexQ
-            || last.origin.r !== this.game.pc.hexR) return false;
+        if (last.origin.q !== this.world.pc.hexQ
+            || last.origin.r !== this.world.pc.hexR) return false;
 
         // A corpse holds its hex permanently and can never be meaningfully
         // attacked, so a repeat onto one would silently waste the round.
@@ -451,7 +444,7 @@ export class GameStateManager {
 
     // For UI updates
     getEnemyCount() {
-        return this.game.npcs.filter(npc => npc.faction === 'bandit').length;
+        return this.world.npcs.filter(npc => npc.faction === 'bandit').length;
     }
 
     isExecutingCharacter(character) {

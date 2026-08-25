@@ -27,7 +27,7 @@ export class InputHandler {
         this.keys = {};
 
         // Dependencies (injected)
-        this.game = null;
+        this.world = null;
         this.hexGrid = null;
         this.gameStateManager = null;
         this.camera = null;
@@ -60,7 +60,7 @@ export class InputHandler {
         for (const dep of required) {
             if (!deps[dep]) throw new Error(`InputHandler: missing required dependency '${dep}'`);
         }
-        this.game = deps.game;
+        this.world = deps.world;
         this.hexGrid = deps.hexGrid;
         this.gameStateManager = deps.gameStateManager;
         this.camera = deps.camera;
@@ -123,13 +123,13 @@ export class InputHandler {
         const targetHex = this.hexGrid.pixelToHex(worldX, worldY);
 
         // Handle spawn mode (only when not in combat)
-        if (this.spawnMode && this.gameStateManager.currentState !== GAME_STATES.COMBAT_INPUT) {
+        if (this.spawnMode && !this.gameStateManager.isInCombat()) {
             this.handleSpawnClick(targetHex);
             return;
         }
 
         // Handle hex marker mode (only when not in combat)
-        if (this.hexMarkerMode && this.gameStateManager.currentState !== GAME_STATES.COMBAT_INPUT) {
+        if (this.hexMarkerMode && !this.gameStateManager.isInCombat()) {
             this.toggleMarkedHex(targetHex.q, targetHex.r);
             return;
         }
@@ -146,8 +146,8 @@ export class InputHandler {
         }
 
         // Don't move if already moving or clicking on current position
-        if (this.game.pc.isMoving ||
-            (targetHex.q === this.game.pc.hexQ && targetHex.r === this.game.pc.hexR)) {
+        if (this.world.pc.isMoving ||
+            (targetHex.q === this.world.pc.hexQ && targetHex.r === this.world.pc.hexR)) {
             return;
         }
 
@@ -158,16 +158,16 @@ export class InputHandler {
         }
 
         // Get all obstacles
-        const obstacles = this.game.npcs.map(npc => ({ q: npc.hexQ, r: npc.hexR }));
+        const obstacles = this.world.npcs.map(npc => ({ q: npc.hexQ, r: npc.hexR }));
 
         // Find path
-        const startHex = { q: this.game.pc.hexQ, r: this.game.pc.hexR };
+        const startHex = { q: this.world.pc.hexQ, r: this.world.pc.hexR };
         const path = this.findPath(startHex, targetHex, obstacles);
 
         if (path.length > 0) {
-            this.game.pc.movementQueue = path;
-            this.game.pc.isMoving = true;
-            this.game.pc.currentMoveTimer = 0;
+            this.world.pc.movementQueue = path;
+            this.world.pc.isMoving = true;
+            this.world.pc.currentMoveTimer = 0;
         }
     }
 
@@ -213,7 +213,7 @@ export class InputHandler {
                     const animations = ['idle', 'walk', 'run', 'attack', 'jump', 'die'];
                     const animIndex = parseInt(e.key) - 1;
                     if (animIndex >= 0 && animIndex < animations.length) {
-                        this.game.pc.currentAnimation = animations[animIndex];
+                        this.world.pc.currentAnimation = animations[animIndex];
                         this.onAnimationChange?.(animations[animIndex]);
                     }
                 }
@@ -303,9 +303,9 @@ export class InputHandler {
 
     debugCharacterPositions() {
 
-        const foundPC = this.getCharacterAtHex(this.game.pc.hexQ, this.game.pc.hexR);
+        const foundPC = this.getCharacterAtHex(this.world.pc.hexQ, this.world.pc.hexR);
 
-        this.game.npcs.forEach(npc => {
+        this.world.npcs.forEach(npc => {
             const foundNPC = this.getCharacterAtHex(npc.hexQ, npc.hexR);
         });
     }
@@ -334,7 +334,7 @@ export class InputHandler {
         const occupant = this.getCharacterAtHex(hex.q, hex.r);
 
         if (occupant) {
-            if (occupant === this.game.pc) {
+            if (occupant === this.world.pc) {
                 console.warn('[Spawn] The PC is not an area placement - cannot remove');
                 return;
             }
@@ -370,7 +370,7 @@ export class InputHandler {
      * distinguishable in the log and nameplates.
      */
     uniqueName(base) {
-        const taken = new Set([this.game.pc?.name, ...this.game.npcs.map(n => n.name)]);
+        const taken = new Set([this.world.pc?.name, ...this.world.npcs.map(n => n.name)]);
         if (!taken.has(base)) return base;
 
         let i = 2;

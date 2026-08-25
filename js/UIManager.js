@@ -88,9 +88,9 @@ export class UIManager {
 	 * Update game state indicator UI based on current game state
 	 * Replaces Game.updateGameStateUI()
 	 * @param {GameStateManager} gameStateManager - The game state manager
-	 * @param {Object} gameState - The game state object (this.state from Game)
+	 * @param {Object} world - The world state bag (this.world from Game)
 	 */
-	updateGameState(gameStateManager, gameState) {
+	updateGameState(gameStateManager, world) {
 		const elements = this.elements;
 		const currentState = gameStateManager.currentState;
 
@@ -102,15 +102,15 @@ export class UIManager {
 			elements.currentTurn.textContent = gameStateManager.turnNumber;
 			// While prone, move and attack are both rejected and the attack-mode
 			// keys are swallowed — say so, or the input just feels broken
-			if (gameStateManager.characterActions.has(gameState.pc)) {
+			if (gameStateManager.characterActions.has(world.pc)) {
 				elements.activeCharacter.textContent = 'Action Chosen';
-			} else if (isKnockedDown(gameState.pc)) {
+			} else if (isKnockedDown(world.pc)) {
 				elements.activeCharacter.textContent = 'Knocked Down - Space to stand';
 			} else {
 				elements.activeCharacter.textContent = 'Choose Action';
 			}
 
-			const enemyCount = gameState.npcs.filter(npc => npc.faction === 'bandit' && !npc.isDefeated).length;
+			const enemyCount = world.npcs.filter(npc => npc.faction === 'bandit' && !npc.isDefeated).length;
 			elements.enemyCount.textContent = enemyCount;
 
 		} else if (currentState === GAME_STATES.COMBAT_EXECUTION) {
@@ -146,7 +146,7 @@ export class UIManager {
 				elements.activeCharacter.textContent = 'Preparing...';
 			}
 
-			const enemyCount = gameState.npcs.filter(npc => npc.faction === 'bandit' && !npc.isDefeated).length;
+			const enemyCount = world.npcs.filter(npc => npc.faction === 'bandit' && !npc.isDefeated).length;
 			elements.enemyCount.textContent = enemyCount;
 
 		} else {

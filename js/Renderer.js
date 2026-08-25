@@ -11,7 +11,7 @@ export class Renderer {
         this.zoomLevel = config.zoomLevel;
 
         // Dependencies (injected)
-        this.game = null;
+        this.world = null;
         this.areaManager = null;
         this.hexGridRenderer = null;
         this.characterRenderer = null;
@@ -22,7 +22,7 @@ export class Renderer {
         for (const dep of required) {
             if (!deps[dep]) throw new Error(`Renderer: missing required dependency '${dep}'`);
         }
-        this.game = deps.game;
+        this.world = deps.world;
         this.areaManager = deps.areaManager;
         this.hexGridRenderer = deps.hexGridRenderer;
         this.characterRenderer = deps.characterRenderer;
@@ -56,7 +56,7 @@ export class Renderer {
     drawBackground() {
         // Try to get background from AreaManager first, fallback to assets
         const background =
-            this.areaManager?.getBackground() || this.game.assets.background;
+            this.areaManager?.getBackground() || this.world.assets.background;
 
         if (background) {
             this.ctx.drawImage(

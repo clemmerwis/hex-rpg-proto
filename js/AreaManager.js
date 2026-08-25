@@ -451,7 +451,10 @@ export class AreaManager {
             if (doomed.includes(live[i])) live.splice(i, 1);
         }
 
-        const survivors = [...live, this.game?.state?.pc].filter(Boolean);
+        // Plain access on purpose: setDependencies() throws without game, and
+        // no caller is reachable before Game.init() creates the pc - if this
+        // ever throws, the wiring broke upstream and it should be loud
+        const survivors = [...live, this.game.world.pc];
         doomed.forEach(gone => {
             survivors.forEach(c => {
                 c.enemies?.delete(gone);

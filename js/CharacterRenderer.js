@@ -6,7 +6,7 @@ export class CharacterRenderer {
         this.zoomLevel = zoomLevel;
 
         // Dependencies (injected via setDependencies)
-        this.game = null;
+        this.world = null;
         this.gameStateManager = null;
         this.inputHandler = null;
     }
@@ -16,14 +16,14 @@ export class CharacterRenderer {
         for (const dep of required) {
             if (!deps[dep]) throw new Error(`CharacterRenderer: missing required dependency '${dep}'`);
         }
-        this.game = deps.game;
+        this.world = deps.world;
         this.gameStateManager = deps.gameStateManager;
         this.inputHandler = deps.inputHandler;
     }
 
     // Get faction display data (companions use different color than hero)
     getFactionData(character) {
-        if (character === this.game.pc) {
+        if (character === this.world.pc) {
             return FACTIONS.pc;
         }
         if (character.faction === "pc") {
@@ -52,16 +52,16 @@ export class CharacterRenderer {
         };
 
         // Draw PC
-        this.drawCharacter(ctx, this.game.pc);
-        const pcMode = getNameplateMode(this.game.pc, true);
+        this.drawCharacter(ctx, this.world.pc);
+        const pcMode = getNameplateMode(this.world.pc, true);
         if (pcMode === "full") {
-            this.drawNameplate(ctx, this.game.pc, true, false);
+            this.drawNameplate(ctx, this.world.pc, true, false);
         } else if (pcMode === "healthOnly") {
-            this.drawNameplate(ctx, this.game.pc, true, true);
+            this.drawNameplate(ctx, this.world.pc, true, true);
         }
 
         // Draw NPCs
-        this.game.npcs.forEach((npc) => {
+        this.world.npcs.forEach((npc) => {
             this.drawCharacter(ctx, npc);
             const npcMode = getNameplateMode(npc, false);
             if (npcMode === "full") {
@@ -81,7 +81,7 @@ export class CharacterRenderer {
 
     drawCharacter(ctx, character) {
         // Get sprite set from character's spriteSet property
-        const spriteSetData = this.game.assets.sprites[character.spriteSet];
+        const spriteSetData = this.world.assets.sprites[character.spriteSet];
         const sprite = spriteSetData?.[character.facing]?.[character.currentAnimation];
 
         if (sprite && sprite.complete) {

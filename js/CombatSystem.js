@@ -1,4 +1,4 @@
-import { calculateDamage, calculateAttkR, calculateDefR, calculateCSC, getEquipmentBonus, getCritMultiplier, calculateActionSpeed, getSpeedTier, calculateInitiative, WEAPONS, ARMOR_TYPES, ATTACK_TYPES, STAT_BONUSES, COMBAT_MODIFIERS, CONDITIONS, DAMAGE_TYPE_PROPERTIES, isFlanking, getFacingFromDelta } from './const.js';
+import { calculateDamage, calculateAttkR, calculateDefR, calculateCSC, getEquipmentBonus, getCritMultiplier, calculateActionSpeed, getSpeedTier, calculateInitiative, WEAPONS, ARMOR_TYPES, ATTACK_TYPES, STAT_BONUSES, COMBAT_MODIFIERS, CONDITIONS, DAMAGE_TYPE_PROPERTIES, getFacingFromDelta } from './const.js';
 
 export class CombatSystem {
     constructor(hexGrid, getCharacterAtHex, gameStateManager, logger) {
@@ -16,8 +16,8 @@ export class CombatSystem {
      *  2. Lookup defender → handleWhiff() if empty
      *  3. Format attack name (formatAttackTypeName)
      *  4. Check friendly fire
-     *  5. Determine flanking (determineFlanking) — must precede the hit roll,
-     *     which spends it on THC
+     *  5. Determine flanking (engagementManager.determineFlanking) — must
+     *     precede the hit roll, which spends it on THC
      *  6. Resolve hit roll (resolveHitRoll) → handleMiss() if miss
      *  7. Get weapon/armor, calculate base damage (calculateDamage)
      *  8. Roll for crit (rollCrit) — rolled HERE, before ADR, because a concussive
@@ -47,7 +47,7 @@ export class CombatSystem {
         const friendlyFire = defender.faction === attacker.faction;
         if (friendlyFire) this.logger.warn(`[FRIENDLY FIRE WARNING] ${attacker.name} attacks ally ${defender.name}!`);
         // 5. Determine flanking (feeds both the hit roll and armor ADR below)
-        const { flanking } = this.determineFlanking(attacker, defender);
+        const { flanking } = this.engagementManager.determineFlanking(attacker, defender);
         // 6. Resolve hit roll → miss if failed
         const { hit, thc, thcRoll, prone } = this.resolveHitRoll(attacker, defender, flanking);
         if (!hit) return this.handleMiss(attacker, defender, attackTypeName, { thc, thcRoll }, attackType, flanking, prone);
@@ -189,26 +189,6 @@ export class CombatSystem {
         const hit = thcRoll <= thc;
 
         return { hit, thc, thcRoll, prone };
-    }
-
-    /**
-     * Determine flanking status: attacker behind the defender's facing, OR the
-     * defender too engaged to answer back. The two sources do not stack — either
-     * one alone yields the same advantage.
-     * Side-effect-free (read-only queries on engagementManager and hexGrid), so
-     * it is safe to run before the hit roll, which spends it on THC.
-     * HexGridRenderer.holdsFlankAdvantage() mirrors this — keep them in step.
-     * Returns { flanking, behindDefender, cannotEngageBack }
-     */
-    determineFlanking(attacker, defender) {
-        const behindDefender = isFlanking(
-            { q: attacker.hexQ, r: attacker.hexR },
-            { q: defender.hexQ, r: defender.hexR },
-            defender.facing,
-            this.hexGrid
-        );
-        const cannotEngageBack = !this.engagementManager.canEngageBack(defender, attacker);
-        return { flanking: behindDefender || cannotEngageBack, behindDefender, cannotEngageBack };
     }
 
     /**

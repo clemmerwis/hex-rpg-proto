@@ -4,9 +4,9 @@ import { GAME_CONSTANTS, CONDITIONS, getAnimationConfig, getFacingFromDelta } fr
 export class MovementSystem {
     constructor(config) {
         if (!config.hexGrid) throw new Error("MovementSystem: missing required 'hexGrid'");
-        if (!config.game) throw new Error("MovementSystem: missing required 'game'");
+        if (!config.world) throw new Error("MovementSystem: missing required 'world'");
         this.hexGrid = config.hexGrid;
-        this.game = config.game;
+        this.world = config.world;
         this.gameStateManager = config.gameStateManager;
 
         // Dependencies (set via deferred assignment)
@@ -29,7 +29,7 @@ export class MovementSystem {
     // Update all movement for all characters
     updateMovement(deltaTime) {
         // Get all characters (PC + NPCs)
-        const allCharacters = [this.game.pc, ...this.game.npcs];
+        const allCharacters = [this.world.pc, ...this.world.npcs];
 
         allCharacters.forEach(character => {
             if (!character.isMoving || character.movementQueue.length === 0) {
@@ -93,7 +93,7 @@ export class MovementSystem {
         // Set walking animation
         if (character.currentAnimation === 'idle') {
             character.currentAnimation = 'walk';
-            if (this.onAnimationChange && character === this.game.pc) {
+            if (this.onAnimationChange && character === this.world.pc) {
                 this.onAnimationChange(character.currentAnimation);
             }
         }
@@ -151,10 +151,10 @@ export class MovementSystem {
     // Update all animations
     updateAnimations(deltaTime) {
         // Update PC animation
-        this.updateCharacterAnimation(this.game.pc, deltaTime);
+        this.updateCharacterAnimation(this.world.pc, deltaTime);
 
         // Update NPC animations
-        this.game.npcs.forEach(npc => {
+        this.world.npcs.forEach(npc => {
             this.updateCharacterAnimation(npc, deltaTime);
         });
     }

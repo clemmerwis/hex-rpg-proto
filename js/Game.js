@@ -41,8 +41,9 @@ export class Game {
         // Camera position and scroll physics
         this.camera = new CameraController(this.config);
 
-        // Game state
-        this.state = {
+        // World state - the one data bag every system reads and mutates.
+        // Injected into consumers as 'world'; 'game' always means a Game instance.
+        this.world = {
             assets: {
                 background: null,
                 sprites: {}
@@ -87,7 +88,7 @@ export class Game {
         this.logger = new Logger();
 
         // Create combat log formatter (pure text transformation, needs game state for character colors)
-        this.combatLogFormatter = new CombatLogFormatter(this.state);
+        this.combatLogFormatter = new CombatLogFormatter(this.world);
 
         // Create combat UI log with logger and formatter
         this.combatUILog = new CombatUILog(this.logger, this.combatLogFormatter);
@@ -115,7 +116,7 @@ export class Game {
         // Initialize MovementSystem before GameStateManager (needed for dependency injection)
         this.movementSystem = new MovementSystem({
             hexGrid: this.hexGrid,
-            game: this.state,
+            world: this.world,
             gameStateManager: null // Will be set after GameStateManager is created
         });
 
@@ -148,14 +149,13 @@ export class Game {
 
         // Now create GameStateManager with MovementSystem, CombatSystem, logger, and Game instance
         this.gameStateManager = new GameStateManager(
-            this.state,
+            this.world,
             this.hexGrid,
             this.getCharacterAtHex.bind(this),
             this.movementSystem,
             this.combatSystem,
             this.pathfinding,
             this.logger,
-            this,  // Pass the Game instance for accessing UI systems
             this.combatExecutor,
             this.engagementManager
         );
@@ -200,12 +200,19 @@ export class Game {
     setupCallbacks() {
         // GameStateManager callbacks
         this.gameStateManager.onStateChange = (newState, oldState) => {
+            // Combat log visibility follows combat state — UI reacting to the
+            // state machine belongs here, not inside GameStateManager
+            if (this.gameStateManager.isInCombat()) {
+                this.combatUILog.show();
+            } else {
+                this.combatUILog.hide();
+            }
             this.updateGameStateUI();
         };
 
         // HexGridRenderer dependencies
         this.hexGridRenderer.setDependencies({
-            game: this.state,
+            world: this.world,
             getCharacterAtHex: this.getCharacterAtHex.bind(this),
             gameStateManager: this.gameStateManager,
             inputHandler: this.inputHandler,
@@ -216,14 +223,14 @@ export class Game {
 
         // CharacterRenderer dependencies
         this.characterRenderer.setDependencies({
-            game: this.state,
+            world: this.world,
             gameStateManager: this.gameStateManager,
             inputHandler: this.inputHandler,
         });
 
         // Renderer dependencies
         this.renderer.setDependencies({
-            game: this.state,
+            world: this.world,
             areaManager: this.areaManager,
             hexGridRenderer: this.hexGridRenderer,
             characterRenderer: this.characterRenderer,
@@ -231,13 +238,13 @@ export class Game {
 
         // CombatInputHandler dependencies
         this.combatInputHandler.setDependencies({
-            game: this.state,
+            world: this.world,
             gameStateManager: this.gameStateManager
         });
 
         // InputHandler dependencies and callbacks
         this.inputHandler.setDependencies({
-            game: this.state,
+            world: this.world,
             hexGrid: this.hexGrid,
             gameStateManager: this.gameStateManager,
             combatInputHandler: this.combatInputHandler,
@@ -310,6 +317,14 @@ export class Game {
                 this.inputHandler.setSpawnFaction(e.target.value);
             },
             onClearSpawned: async () => {
+                // Removing characters mid-combat leaves ghost references in the
+                // executor's queues (a ghost mid-move hangs execution) - same
+                // reason InputHandler's spawn-mode gate blocks combat clicks
+                if (this.gameStateManager.isInCombat()) {
+                    console.warn('[Spawn] Cannot clear spawned characters during combat');
+                    return;
+                }
+
                 const count = this.countSpawned();
                 if (count === 0) return;
                 if (!confirm(`Remove ${count} spawned character${count === 1 ? '' : 's'}?\n\nThe area's original roster is left alone.`)) return;
@@ -332,7 +347,7 @@ export class Game {
         try {
             // Load assets (sprites)
             const assets = await this.assetManager.loadAssets();
-            this.state.assets = assets;
+            this.world.assets = assets;
 
             // Load saved character builds BEFORE any character is created -
             // CharacterFactory reads them synchronously at spawn time
@@ -353,18 +368,18 @@ export class Game {
 
             // Create PC from template + area spawn point
             const spawn = this.areaManager.getSpawn('default');
-            this.state.pc = CharacterFactory.createCharacter({
+            this.world.pc = CharacterFactory.createCharacter({
                 ...NPC_TEMPLATES.hero,
                 hexQ: spawn.q,
                 hexR: spawn.r,
             });
 
             // Retrieve instantiated NPCs from AreaManager (loaded from area.json + templates)
-            this.state.npcs = this.areaManager.getNPCs();
+            this.world.npcs = this.areaManager.getNPCs();
             this.uiManager.updateSpawnedCount(this.countSpawned());
 
             // Store area background for renderer fallback
-            this.state.assets.background = this.areaManager.getBackground();
+            this.world.assets.background = this.areaManager.getBackground();
 
             // Update world dimensions from area
             const dims = this.areaManager.getDimensions();
@@ -394,12 +409,12 @@ export class Game {
 
     onAssetsLoaded() {
         // Set PC starting position (hex to pixel conversion)
-        const startPos = this.hexGrid.hexToPixel(this.state.pc.hexQ, this.state.pc.hexR);
-        this.state.pc.pixelX = startPos.x;
-        this.state.pc.pixelY = startPos.y;
+        const startPos = this.hexGrid.hexToPixel(this.world.pc.hexQ, this.world.pc.hexR);
+        this.world.pc.pixelX = startPos.x;
+        this.world.pc.pixelY = startPos.y;
 
         // Set NPC starting positions (hex to pixel conversion)
-        this.state.npcs.forEach(npc => {
+        this.world.npcs.forEach(npc => {
             const npcStartPos = this.hexGrid.hexToPixel(npc.hexQ, npc.hexR);
             npc.pixelX = npcStartPos.x;
             npc.pixelY = npcStartPos.y;
@@ -410,9 +425,9 @@ export class Game {
         // Characters are fully ready immediately after creation
 
         // Set up initial hostilities (relationships between existing characters)
-        const bandits = this.state.npcs.filter(n => n.faction === 'bandit');
-        const pcFaction = [this.state.pc, ...this.state.npcs.filter(n => n.faction === 'pc')];
-        const guards = this.state.npcs.filter(n => n.faction === 'guard');
+        const bandits = this.world.npcs.filter(n => n.faction === 'bandit');
+        const pcFaction = [this.world.pc, ...this.world.npcs.filter(n => n.faction === 'pc')];
+        const guards = this.world.npcs.filter(n => n.faction === 'guard');
 
         bandits.forEach(bandit => {
             // Bandits <-> PC faction (bidirectional)
@@ -422,7 +437,7 @@ export class Game {
             guards.forEach(guard => bandit.enemies.add(guard));
         });
 
-        this.centerCameraOn(this.state.pc.pixelX, this.state.pc.pixelY);
+        this.centerCameraOn(this.world.pc.pixelX, this.world.pc.pixelY);
         this.updateGameStateUI();
 
         // Initialize combat UI log after DOM is ready
@@ -479,12 +494,12 @@ export class Game {
 
     getCharacterAtHex(q, r) {
         // Check PC first
-        if (this.state.pc.hexQ === q && this.state.pc.hexR === r) {
-            return this.state.pc;
+        if (this.world.pc.hexQ === q && this.world.pc.hexR === r) {
+            return this.world.pc;
         }
 
         // Check NPCs
-        for (let npc of this.state.npcs) {
+        for (let npc of this.world.npcs) {
             if (npc.hexQ === q && npc.hexR === r) {
                 return npc;
             }
@@ -494,7 +509,7 @@ export class Game {
     }
 
     getAllCharacters() {
-        return [this.state.pc, ...this.state.npcs];
+        return [this.world.pc, ...this.world.npcs];
     }
 
     getLivingCharacters() {
@@ -502,6 +517,6 @@ export class Game {
     }
 
     updateGameStateUI() {
-        this.uiManager.updateGameState(this.gameStateManager, this.state);
+        this.uiManager.updateGameState(this.gameStateManager, this.world);
     }
 }
